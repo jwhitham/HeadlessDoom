@@ -2,27 +2,13 @@
 use libc::c_int;
 
 extern {
-    static mut value: c_int;
-    fn hello(x: c_int) -> c_int;
-}
-
-#[no_mangle]
-pub extern "C" fn world(x: c_int) -> c_int {
-    if x > 100 {
-        panic!();
-    }
-    return x + 2;
+    fn root() -> c_int;
 }
 
 fn main() {
-    let mut x: c_int = 1;
+    let x: c_int;
     unsafe {
-        value = 16;
-        x = hello(x);
-    }
-    println!("Hello, world! {}", x);
-    unsafe {
-        x = hello(x);
+        x = root();
     }
     println!("hahaha {}", x);
 }

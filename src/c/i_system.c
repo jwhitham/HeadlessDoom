@@ -27,8 +27,8 @@
 #include <string.h>
 
 #include <stdarg.h>
-#include <sys/time.h>
-#include <unistd.h>
+//#include <sys/time.h>
+//#include <unistd.h>
 
 #include "doomdef.h"
 #include "m_misc.h"

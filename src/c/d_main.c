@@ -24,7 +24,6 @@
 //
 //-----------------------------------------------------------------------------
 
-#pragma RVS add_code ("#include \"rvs_c_map.h\"");
 
 
 
@@ -35,11 +34,11 @@
 #ifdef HEADLESS  
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+//#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/time.h>
+//#include <sys/time.h>
 #endif
 
 #include "doomdef.h"
@@ -765,21 +764,17 @@ void FindResponseFile (void)
 
 static char * s_argv[] = { "doom", NULL };
 
-static struct timeval start;
-static struct timeval stop;
+//static struct timeval start;
+//static struct timeval stop;
 unsigned headless_count;
 int root (void);
 
-// annotations for RVS tools - see www.rapitasystems.com
-#pragma RVS instrument ("main", "FALSE");
-#pragma RVS instrument ("goodbye", "FALSE");
-
+/*
 void goodbye (void)
 {
    double total;
 
    gettimeofday (&stop, NULL);
-#pragma RVS add_statement ("RVS_Output()");
    stop.tv_sec -= start.tv_sec;
    start.tv_sec = 0;
    total = (((double) stop.tv_sec) + (((double) stop.tv_usec) / 1e6)) -
@@ -792,10 +787,10 @@ int main(int argc, char ** argv)
 {
     atexit (goodbye);
     headless_count = 0;
-#pragma RVS add_statement ("RVS_Init()");
     gettimeofday (&start, NULL);
     return root ();
 }
+*/
 
 int root (void)
 {
@@ -804,6 +799,7 @@ int root (void)
 
     myargc = 1;
     myargv = s_argv; 
+    headless_count = 0;
 
     FindResponseFile ();
 	

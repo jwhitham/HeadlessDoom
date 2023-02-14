@@ -23,7 +23,7 @@
 
 
 #include <stdlib.h>
-#include <unistd.h>
+//#include <unistd.h>
 #if 0
 #include <sys/ipc.h>
 #include <sys/shm.h>

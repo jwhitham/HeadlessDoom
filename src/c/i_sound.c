@@ -28,7 +28,7 @@
 
 #include <math.h>
 
-#include <sys/time.h>
+//#include <sys/time.h>
 #include <sys/types.h>
 
 #ifndef HEADLESS  
@@ -36,7 +36,7 @@
 #endif
 
 #include <fcntl.h>
-#include <unistd.h>
+//#include <unistd.h>
 // #include <sys/ioctl.h>
 
 // Linux voxware output.

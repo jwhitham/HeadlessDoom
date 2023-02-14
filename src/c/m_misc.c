@@ -29,7 +29,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <unistd.h>
+//#include <unistd.h>
 
 #include <ctype.h>
 #include <stdint.h>

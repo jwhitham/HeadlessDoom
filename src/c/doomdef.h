@@ -26,7 +26,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef __attribute__
 #define GCC_PACKED __attribute__((packed))
+#else
+#define GCC_PACKED
+#endif
 
 //
 // Global parameters/defines.
