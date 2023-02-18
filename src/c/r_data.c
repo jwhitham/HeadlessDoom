@@ -26,6 +26,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define alloca _alloca
+
 #include "i_system.h"
 #include "z_zone.h"
 
@@ -721,7 +723,7 @@ int	R_CheckTextureNumForName (char *name)
 	return 0;
 		
     for (i=0 ; i<numtextures ; i++)
-	if (!strncasecmp (textures[i]->name, name, 8) )
+	if (!_strnicmp (textures[i]->name, name, 8) )
 	    return i;
 		
     return -1;
