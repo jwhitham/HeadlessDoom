@@ -1857,6 +1857,9 @@ void M_Init (void)
     messageLastMenuActive = menuactive;
     quickSaveSlot = -1;
 
+#ifdef HEADLESS
+    M_SizeDisplay(1); // JWh - maximum screen size with status bar
+#endif
     // Here we could catch other version dependencies,
     //  like HELP1/2, and four episodes.
 
