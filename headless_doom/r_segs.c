@@ -210,7 +210,7 @@ void R_RenderSegLoop (void)
     int			yl;
     int			yh;
     int			mid;
-    fixed_t		texturecolumn;
+    fixed_t		texturecolumn = 0; // JWh - ensure initialised
     int			top;
     int			bottom;
 

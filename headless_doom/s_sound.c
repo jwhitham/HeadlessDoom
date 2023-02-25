@@ -43,6 +43,7 @@ rcsid[] = "$Id: s_sound.c,v 1.6 1997/02/03 22:45:12 b1 Exp $";
 
 #include "doomstat.h"
 
+#include "m_misc.h" // JWh - for Lump_Snprintf
 
 // Purpose?
 const char snd_prefixen[]
@@ -651,7 +652,7 @@ S_ChangeMusic
 ( int			musicnum,
   int			looping )
 {
-    musicinfo_t*	music;
+    musicinfo_t*	music = NULL; // JWh - always initialised
     char		namebuf[9];
 
     if ( (musicnum <= mus_None)
@@ -671,7 +672,7 @@ S_ChangeMusic
     // get lumpnum if neccessary
     if (!music->lumpnum)
     {
-	sprintf(namebuf, "d_%s", music->name);
+	M_LumpSprintf(namebuf, "d_%s", music->name);
 	music->lumpnum = W_GetNumForName(namebuf);
     }
 

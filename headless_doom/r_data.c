@@ -45,6 +45,10 @@ rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 #include  <alloca.h>
 #endif
 
+#ifdef HEADLESS
+#include "headless.h"   // JWh - for alloca
+#endif
+
 
 #include "r_data.h"
 

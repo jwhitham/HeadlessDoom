@@ -111,8 +111,8 @@ P_BoxOnLineSide
 ( fixed_t*	tmbox,
   line_t*	ld )
 {
-    int		p1;
-    int		p2;
+    int		p1 = 0; // JWh - initialise variable in case ld->slopetype is invalid
+    int		p2 = 0; // JWh - initialise variable in case ld->slopetype is invalid
 	
     switch (ld->slopetype)
     {

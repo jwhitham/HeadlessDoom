@@ -32,6 +32,8 @@ rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdarg.h> // JWh - for M_LumpSprintf
+
 
 #include <ctype.h>
 
@@ -529,6 +531,20 @@ void M_ScreenShot (void)
 		  W_CacheLumpName ("PLAYPAL",PU_CACHE));
 	
     players[consoleplayer].message = "screen shot";
+}
+
+// JWh - This version of sprintf writes at most 9 bytes and is specifically
+// intended for formatting the lump names that appear within the WAD file.
+// There may be up to 8 characters. The 9th byte is always '\0'.
+int M_LumpSprintf (char *lumpname, const char *format, ...)
+{
+    va_list	argptr;
+    int count;
+
+    va_start (argptr, format);
+    count = vsnprintf (lumpname, 9, format, argptr);
+    va_end (argptr);
+    return count;
 }
 
 

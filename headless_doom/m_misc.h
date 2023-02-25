@@ -57,6 +57,11 @@ M_DrawText
   char*		string );
 
 
+// JWh - This version of sprintf writes at most 9 bytes and is specifically
+// intended for formatting the lump names that appear within the WAD file.
+// There may be up to 8 characters. The 9th byte is always '\0'.
+int M_LumpSprintf(char *lumpname, const char *format, ...);
+
 #endif
 //-----------------------------------------------------------------------------
 //

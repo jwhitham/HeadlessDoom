@@ -43,6 +43,7 @@ rcsid[] = "$Id: p_setup.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 
 #include "s_sound.h"
 
+#include "m_misc.h" // JWh - for M_LumpSprintf
 #include "doomstat.h"
 
 
@@ -628,9 +629,9 @@ P_SetupLevel
     if ( gamemode == commercial)
     {
 	if (map<10)
-	    sprintf (lumpname,"map0%i", map);
+	    M_LumpSprintf (lumpname,"map0%i", map);  // JWh - use bounded format
 	else
-	    sprintf (lumpname,"map%i", map);
+	    M_LumpSprintf (lumpname,"map%i", map);   // JWh - use bounded format
     }
     else
     {
