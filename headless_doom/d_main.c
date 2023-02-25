@@ -455,6 +455,7 @@ void D_AdvanceDemo (void)
 // This cycles through the demo sequences.
 // FIXME - version dependend demo numbers?
 //
+#ifndef HEADLESS
  void D_DoAdvanceDemo (void)
 {
     players[consoleplayer].playerstate = PST_LIVE;  // not reborn
@@ -520,6 +521,7 @@ void D_AdvanceDemo (void)
 	break;
     }
 }
+#endif
 
 
 
