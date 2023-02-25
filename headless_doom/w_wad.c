@@ -166,7 +166,7 @@ void W_AddFile (char *filename)
 	reloadlump = numlumps;
     }
 		
-    if ( (handle = fopen (filename, "fb")) == NULL) // JWh - use stdio file functions
+    if ( (handle = fopen (filename, "rb")) == NULL) // JWh - use stdio file functions
     {
 	printf (" couldn't open %s\n",filename);
 	return;

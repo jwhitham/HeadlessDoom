@@ -566,7 +566,14 @@ void D_AddFile (char *file)
 //
 void IdentifyVersion (void)
 {
-
+#ifdef HEADLESS // JWh - headless doom always uses doom.wad from Ultimate Doom, and some demos
+	gamemode = retail;
+	D_AddFile ("doom.wad");
+	D_AddFile ("DDQ-EP1.LMP");
+	D_AddFile ("DDQ-EP2.LMP");
+	D_AddFile ("DDQ-EP3.LMP");
+	D_AddFile ("DDQ-EP4.LMP");
+#else
     char*	doom1wad;
     char*	doomwad;
     char*	doomuwad;
@@ -714,7 +721,7 @@ void IdentifyVersion (void)
 
     printf("Game mode indeterminate.\n");
     gamemode = indetermined;
-
+#endif
     // We don't abort. Let's see what the PWAD contains.
     //exit(1);
     //I_Error ("Game mode indeterminate\n");
@@ -823,7 +830,11 @@ void D_DoomMain (void)
       case retail:
 	sprintf (title,
 		 "                         "
+#ifdef HEADLESS
+		 "Headless DOOM Startup v%i.%i"
+#else
 		 "The Ultimate DOOM Startup v%i.%i"
+#endif
 		 "                           ",
 		 VERSION/100,VERSION%100);
 	break;
