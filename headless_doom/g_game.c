@@ -70,6 +70,9 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 #include "g_game.h"
 
+#ifdef HEADLESS
+#include "headless.h" // JWh - for headless_count
+#endif
 
 #define SAVEGAMESIZE	0x2c000
 #define SAVESTRINGSIZE	24
@@ -1588,9 +1591,11 @@ void G_DoPlayDemo (void)
     demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC); 
     if ( *demo_p++ != VERSION)
     {
+#ifndef HEADLESS        // JWh - ignore demo version
       fprintf( stderr, "Demo is from a different game version!\n");
       gameaction = ga_nothing;
       return;
+#endif
     }
     
     skill = *demo_p++; 
@@ -1609,6 +1614,10 @@ void G_DoPlayDemo (void)
 	netgame = true; 
 	netdemo = true; 
     }
+
+#ifdef HEADLESS // JWh - announce the frame count at the beginning of the demo
+	printf ("%u play demo E%dM%d skill %d\n", headless_count, episode, map, skill);
+#endif
 
     // don't spend a lot of time in loadlevel 
     precache = false;
