@@ -72,7 +72,7 @@ typedef struct
 //
 typedef struct
 {
-    boolean	istexture;	// if false, it is a flat
+    signed char istexture;	// if false, it is a flat // JWh - use explicit signed type
     char	endname[9];
     char	startname[9];
     int		speed;
