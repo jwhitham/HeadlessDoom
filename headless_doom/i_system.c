@@ -80,7 +80,7 @@ byte* I_ZoneBase (int*	size)
 }
 
 
-
+#ifndef HEADLESS
 //
 // I_GetTime
 // returns time in 1/70th second tics
@@ -98,6 +98,7 @@ int  I_GetTime (void)
     newtics = (tp.tv_sec-basetime)*TICRATE + tp.tv_usec*TICRATE/1000000;
     return newtics;
 }
+#endif
 
 
 
@@ -123,6 +124,7 @@ void I_Quit (void)
     exit(0);
 }
 
+#ifndef HEADLESS
 void I_WaitVBL(int count)
 {
 #ifdef SGI
@@ -135,6 +137,7 @@ void I_WaitVBL(int count)
 #endif
 #endif
 }
+#endif
 
 void I_BeginRead(void)
 {

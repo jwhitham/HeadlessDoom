@@ -165,7 +165,7 @@ void S_Init
 {  
   int		i;
 
-  fprintf( stderr, "S_Init: default sfx volume %d\n", sfxVolume);
+  // fprintf( stderr, "S_Init: default sfx volume %d\n", sfxVolume); // JWh - debug to stdout only
 
   // Whatever these did with DMX, these are rather dummies now.
   I_SetChannels();
@@ -366,6 +366,7 @@ S_StartSoundAtVolume
     sfx->lumpnum = I_GetSfxLumpNum(sfx);
 
 #ifndef SNDSRV
+#ifndef HEADLESS
   // cache data if necessary
   if (!sfx->data)
   {
@@ -379,6 +380,7 @@ S_StartSoundAtVolume
     //       sfx_id, sfx->lumpnum, (int)sfx->data );
     
   }
+#endif
 #endif
   
   // increase the usefulness
