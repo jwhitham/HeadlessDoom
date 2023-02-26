@@ -192,7 +192,7 @@ Z_Malloc
     memblock_t* newblock;
     memblock_t*	base;
 
-    size = (size + 3) & ~3;
+    size = (size + sizeof(void*) - 1) & ~(sizeof(void*) - 1); // JWh - 64-bit compatibility
     
     // scan through the block list,
     // looking for the first free block

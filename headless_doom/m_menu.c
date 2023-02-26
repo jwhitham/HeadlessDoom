@@ -706,7 +706,7 @@ void M_QuickSave(void)
 	quickSaveSlot = -2;	// means to pick a slot now
 	return;
     }
-    sprintf(tempstring,QSPROMPT,savegamestrings[quickSaveSlot]);
+    snprintf(tempstring,sizeof(tempstring),QSPROMPT,savegamestrings[quickSaveSlot]); // JWh - bounded
     M_StartMessage(tempstring,M_QuickSaveResponse,true);
 }
 
@@ -738,7 +738,7 @@ void M_QuickLoad(void)
 	M_StartMessage(QSAVESPOT,NULL,false);
 	return;
     }
-    sprintf(tempstring,QLPROMPT,savegamestrings[quickSaveSlot]);
+    snprintf(tempstring,sizeof(tempstring),QLPROMPT,savegamestrings[quickSaveSlot]); // JWh - bounded
     M_StartMessage(tempstring,M_QuickLoadResponse,true);
 }
 

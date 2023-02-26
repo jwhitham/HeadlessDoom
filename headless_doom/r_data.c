@@ -91,7 +91,7 @@ typedef struct
     boolean		masked;	
     short		width;
     short		height;
-    void		**columndirectory;	// OBSOLETE
+    int		columndirectory;	// OBSOLETE // JWh - 64-bit compat, use 4 bytes
     short		patchcount;
     mappatch_t	patches[1];
 } maptexture_t;
@@ -484,13 +484,13 @@ void R_InitTextures (void)
     }
     numtextures = numtextures1 + numtextures2;
 	
-    textures = Z_Malloc (numtextures*4, PU_STATIC, 0);
-    texturecolumnlump = Z_Malloc (numtextures*4, PU_STATIC, 0);
-    texturecolumnofs = Z_Malloc (numtextures*4, PU_STATIC, 0);
-    texturecomposite = Z_Malloc (numtextures*4, PU_STATIC, 0);
-    texturecompositesize = Z_Malloc (numtextures*4, PU_STATIC, 0);
-    texturewidthmask = Z_Malloc (numtextures*4, PU_STATIC, 0);
-    textureheight = Z_Malloc (numtextures*4, PU_STATIC, 0);
+    textures = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
+    texturecolumnlump = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
+    texturecolumnofs = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
+    texturecomposite = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
+    texturecompositesize = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
+    texturewidthmask = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
+    textureheight = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
 
     totalwidth = 0;
     
@@ -572,7 +572,7 @@ void R_InitTextures (void)
 	R_GenerateLookup (i);
     
     // Create translation table for global animation.
-    texturetranslation = Z_Malloc ((numtextures+1)*4, PU_STATIC, 0);
+    texturetranslation = Z_Malloc ((numtextures+1)*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
     
     for (i=0 ; i<numtextures ; i++)
 	texturetranslation[i] = i;
@@ -592,7 +592,7 @@ void R_InitFlats (void)
     numflats = lastflat - firstflat + 1;
 	
     // Create translation table for global animation.
-    flattranslation = Z_Malloc ((numflats+1)*4, PU_STATIC, 0);
+    flattranslation = Z_Malloc ((numflats+1)*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
     
     for (i=0 ; i<numflats ; i++)
 	flattranslation[i] = i;
@@ -614,9 +614,9 @@ void R_InitSpriteLumps (void)
     lastspritelump = W_GetNumForName ("S_END") - 1;
     
     numspritelumps = lastspritelump - firstspritelump + 1;
-    spritewidth = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
-    spriteoffset = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
-    spritetopoffset = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
+    spritewidth = Z_Malloc (numspritelumps*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
+    spriteoffset = Z_Malloc (numspritelumps*sizeof(void*), PU_STATIC, 0);
+    spritetopoffset = Z_Malloc (numspritelumps*sizeof(void*), PU_STATIC, 0);
 	
     for (i=0 ; i< numspritelumps ; i++)
     {
