@@ -72,7 +72,7 @@ void**			lumpcache;
 
 #define strcmpi	strcasecmp
 
-void strupr (char* s)
+void my_strupr (char* s) // JWh - strupr is not always available in the C library
 {
     while (*s) { *s = toupper(*s); s++; }
 }
@@ -373,7 +373,7 @@ int W_CheckNumForName (char* name)
     name8.s[8] = 0;
 
     // case insensitive
-    strupr (name8.s);		
+    my_strupr (name8.s);		// JWh - strupr not always available
 
     v1 = name8.x[0];
     v2 = name8.x[1];
