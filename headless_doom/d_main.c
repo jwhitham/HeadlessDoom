@@ -1122,6 +1122,7 @@ void D_DoomMain (void)
     printf ("ST_Init: Init status bar.\n");
     ST_Init ();
 
+#ifndef HEADLESS // JWh - not compatible with 64-bit (and not used)
     // check for a driver that wants intermission stats
     p = M_CheckParm ("-statcopy");
     if (p && p<myargc-1)
@@ -1132,6 +1133,7 @@ void D_DoomMain (void)
 	statcopy = (void*)atoi(myargv[p+1]);
 	printf ("External statistics registered.\n");
     }
+#endif
     
     // start the apropriate game based on parms
     p = M_CheckParm ("-record");

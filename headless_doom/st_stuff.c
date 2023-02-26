@@ -61,6 +61,8 @@ rcsid[] = "$Id: st_stuff.c,v 1.6 1997/02/03 22:45:13 b1 Exp $";
 #include "dstrings.h"
 #include "sounds.h"
 
+#include "m_misc.h" // JWh - for M_LumpSprintf
+
 //
 // STATUS BAR DATA
 //
@@ -1133,10 +1135,10 @@ void ST_loadGraphics(void)
     // Load the numbers, tall and short
     for (i=0;i<10;i++)
     {
-	sprintf(namebuf, "STTNUM%d", i);
+	M_LumpSprintf(namebuf, "STTNUM%d", i);
 	tallnum[i] = (patch_t *) W_CacheLumpName(namebuf, PU_STATIC);
 
-	sprintf(namebuf, "STYSNUM%d", i);
+	M_LumpSprintf(namebuf, "STYSNUM%d", i);
 	shortnum[i] = (patch_t *) W_CacheLumpName(namebuf, PU_STATIC);
     }
 
@@ -1147,7 +1149,7 @@ void ST_loadGraphics(void)
     // key cards
     for (i=0;i<NUMCARDS;i++)
     {
-	sprintf(namebuf, "STKEYS%d", i);
+	M_LumpSprintf(namebuf, "STKEYS%d", i);
 	keys[i] = (patch_t *) W_CacheLumpName(namebuf, PU_STATIC);
     }
 
@@ -1157,7 +1159,7 @@ void ST_loadGraphics(void)
     // arms ownership widgets
     for (i=0;i<6;i++)
     {
-	sprintf(namebuf, "STGNUM%d", i+2);
+	M_LumpSprintf(namebuf, "STGNUM%d", i+2);
 
 	// gray #
 	arms[i][0] = (patch_t *) W_CacheLumpName(namebuf, PU_STATIC);
@@ -1167,7 +1169,7 @@ void ST_loadGraphics(void)
     }
 
     // face backgrounds for different color players
-    sprintf(namebuf, "STFB%d", consoleplayer);
+    M_LumpSprintf(namebuf, "STFB%d", consoleplayer);
     faceback = (patch_t *) W_CacheLumpName(namebuf, PU_STATIC);
 
     // status bar background bits
@@ -1179,18 +1181,18 @@ void ST_loadGraphics(void)
     {
 	for (j=0;j<ST_NUMSTRAIGHTFACES;j++)
 	{
-	    sprintf(namebuf, "STFST%d%d", i, j);
+	    M_LumpSprintf(namebuf, "STFST%d%d", i, j);
 	    faces[facenum++] = W_CacheLumpName(namebuf, PU_STATIC);
 	}
-	sprintf(namebuf, "STFTR%d0", i);	// turn right
+	M_LumpSprintf(namebuf, "STFTR%d0", i);	// turn right
 	faces[facenum++] = W_CacheLumpName(namebuf, PU_STATIC);
-	sprintf(namebuf, "STFTL%d0", i);	// turn left
+	M_LumpSprintf(namebuf, "STFTL%d0", i);	// turn left
 	faces[facenum++] = W_CacheLumpName(namebuf, PU_STATIC);
-	sprintf(namebuf, "STFOUCH%d", i);	// ouch!
+	M_LumpSprintf(namebuf, "STFOUCH%d", i);	// ouch!
 	faces[facenum++] = W_CacheLumpName(namebuf, PU_STATIC);
-	sprintf(namebuf, "STFEVL%d", i);	// evil grin ;)
+	M_LumpSprintf(namebuf, "STFEVL%d", i);	// evil grin ;)
 	faces[facenum++] = W_CacheLumpName(namebuf, PU_STATIC);
-	sprintf(namebuf, "STFKILL%d", i);	// pissed off
+	M_LumpSprintf(namebuf, "STFKILL%d", i);	// pissed off
 	faces[facenum++] = W_CacheLumpName(namebuf, PU_STATIC);
     }
     faces[facenum++] = W_CacheLumpName("STFGOD0", PU_STATIC);

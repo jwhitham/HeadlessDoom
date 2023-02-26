@@ -89,7 +89,7 @@ doomdata_t	reboundstore;
 //
 int NetbufferSize (void)
 {
-    return (int)&(((doomdata_t *)0)->cmds[netbuffer->numtics]); 
+    return (int)(intptr_t)&(((doomdata_t *)0)->cmds[netbuffer->numtics]); // JWh - 64-bit compatibility
 }
 
 //
@@ -107,7 +107,7 @@ unsigned NetbufferChecksum (void)
     return 0;			// byte order problems
 #endif
 
-    l = (NetbufferSize () - (int)&(((doomdata_t *)0)->retransmitfrom))/4;
+    l = (NetbufferSize () - (int)(intptr_t)&(((doomdata_t *)0)->retransmitfrom))/4; // JWh - 64-bit
     for (i=0 ; i<l ; i++)
 	c += ((unsigned *)&netbuffer->retransmitfrom)[i] * (i+1);
 

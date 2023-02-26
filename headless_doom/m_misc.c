@@ -223,6 +223,7 @@ char*		mousedev;
 extern char*	chat_macros[];
 
 
+#ifndef HEADLESS
 
 typedef struct
 {
@@ -404,6 +405,7 @@ void M_LoadDefaults (void)
     }
 }
 
+#endif
 
 //
 // SCREEN SHOTS
