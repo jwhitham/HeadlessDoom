@@ -384,8 +384,8 @@ int W_CheckNumForName (char* name)
 
     while (lump_p-- != lumpinfo)
     {
-	if ( *(int *)lump_p->name == v1
-	     && *(int *)&lump_p->name[4] == v2)
+	const int* name_p = (int*) lump_p->name; // JWh - aliasing will not matter here
+	if (name_p[0] == v1 && name_p[1] == v2)
 	{
 	    return lump_p - lumpinfo;
 	}
