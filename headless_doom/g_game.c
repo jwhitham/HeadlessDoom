@@ -483,6 +483,10 @@ void G_DoLoadLevel (void)
 	    players[i].playerstate = PST_REBORN; 
 	memset (players[i].frags,0,sizeof(int) * MAXPLAYERS);  // JWh - correct size
     } 
+
+#ifdef HEADLESS // JWh - report the frame count at the beginning of the level
+    printf ("%u setup level E%dM%d\n", headless_count, gameepisode, gamemap);
+#endif
 		 
     P_SetupLevel (gameepisode, gamemap, 0, gameskill);    
     displayplayer = consoleplayer;		// view the guy you are playing    

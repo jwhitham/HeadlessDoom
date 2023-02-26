@@ -245,9 +245,10 @@ void R_GenerateComposite (int texnum)
 	
     texture = textures[texnum];
 
-    block = Z_Malloc (texturecompositesize[texnum],
-		      PU_STATIC, 
-		      &texturecomposite[texnum]);	
+    block = Z_Malloc (texturecompositesize[texnum] + 1, // JWh - allocate 1 extra byte which may be drawn
+		      PU_STATIC,                                // in some circumstances. Issue first seen in E1M2,
+		      &texturecomposite[texnum]);	            // at headless_count 902 x 276 y 109. Zero this byte.
+    block[texturecompositesize[texnum]] = 0;
 
     collump = texturecolumnlump[texnum];
     colofs = texturecolumnofs[texnum];
