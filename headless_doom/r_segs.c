@@ -263,6 +263,14 @@ void R_RenderSegLoop (void)
 	{
 	    // calculate texture offset
 	    angle = (rw_centerangle + xtoviewangle[rw_x])>>ANGLETOFINESHIFT;
+
+	    // JWh - if the line is almost aligned with the camera, the
+	    // angle is undefined. Prevent an overflow. Issue first seen
+	    // in E1M2 headless_count 1097 x 61 y 84
+	    if (angle >= (FINEANGLES / 2)) {
+		angle = 0;
+	    }
+
 	    texturecolumn = rw_offset-FixedMul(finetangent[angle],rw_distance);
 	    texturecolumn >>= FRACBITS;
 	    // calculate lighting
