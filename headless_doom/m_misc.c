@@ -32,7 +32,7 @@ rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include <fcntl.h>
 #include <stdlib.h>
 // #include <unistd.h> // JWh - platform specific
-#include <stdarg.h> // JWh - for M_LumpSprintf
+#include <stdarg.h> // JWh - va_args
 
 
 #include <ctype.h>
@@ -60,6 +60,8 @@ rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include "dstrings.h"
 
 #include "m_misc.h"
+
+#include "headless.h" // JWh - definition of access, M_LumpSprintf
 
 //
 // M_DrawText
