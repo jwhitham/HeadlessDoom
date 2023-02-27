@@ -321,7 +321,6 @@ void    P_RemoveActivePlat(plat_t* plat);
 void    EV_StopPlat(line_t* line);
 void    P_ActivateInStasis(int tag);
 
-
 //
 // P_DOORS
 //
@@ -330,7 +329,7 @@ typedef enum
     normal,
     close30ThenOpen,
     close,
-    open,
+    dopen, // JWh - termux stdio.h defines 'open', causing a clash.
     raiseIn5Mins,
     blazeRaise,
     blazeOpen,

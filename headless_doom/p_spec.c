@@ -542,7 +542,7 @@ P_CrossSpecialLine
 	// All from here to RETRIGGERS.
       case 2:
 	// Open Door
-	EV_DoDoor(line,open);
+	EV_DoDoor(line,dopen); // JWh - renamed
 	line->special = 0;
 	break;
 
@@ -846,7 +846,7 @@ P_CrossSpecialLine
 
       case 86:
 	// Open Door
-	EV_DoDoor(line,open);
+	EV_DoDoor(line,dopen); // JWh - renamed
 	break;
 	
       case 87:
@@ -987,7 +987,7 @@ P_ShootSpecialLine
 	
       case 46:
 	// OPEN DOOR
-	EV_DoDoor(line,open);
+	EV_DoDoor(line,dopen); // JWh - renamed
 	P_ChangeSwitchTexture(line,1);
 	break;
 	
