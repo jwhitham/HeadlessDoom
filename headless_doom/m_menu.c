@@ -510,6 +510,13 @@ menu_t  SaveDef =
 //
 void M_ReadSaveStrings(void)
 {
+#ifdef HEADLESS // JWh - no savegames in headless mode
+    int i;
+    for (i = 0;i < load_end;i++)
+    {
+        LoadMenu[i].status = 0;
+    }
+#else
     int             handle;
     int             count;
     int             i;
@@ -533,8 +540,8 @@ void M_ReadSaveStrings(void)
 	close (handle);
 	LoadMenu[i].status = 1;
     }
+#endif
 }
-
 
 //
 // M_LoadGame & Cie.

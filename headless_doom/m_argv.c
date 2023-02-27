@@ -40,6 +40,7 @@ char**		myargv;
 // or 0 if not present
 int M_CheckParm (char *check)
 {
+#ifndef HEADLESS // JWh - headless mode does not use any command-line parameters
     int		i;
 
     for (i = 1;i<myargc;i++)
@@ -47,7 +48,7 @@ int M_CheckParm (char *check)
 	if ( !strcasecmp(check, myargv[i]) )
 	    return i;
     }
-
+#endif
     return 0;
 }
 
