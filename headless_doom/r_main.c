@@ -325,7 +325,7 @@ R_PointToAngle
 	    if (x>y)
 	    {
 		// octant 8
-		return -tantoangle[SlopeDiv(y,x)];
+		return 0-tantoangle[SlopeDiv(y,x)]; // JWh - MSVC rejects unary minus with unsigned types
 	    }
 	    else
 	    {

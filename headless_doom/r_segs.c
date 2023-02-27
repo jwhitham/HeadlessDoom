@@ -629,7 +629,7 @@ R_StoreWallRange
 	offsetangle = rw_normalangle-rw_angle1;
 	
 	if (offsetangle > ANG180)
-	    offsetangle = -offsetangle;
+	    offsetangle = 0-offsetangle; // JWh - MSVC rejects unary minus with unsigned types
 
 	if (offsetangle > ANG90)
 	    offsetangle = ANG90;
