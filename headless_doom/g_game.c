@@ -456,8 +456,8 @@ void G_DoLoadLevel (void)
     // DOOM determines the sky texture to be used
     // depending on the current episode, and the game version.
     if ( (gamemode == commercial)
-	 || ( gamemode == pack_tnt )
-	 || ( gamemode == pack_plut ) )
+	 || ( (int)gamemode == (int)pack_tnt )          // JWh - pack_tnt is really from GameMission_t, not GameMode_t
+	 || ( (int)gamemode == (int)pack_plut ) )       // JWh - pack_plut is really from GameMission_t, not GameMode_t
     {
 	skytexture = R_TextureNumForName ("SKY3");
 	if (gamemap < 12)
@@ -478,7 +478,7 @@ void G_DoLoadLevel (void)
     { 
 	if (playeringame[i] && players[i].playerstate == PST_DEAD) 
 	    players[i].playerstate = PST_REBORN; 
-	memset (players[i].frags,0,sizeof(players[i].frags)); 
+	memset (players[i].frags,0,sizeof(int) * MAXPLAYERS);  // JWh - correct size
     } 
 		 
     P_SetupLevel (gameepisode, gamemap, 0, gameskill);    
@@ -488,12 +488,12 @@ void G_DoLoadLevel (void)
     Z_CheckHeap ();
     
     // clear cmd building stuff
-    memset (gamekeydown, 0, sizeof(gamekeydown)); 
+    memset (gamekeydown, 0, sizeof(boolean) * NUMKEYS);  // JWh - correct size
     joyxmove = joyymove = 0; 
     mousex = mousey = 0; 
     sendpause = sendsave = paused = false; 
-    memset (mousebuttons, 0, sizeof(mousebuttons)); 
-    memset (joybuttons, 0, sizeof(joybuttons)); 
+    memset (mousebuttons, 0, sizeof(boolean) * 3);  // JWh - correct size
+    memset (joybuttons, 0, sizeof(boolean) * 4);  // JWh - correct size
 } 
  
  
@@ -1213,7 +1213,7 @@ void G_DoLoadGame (void)
     // skip the description field 
     memset (vcheck,0,sizeof(vcheck)); 
     sprintf (vcheck,"version %i",VERSION); 
-    if (strcmp (save_p, vcheck)) 
+    if (strcmp ((char *) save_p, vcheck))   // JWh - pointer targets differ in signedness
 	return;				// bad version 
     save_p += VERSIONSIZE; 
 			 

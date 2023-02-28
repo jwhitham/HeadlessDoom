@@ -40,6 +40,10 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include <fcntl.h>
 #endif
 
+#ifdef HEADLESS
+#include "headless.h"
+#endif
+
 
 #include "doomdef.h"
 #include "doomstat.h"
@@ -150,7 +154,7 @@ int 		eventtail;
 void D_PostEvent (event_t* ev)
 {
     events[eventhead] = *ev;
-    eventhead = (++eventhead)&(MAXEVENTS-1);
+    eventhead = (eventhead + 1)&(MAXEVENTS-1); // JWh - avoid ambiguity
 }
 
 
@@ -167,7 +171,7 @@ void D_ProcessEvents (void)
 	 && (W_CheckNumForName("map01")<0) )
       return;
 	
-    for ( ; eventtail != eventhead ; eventtail = (++eventtail)&(MAXEVENTS-1) )
+    for ( ; eventtail != eventhead ; eventtail = (eventtail + 1)&(MAXEVENTS-1) ) // JWh - avoid ambiguity
     {
 	ev = &events[eventtail];
 	if (M_Responder (ev))

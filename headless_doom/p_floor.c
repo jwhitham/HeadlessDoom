@@ -467,8 +467,8 @@ EV_BuildStairs
 
     floormove_t*	floor;
     
-    fixed_t		stairsize;
-    fixed_t		speed;
+    fixed_t		stairsize = 0; // JWh - if 'type' is invalid, this will be undefined
+    fixed_t		speed = 0;     // JWh - if 'type' is invalid, this will be undefined
 
     secnum = -1;
     rtn = 0;
