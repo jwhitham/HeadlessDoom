@@ -6,9 +6,9 @@
 #
 CC=  gcc  # gcc or g++
 
-CFLAGS=-g -Wall -DNORMALUNIX -DLINUX # -DUSEASM 
-LDFLAGS=-L/usr/X11R6/lib
-LIBS=-lXext -lX11 -lnsl -lm
+CFLAGS=-g -Wall -DHEADLESS
+LDFLAGS=
+LIBS=
 
 # subdirectory for objects
 O=linux
@@ -75,19 +75,43 @@ OBJS=				\
 		$(O)/s_sound.o		\
 		$(O)/z_zone.o			\
 		$(O)/info.o				\
-		$(O)/sounds.o
+		$(O)/sounds.o           \
+		$(O)/crc.o              \
+		$(O)/timing.o           \
+		$(O)/headless.o
 
-all:	 $(O)/linuxxdoom
+all: headless_doom.exe \
+    doom.wad.ok DDQ-EP1.LMP DDQ-EP2.LMP DDQ-EP3.LMP DDQ-EP4.LMP
 
+doom.wad:
+	@echo ""
+	@echo "doom.wad not found. Please copy 'doom.wad' from Ultimate Doom."
+	@echo "See README.md for instructions"
+	@echo ""
+	@false
+ 
+doom.wad.ok: doom.wad
+	md5sum -c doom.wad.md5
+	touch doom.wad.ok
+
+DDQ-EP1.LMP:
+	unzip -o DdQ-1941.zip
+
+DDQ-EP2.LMP: DDQ-EP1.LMP
+DDQ-EP3.LMP: DDQ-EP2.LMP
+DDQ-EP4.LMP: DDQ-EP3.LMP
+ 
 clean:
-	rm -f *.o *~ *.flc
-	rm -f linux/*
+	rm -rf $(O) *~ headless_doom.exe doom.wad.ok
 
-$(O)/linuxxdoom:	$(OBJS) $(O)/i_main.o
+$(O):
+	mkdir $(O)
+
+headless_doom.exe:	$(OBJS) $(O)/i_main.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(O)/i_main.o \
-	-o $(O)/linuxxdoom $(LIBS)
+	-o headless_doom.exe $(LIBS)
 
-$(O)/%.o:	%.c
+$(O)/%.o:	%.c $(O)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 #############################################################
