@@ -1,0 +1,5 @@
+crc.dat text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.md text eol=lf
+Makefile text eol=lf

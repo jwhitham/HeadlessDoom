@@ -1,0 +1,9 @@
+*.wad
+DDQ-*
+DDQ.BAT
+*.o
+*.ok
+*.exe
+.vs
+Debug
+Release
