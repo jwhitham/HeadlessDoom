@@ -6,12 +6,12 @@
 #
 CC=  gcc  # gcc or g++
 
-CFLAGS=-g -Wall -DHEADLESS
+CFLAGS=-g -O2 -DHEADLESS
 LDFLAGS=
 LIBS=
 
 # subdirectory for objects
-O=linux
+O=obj
 
 # not too sophisticated dependency
 OBJS=				\
@@ -104,14 +104,12 @@ DDQ-EP4.LMP: DDQ-EP3.LMP
 clean:
 	rm -rf $(O) *~ headless_doom.exe doom.wad.ok
 
-$(O):
-	mkdir $(O)
-
 headless_doom.exe:	$(OBJS) $(O)/i_main.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(O)/i_main.o \
 	-o headless_doom.exe $(LIBS)
 
-$(O)/%.o:	%.c $(O)
+$(O)/%.o:	%.c
+	@mkdir -p $(O)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 #############################################################
