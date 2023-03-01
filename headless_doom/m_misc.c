@@ -31,8 +31,10 @@ rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdlib.h>
-// #include <unistd.h> // JWh - platform specific
-#include <stdarg.h> // JWh - va_args
+#ifndef HEADLESS
+#include <unistd.h> // DSB-6 - platform specific
+#endif
+#include <stdarg.h> // DSB-14 - va_args
 
 
 #include <ctype.h>
@@ -61,7 +63,7 @@ rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 
 #include "m_misc.h"
 
-#include "headless.h" // JWh - definition of access, M_LumpSprintf
+#include "headless.h" // DSB-14  - definition of access, M_LumpSprintf
 
 //
 // M_DrawText
@@ -540,7 +542,7 @@ void M_ScreenShot (void)
     players[consoleplayer].message = "screen shot";
 }
 
-// JWh - This version of sprintf writes at most 9 bytes and is specifically
+// DSB-14 - This version of sprintf writes at most 9 bytes and is specifically
 // intended for formatting the lump names that appear within the WAD file.
 // There may be up to 8 characters. The 9th byte is always '\0'.
 int M_LumpSprintf (char *lumpname, const char *format, ...)

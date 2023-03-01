@@ -783,7 +783,7 @@ void AM_doFollowPlayer(void)
 //
 void AM_updateLightLev(void)
 {
-    static int nexttic = 0; // JWh - add int type
+    static int nexttic = 0; // DSB-1 - add int type
     //static int litelevels[] = { 0, 3, 5, 6, 6, 7, 7, 7 };
     static int litelevels[] = { 0, 4, 7, 10, 12, 14, 15, 15 };
     static int litelevelscnt = 0;
@@ -856,9 +856,9 @@ AM_clipMline
 	TOP	=8
     };
     
-    register int	outcode1 = 0;   // JWh - add int type
-    register int	outcode2 = 0;   // JWh - add int type
-    register int	outside;    // JWh - add int type
+    register int	outcode1 = 0;   // DSB-1 - add int type
+    register int	outcode2 = 0;   // DSB-1 - add int type
+    register int	outside;    // DSB-1 - add int type
     
     fpoint_t	tmp;
     int		dx;
@@ -989,7 +989,7 @@ AM_drawFline
     register int ay;
     register int d;
     
-    static int fuck = 0;    // JWh - add int type
+    static int fuck = 0;    // DSB-1 - add int type
 
     // For debugging only
     if (      fl->a.x < 0 || fl->a.x >= f_w

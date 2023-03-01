@@ -23,7 +23,7 @@
 #ifndef __M_BBOX__
 #define __M_BBOX__
 
-// #include <values.h> // JWh - conflicts with doomtype.h
+// #include <values.h> // DSB-6 - conflicts with doomtype.h
 
 #include "m_fixed.h"
 

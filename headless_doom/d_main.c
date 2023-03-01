@@ -40,7 +40,7 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include <fcntl.h>
 #endif
 
-#ifdef HEADLESS
+#ifdef HEADLESS // DSB-6
 #include "headless.h"
 #endif
 
@@ -154,7 +154,7 @@ int 		eventtail;
 void D_PostEvent (event_t* ev)
 {
     events[eventhead] = *ev;
-    eventhead = (eventhead + 1)&(MAXEVENTS-1); // JWh - avoid ambiguity
+    eventhead = (eventhead + 1)&(MAXEVENTS-1); // DSB-2 - avoid ambiguity
 }
 
 
@@ -171,7 +171,7 @@ void D_ProcessEvents (void)
 	 && (W_CheckNumForName("map01")<0) )
       return;
 	
-    for ( ; eventtail != eventhead ; eventtail = (eventtail + 1)&(MAXEVENTS-1) ) // JWh - avoid ambiguity
+    for ( ; eventtail != eventhead ; eventtail = (eventtail + 1)&(MAXEVENTS-1) ) // DSB-2 - avoid ambiguity
     {
 	ev = &events[eventtail];
 	if (M_Responder (ev))
@@ -455,7 +455,7 @@ void D_AdvanceDemo (void)
 // This cycles through the demo sequences.
 // FIXME - version dependend demo numbers?
 //
-#ifndef HEADLESS
+#ifndef HEADLESS // DSB-5
  void D_DoAdvanceDemo (void)
 {
     players[consoleplayer].playerstate = PST_LIVE;  // not reborn
@@ -566,7 +566,7 @@ void D_AddFile (char *file)
 // to determine whether registered/commercial features
 // should be executed (notably loading PWAD's).
 //
-#ifndef HEADLESS
+#ifndef HEADLESS // DSB-5
 void IdentifyVersion (void)
 {
     char*	doom1wad;
@@ -825,7 +825,7 @@ void D_DoomMain (void)
       case retail:
 	sprintf (title,
 		 "                         "
-#ifdef HEADLESS
+#ifdef HEADLESS // DSB-6
 		 "Headless DOOM Startup v%i.%i"
 #else
 		 "The Ultimate DOOM Startup v%i.%i"
@@ -1122,7 +1122,7 @@ void D_DoomMain (void)
     printf ("ST_Init: Init status bar.\n");
     ST_Init ();
 
-#ifndef HEADLESS // JWh - not compatible with 64-bit (and not used)
+#ifndef HEADLESS // DSB-3 - not compatible with 64-bit (and not used)
     // check for a driver that wants intermission stats
     p = M_CheckParm ("-statcopy");
     if (p && p<myargc-1)

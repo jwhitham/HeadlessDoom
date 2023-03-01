@@ -25,7 +25,9 @@
 static const char
 rcsid[] = "$Id: m_menu.c,v 1.7 1997/02/03 22:45:10 b1 Exp $";
 
-// #include <unistd.h> // JWh - platform specific
+#ifndef HEADLESS
+#include <unistd.h> // DSB-6 - platform specific
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -510,7 +512,7 @@ menu_t  SaveDef =
 //
 void M_ReadSaveStrings(void)
 {
-#ifdef HEADLESS // JWh - no savegames in headless mode
+#ifdef HEADLESS // DSB-12 - no savegames in headless mode
     int i;
     for (i = 0;i < load_end;i++)
     {
@@ -713,7 +715,7 @@ void M_QuickSave(void)
 	quickSaveSlot = -2;	// means to pick a slot now
 	return;
     }
-    snprintf(tempstring,sizeof(tempstring),QSPROMPT,savegamestrings[quickSaveSlot]); // JWh - bounded
+    snprintf(tempstring,sizeof(tempstring),QSPROMPT,savegamestrings[quickSaveSlot]); // DSB-15 - bounded
     M_StartMessage(tempstring,M_QuickSaveResponse,true);
 }
 
@@ -745,7 +747,7 @@ void M_QuickLoad(void)
 	M_StartMessage(QSAVESPOT,NULL,false);
 	return;
     }
-    snprintf(tempstring,sizeof(tempstring),QLPROMPT,savegamestrings[quickSaveSlot]); // JWh - bounded
+    snprintf(tempstring,sizeof(tempstring),QLPROMPT,savegamestrings[quickSaveSlot]); // DSB-15 - bounded
     M_StartMessage(tempstring,M_QuickLoadResponse,true);
 }
 
@@ -1865,7 +1867,7 @@ void M_Init (void)
     quickSaveSlot = -1;
 
 #ifdef HEADLESS
-    M_SizeDisplay(1); // JWh - maximum screen size with status bar
+    M_SizeDisplay(1); // DSB-12 - maximum screen size with status bar
 #endif
     // Here we could catch other version dependencies,
     //  like HELP1/2, and four episodes.

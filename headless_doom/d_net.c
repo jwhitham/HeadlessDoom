@@ -89,7 +89,7 @@ doomdata_t	reboundstore;
 //
 int NetbufferSize (void)
 {
-    return (int)(intptr_t)&(((doomdata_t *)0)->cmds[netbuffer->numtics]); // JWh - 64-bit compatibility
+    return (int)(intptr_t)&(((doomdata_t *)0)->cmds[netbuffer->numtics]); // DSB-3 - 64-bit compatibility
 }
 
 //
@@ -107,7 +107,7 @@ unsigned NetbufferChecksum (void)
     return 0;			// byte order problems
 #endif
 
-    l = (NetbufferSize () - (int)(intptr_t)&(((doomdata_t *)0)->retransmitfrom))/4; // JWh - 64-bit
+    l = (NetbufferSize () - (int)(intptr_t)&(((doomdata_t *)0)->retransmitfrom))/4; // DSB-3 - 64-bit
     for (i=0 ; i<l ; i++)
 	c += ((unsigned *)&netbuffer->retransmitfrom)[i] * (i+1);
 
@@ -461,7 +461,7 @@ void CheckAbort (void)
 	
     I_StartTic ();
     for ( ; eventtail != eventhead 
-	      ; eventtail = (eventtail + 1)&(MAXEVENTS-1) ) // JWh - avoid ambiguity
+	      ; eventtail = (eventtail + 1)&(MAXEVENTS-1) ) // DSB-2 - avoid ambiguity
     { 
 	ev = &events[eventtail]; 
 	if (ev->type == ev_keydown && ev->data1 == KEY_ESCAPE)

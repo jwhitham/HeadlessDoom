@@ -1156,7 +1156,7 @@ typedef struct
 } state_t;
 
 extern state_t	states[NUMSTATES];
-extern char *sprnames[NUMSPRITES + 1]; // JWh - +1 for NULL sentinel
+extern char *sprnames[NUMSPRITES + 1]; // DSB-13 - +1 for NULL sentinel
 
 
 

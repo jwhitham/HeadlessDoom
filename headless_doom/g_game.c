@@ -71,7 +71,7 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include "g_game.h"
 
 #ifdef HEADLESS
-#include "headless.h" // JWh - for headless_count
+#include "headless.h" // DSB-7 - for headless_count
 #endif
 
 #define SAVEGAMESIZE	0x2c000
@@ -459,8 +459,8 @@ void G_DoLoadLevel (void)
     // DOOM determines the sky texture to be used
     // depending on the current episode, and the game version.
     if ( (gamemode == commercial)
-	 || ( (int)gamemode == (int)pack_tnt )          // JWh - pack_tnt is really from GameMission_t, not GameMode_t
-	 || ( (int)gamemode == (int)pack_plut ) )       // JWh - pack_plut is really from GameMission_t, not GameMode_t
+	 || ( (int)gamemode == (int)pack_tnt )          // DSB-8 - pack_tnt is really from GameMission_t, not GameMode_t
+	 || ( (int)gamemode == (int)pack_plut ) )       // DSB-8 - pack_plut is really from GameMission_t, not GameMode_t
     {
 	skytexture = R_TextureNumForName ("SKY3");
 	if (gamemap < 12)
@@ -481,10 +481,10 @@ void G_DoLoadLevel (void)
     { 
 	if (playeringame[i] && players[i].playerstate == PST_DEAD) 
 	    players[i].playerstate = PST_REBORN; 
-	memset (players[i].frags,0,sizeof(int) * MAXPLAYERS);  // JWh - correct size
+	memset (players[i].frags,0,sizeof(int) * MAXPLAYERS);  // DSB-9 - correct size
     } 
 
-#ifdef HEADLESS // JWh - report the frame count at the beginning of the level
+#ifdef HEADLESS // DSB-7 - report the frame count at the beginning of the level
     printf ("%u setup level E%dM%d\n", headless_count, gameepisode, gamemap);
 #endif
 		 
@@ -495,12 +495,12 @@ void G_DoLoadLevel (void)
     Z_CheckHeap ();
     
     // clear cmd building stuff
-    memset (gamekeydown, 0, sizeof(boolean) * NUMKEYS);  // JWh - correct size
+    memset (gamekeydown, 0, sizeof(boolean) * NUMKEYS);  // DSB-9 - correct size
     joyxmove = joyymove = 0; 
     mousex = mousey = 0; 
     sendpause = sendsave = paused = false; 
-    memset (mousebuttons, 0, sizeof(boolean) * 3);  // JWh - correct size
-    memset (joybuttons, 0, sizeof(boolean) * 4);  // JWh - correct size
+    memset (mousebuttons, 0, sizeof(boolean) * 3);  // DSB-9 - correct size
+    memset (joybuttons, 0, sizeof(boolean) * 4);  // DSB-9 - correct size
 } 
  
  
@@ -1220,7 +1220,7 @@ void G_DoLoadGame (void)
     // skip the description field 
     memset (vcheck,0,sizeof(vcheck)); 
     sprintf (vcheck,"version %i",VERSION); 
-    if (strcmp ((char *) save_p, vcheck))   // JWh - pointer targets differ in signedness
+    if (strcmp ((char *) save_p, vcheck))   // DSB-10 - pointer targets differ in signedness
 	return;				// bad version 
     save_p += VERSIONSIZE; 
 			 
@@ -1595,7 +1595,7 @@ void G_DoPlayDemo (void)
     demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC); 
     if ( *demo_p++ != VERSION)
     {
-#ifndef HEADLESS        // JWh - ignore demo version
+#ifndef HEADLESS        // DSB-5 - ignore demo version in Headless Doom
       fprintf( stderr, "Demo is from a different game version!\n");
       gameaction = ga_nothing;
       return;
@@ -1619,7 +1619,7 @@ void G_DoPlayDemo (void)
 	netdemo = true; 
     }
 
-#ifdef HEADLESS // JWh - announce the frame count at the beginning of the demo
+#ifdef HEADLESS // DSB-7 - announce the frame count at the beginning of the demo
 	printf ("%u play demo E%dM%d skill %d\n", headless_count, episode, map, skill);
 #endif
 

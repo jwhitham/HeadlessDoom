@@ -25,7 +25,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h> // JWh - for intptr_t
+#include <stdint.h> // DSB-3 - for intptr_t
 
 //
 // Global parameters/defines.

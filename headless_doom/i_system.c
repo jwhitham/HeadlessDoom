@@ -29,8 +29,10 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
 #include <string.h>
 
 #include <stdarg.h>
-//#include <sys/time.h>  // JWh - platform specific
-//#include <unistd.h>    // JWh - platform specific
+#ifndef HEADLESS        // DSB-6 - system-specific headers
+#include <sys/time.h>
+#include <unistd.h>
+#endif
 
 #include "doomdef.h"
 #include "m_misc.h"
@@ -80,7 +82,7 @@ byte* I_ZoneBase (int*	size)
 }
 
 
-#ifndef HEADLESS
+#ifndef HEADLESS // DSB-12 - replace non-deterministic code
 //
 // I_GetTime
 // returns time in 1/70th second tics
@@ -124,7 +126,7 @@ void I_Quit (void)
     exit(0);
 }
 
-#ifndef HEADLESS
+#ifndef HEADLESS // DSB-12 - replace non-deterministic code
 void I_WaitVBL(int count)
 {
 #ifdef SGI

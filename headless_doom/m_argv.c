@@ -40,7 +40,7 @@ char**		myargv;
 // or 0 if not present
 int M_CheckParm (char *check)
 {
-#ifndef HEADLESS // JWh - headless mode does not use any command-line parameters
+#ifndef HEADLESS // DSB-12 - headless mode does not use any command-line parameters
     int		i;
 
     for (i = 1;i<myargc;i++)

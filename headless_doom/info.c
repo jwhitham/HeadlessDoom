@@ -52,7 +52,7 @@ char *sprnames[NUMSPRITES + 1] = {
     "COL3","COL4","CAND","CBRA","COL6","TRE1","TRE2","ELEC","CEYE","FSKU",
     "COL5","TBLU","TGRN","TRED","SMBT","SMGT","SMRT","HDB1","HDB2","HDB3",
     "HDB4","HDB5","HDB6","POB1","POB2","BRS1","TLMP","TLP2",
-    NULL // JWh - NULL sentinel is required, as R_InitSpriteDefs
+    NULL // DSB-13 - NULL sentinel is required, as R_InitSpriteDefs
          // uses NULL, not NUMSPRITES, to determine the length
 };
 
