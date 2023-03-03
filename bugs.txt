@@ -2,20 +2,20 @@
 Classification of Doom source code bugs
 
 
-# DSB-1 - missing explicit integer types
+# DSB-1 - Missing explicit integer types
 
 In some C compilers, you can write `static x` or `register x`
 and `int` is implicit. For example:
 
      static nexttic = 0;
 
-# DSB-2 - ambiguous assignment with post/pre-increment
+# DSB-2 - Ambiguous assignment with post/pre-increment
 
 A single statement combines two assignments, e.g.
 
      eventhead = (++eventhead)&(MAXEVENTS-1);
 
-# DSB-3 - assumption that pointers are 32-bit
+# DSB-3 - Assumption that pointers are 32-bit
 
 Generally, this takes the form of casting pointers to/from integers,
 but in some places a size of 4 bytes is explicitly used when calculating
@@ -24,7 +24,7 @@ memory sizes.
     statcopy = (void*)atoi(myargv[p+1]);
     return (int)&(((doomdata_t *)0)->cmds[netbuffer->numtics]); 
 
-# DSB-4 - assumption that char is signed
+# DSB-4 - Assumption that char is signed
 
 On x86, `char` is conventionally a signed type, but the C standard
 does not specify this, and on other platforms, e.g. ARM, it is unsigned.
@@ -38,20 +38,18 @@ in the `headless.c` test harness file, so that Doom is driven through
 the DDQ demo files without any user interaction. This feature is
 activated when `HEADLESS` is defined.
 
-# DSB-6 - replace system-specific defines and header files
+# DSB-6 - Replace system-specific defines, header files
 
 Linux Doom used various system-specific headers such as `unistd.h`
 and defines such as `NORMALUNIX` and `LINUX`. These appeared in many
-source files. 
-
-They are removed, and often replaced by including
+source files. They are removed, and generally replaced by including
 `headless.h` if `HEADLESS` is defined.
 
 Aside from bug fixes, the source code will compile in the same way as
 vanilla Linux Doom if `-DNORMALUNIX -DLINUX` are used in `CFLAGS`
 without `-DHEADLESS`.
 
-# DSB-7 - log messages for the start of a new demo or a new level
+# DSB-7 - Log messages for the start of a new demo or a new level
 
 Headless Doom logs these important events using modifications in
 `g_game.c`.
@@ -62,7 +60,7 @@ Tests of `gamemode` wrongly used enumeration values from
 `GameMission_t`, causing compilation errors. The original
 behaviour is preserved.
 
-# DSB-9 - incorrect memset bounds in G_DoLoadLevel
+# DSB-9 - Incorrect memset bounds in G_DoLoadLevel
 
 `memset` functions in `G_DoLoadLevel` should clear all
 of the provided memory area, but instead they clear
@@ -72,7 +70,7 @@ only a small part (often the size of a pointer). For example:
 
 The correct size is provided.
 
-# DSB-10 - pointer targets differ in signedness
+# DSB-10 - Pointer targets differ in signedness
 
 Both `strcmp` parameters are `char *`, but `unsigned char`
 was used instead. Example:
@@ -81,7 +79,7 @@ was used instead. Example:
 
 Resolved by a type cast.
 
-# DSB-11 - system-specific networking, sound and video code
+# DSB-11 - System-specific networking, sound and video code
 
 Headless Doom is not interactive and does not use any network,
 video or sound, so the whole contents of `i_net.c`
@@ -89,7 +87,7 @@ video or sound, so the whole contents of `i_net.c`
 Functions in these files are replaced in `headless.c`,
 mostly with empty stubs.
 
-# DSB-12 - potentially non-deterministic code
+# DSB-12 - Potentially non-deterministic code
 
 Code that accesses a timer or real-time clock is non-deterministic
 and will affect the benchmark's operation in various ways. Settings
@@ -113,7 +111,7 @@ end. This isn't always present, as the C code does not specify it,
 and it may just be a matter of chance whether the bytes following
 `sprnames` are NULL or not.
 
-# DSB-14 - Prevent potential sprintf overflows for WAD file lump names
+# DSB-14 - Possible sprintf overflows for WAD file lump names
 
 `sprintf` is not given a maximum buffer size. Because of the potential
 risk of buffer overflow, some C compilers now analyse `sprintf` calls
@@ -132,7 +130,7 @@ there were more than 99999 maps. To deal with these problems in one place,
 `M_LumpSprintf` has been added to `m_misc.c` as a replacement for
 `sprintf` which is intended specifically for WAD file keys.
 
-# DSB-15 - Prevent potential sprintf overflows aside from WAD file lump names
+# DSB-15 - Possible sprintf overflows in other places
 
 `sprintf` is also used in other places without correct bounding.
 For example, the names of save games, printed by the Quick Load feature,
@@ -143,464 +141,76 @@ might overflow the buffer.
 
 Calls to `snprintf` are used instead, with an explicit buffer size.
 
+# DSB-16 - Use of fcntl.h and unistd.h for file I/O
+
+Doom used file I/O functions such as `read` and `open`
+which are not part of standard C. These functions are available in many
+C libraries and are a de-facto standard as well as being part of
+POSIX, but they are not universal, and there are differences in
+the parameters and flags accepted, e.g. `O_BINARY`.
+
+In Headless Doom they are replaced by `stdio.h` functions
+i.e. `fread`, `fopen`, etc., or removed entirely in the case
+of `M_ReadFile`, which is never used.
+
+# DSB-17 - Namespace clash for "open"
+
+Doom has an enumerated type named `vldoor_e` which defines `open`
+as one of the actions relating to doors. This should not clash with
+anything in the C library, since the headers that conventionally
+declare `open` are not `#include`d. However, as `open` isn't really
+part of the C standard, `open` may be
+declared anyway. For example, the Termux version of `stdio.h` defines `open`
+[here](https://github.com/termux/termux-packages/blob/57ddad99366c5b84d126b0c72fbb14cc315f0427/ndk-patches/23c/stdio.h.patch#L54).
+
+To reduce such problems, `open` is renamed to `dopen`.
+
+# DSB-18 - Uninitialised local variables
+
+Some functions contain local variables that might be used before being
+assigned, as a result of an unexpected code path being taken. For
+example, in `EV_BuildStairs`, the value of the local variable `stairsize` will be
+uninitialised if `type` is not one of two expected values.
+
+Although other values of `type` may be impossible, the compiler cannot
+determine this, and initialisation is a good idea to prevent unpredictable
+behaviour.
+
+# DSB-19 - Boolean and bitwise operators mixed with unclear operator precedence
+
+GCC warns about expressions that mix Boolean and bitwise operators
+and also rely on potentially unexpected operator precedence orders. For example:
+
+    if (!s2->lines[i]->flags & ML_TWOSIDED) ...
+
+This expression does have a well-defined meaning in C, but it depends
+on operator precedence and might not be intended. Adding more brackets
+removes possible ambiguity, making the meaning clearer.
+
+    if (!(s2->lines[i]->flags & ML_TWOSIDED)) ...
+
+# DSB-20 - Unary minus used with unsigned types
+
+MSVC does not allow the use of the unary `-` operator with an unsigned type, e.g.
+
+    angle2 = -clipangle;
+
+As unsigned types cannot be negative, the use of `-` is not meaningful in
+arithmetic terms, though it is still a useful way to force
+an overflow around zero, so (for instance) 0x1 becomes 0xffffffff. Subtracting
+from 0 is equivalent and accepted by the compiler.
+
+    angle2 = 0-clipangle;
+
+
+# DSB-21 - drawing after the end of a short column
+
+
+# DSB-22 - drawing before the beginning of a short column
 
 
 
-@@ -59,6 +61,8 @@ rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
- 
- #include "m_misc.h"
- 
-+#include "headless.h" // JWh - definition of access, M_LumpSprintf
-+
- //
- // M_DrawText
- // Returns the final X coordinate
-@@ -105,26 +109,22 @@ M_DrawText
- //
- // M_WriteFile
- //
--#ifndef O_BINARY
--#define O_BINARY 0
--#endif
--
- boolean
- M_WriteFile
- ( char const*	name,
-   void*		source,
-   int		length )
- {
--    int		handle;
-+    FILE* handle;
-     int		count;
- 	
--    handle = open ( name, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
-+    handle = fopen ( name, "wb" );
- 
--    if (handle == -1)
-+    if (handle == NULL)
- 	return false;
- 
--    count = write (handle, source, length);
--    close (handle);
-+    count = fwrite (source, 1, length, handle);
-+    fclose (handle);
- 	
-     if (count < length)
- 	return false;
-@@ -141,6 +141,8 @@ M_ReadFile
- ( char const*	name,
-   byte**	buffer )
- {
-+#ifndef HEADLESS
-+    /* Not used in Headless Doom */
-     int	handle, count, length;
-     struct stat	fileinfo;
-     byte		*buf;
-@@ -160,9 +162,14 @@ M_ReadFile
- 		
-     *buffer = buf;
-     return length;
-+#else
-+    *buffer = NULL;
-+#endif
-+    return 0;
- }
- 
- 
-+
- //
- // DEFAULTS
- //
-@@ -221,6 +228,7 @@ char*		mousedev;
- extern char*	chat_macros[];
- 
- 
-+#ifndef HEADLESS
- 
- typedef struct
- {
-@@ -402,6 +410,7 @@ void M_LoadDefaults (void)
-     }
- }
- 
-+#endif
- 
- //
- // SCREEN SHOTS
-@@ -531,4 +540,18 @@ void M_ScreenShot (void)
-     players[consoleplayer].message = "screen shot";
- }
- 
-+// JWh - This version of sprintf writes at most 9 bytes and is specifically
-+// intended for formatting the lump names that appear within the WAD file.
-+// There may be up to 8 characters. The 9th byte is always '\0'.
-+int M_LumpSprintf (char *lumpname, const char *format, ...)
-+{
-+    va_list	argptr;
-+    int count;
-+
-+    va_start (argptr, format);
-+    count = vsnprintf (lumpname, 9, format, argptr);
-+    va_end (argptr);
-+    return count;
-+}
-+
- 
-diff --git a/headless_doom/m_misc.h b/headless_doom/m_misc.h
-index 82afb0f..937d682 100644
---- a/headless_doom/m_misc.h
-+++ b/headless_doom/m_misc.h
-@@ -57,6 +57,11 @@ M_DrawText
-   char*		string );
- 
- 
-+// JWh - This version of sprintf writes at most 9 bytes and is specifically
-+// intended for formatting the lump names that appear within the WAD file.
-+// There may be up to 8 characters. The 9th byte is always '\0'.
-+int M_LumpSprintf(char *lumpname, const char *format, ...);
-+
- #endif
- //-----------------------------------------------------------------------------
- //
-diff --git a/headless_doom/p_doors.c b/headless_doom/p_doors.c
-index b22dd15..fc23a1d 100644
---- a/headless_doom/p_doors.c
-+++ b/headless_doom/p_doors.c
-@@ -184,7 +184,7 @@ void T_VerticalDoor (vldoor_t* door)
- 		
- 	      case close30ThenOpen:
- 	      case blazeOpen:
--	      case open:
-+	      case dopen: // JWh - renamed
- 		door->sector->specialdata = NULL;
- 		P_RemoveThinker (&door->thinker);  // unlink and free
- 		break;
-@@ -329,7 +329,7 @@ EV_DoDoor
- 	    break;
- 	    
- 	  case normal:
--	  case open:
-+	  case dopen: // JWh - renamed
- 	    door->direction = 1;
- 	    door->topheight = P_FindLowestCeilingSurrounding(sec);
- 	    door->topheight -= 4*FRACUNIT;
-@@ -478,7 +478,7 @@ EV_VerticalDoor
-       case 32:
-       case 33:
-       case 34:
--	door->type = open;
-+	door->type = dopen; // JWh - renamed
- 	line->special = 0;
- 	break;
- 	
-diff --git a/headless_doom/p_enemy.c b/headless_doom/p_enemy.c
-index 25b5b2d..298d604 100644
---- a/headless_doom/p_enemy.c
-+++ b/headless_doom/p_enemy.c
-@@ -589,7 +589,7 @@ void A_KeenDie (mobj_t* mo)
-     }
- 
-     junk.tag = 666;
--    EV_DoDoor(&junk,open);
-+    EV_DoDoor(&junk,dopen); // JWh - renamed
- }
- 
- 
-diff --git a/headless_doom/p_floor.c b/headless_doom/p_floor.c
-index 37a6cd8..9541112 100644
---- a/headless_doom/p_floor.c
-+++ b/headless_doom/p_floor.c
-@@ -467,8 +467,8 @@ EV_BuildStairs
- 
-     floormove_t*	floor;
-     
--    fixed_t		stairsize;
--    fixed_t		speed;
-+    fixed_t		stairsize = 0; // JWh - if 'type' is invalid, this will be undefined
-+    fixed_t		speed = 0;     // JWh - if 'type' is invalid, this will be undefined
- 
-     secnum = -1;
-     rtn = 0;
-diff --git a/headless_doom/p_maputl.c b/headless_doom/p_maputl.c
-index 597b19c..ace764c 100644
---- a/headless_doom/p_maputl.c
-+++ b/headless_doom/p_maputl.c
-@@ -111,8 +111,8 @@ P_BoxOnLineSide
- ( fixed_t*	tmbox,
-   line_t*	ld )
- {
--    int		p1;
--    int		p2;
-+    int		p1 = 0; // JWh - initialise variable in case ld->slopetype is invalid
-+    int		p2 = 0; // JWh - initialise variable in case ld->slopetype is invalid
- 	
-     switch (ld->slopetype)
-     {
-diff --git a/headless_doom/p_saveg.c b/headless_doom/p_saveg.c
-index 4500a54..c3342f5 100644
---- a/headless_doom/p_saveg.c
-+++ b/headless_doom/p_saveg.c
-@@ -21,6 +21,8 @@
- //
- //-----------------------------------------------------------------------------
- 
-+#ifndef HEADLESS
-+
- static const char
- rcsid[] = "$Id: p_tick.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
- 
-@@ -583,4 +585,5 @@ void P_UnArchiveSpecials (void)
-     }
- 
- }
-+#endif
- 
-diff --git a/headless_doom/p_setup.c b/headless_doom/p_setup.c
-index e5d3667..a824c0f 100644
---- a/headless_doom/p_setup.c
-+++ b/headless_doom/p_setup.c
-@@ -43,6 +43,7 @@ rcsid[] = "$Id: p_setup.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
- 
- #include "s_sound.h"
- 
-+#include "m_misc.h" // JWh - for M_LumpSprintf
- #include "doomstat.h"
- 
- 
-@@ -533,7 +534,7 @@ void P_GroupLines (void)
-     }
- 	
-     // build line tables for each sector	
--    linebuffer = Z_Malloc (total*4, PU_LEVEL, 0);
-+    linebuffer = Z_Malloc (total*sizeof(void*), PU_LEVEL, 0); // JWh - 64-bit compat
-     sector = sectors;
-     for (i=0 ; i<numsectors ; i++, sector++)
-     {
-@@ -628,9 +629,9 @@ P_SetupLevel
-     if ( gamemode == commercial)
-     {
- 	if (map<10)
--	    sprintf (lumpname,"map0%i", map);
-+	    M_LumpSprintf (lumpname,"map0%i", map);  // JWh - use bounded format
- 	else
--	    sprintf (lumpname,"map%i", map);
-+	    M_LumpSprintf (lumpname,"map%i", map);   // JWh - use bounded format
-     }
-     else
-     {
-diff --git a/headless_doom/p_spec.c b/headless_doom/p_spec.c
-index f048afb..b5cdd29 100644
---- a/headless_doom/p_spec.c
-+++ b/headless_doom/p_spec.c
-@@ -72,7 +72,7 @@ typedef struct
- //
- typedef struct
- {
--    boolean	istexture;	// if false, it is a flat
-+    signed char istexture;	// if false, it is a flat // JWh - use explicit signed type
-     char	endname[9];
-     char	startname[9];
-     int		speed;
-@@ -542,7 +542,7 @@ P_CrossSpecialLine
- 	// All from here to RETRIGGERS.
-       case 2:
- 	// Open Door
--	EV_DoDoor(line,open);
-+	EV_DoDoor(line,dopen); // JWh - renamed
- 	line->special = 0;
- 	break;
- 
-@@ -846,7 +846,7 @@ P_CrossSpecialLine
- 
-       case 86:
- 	// Open Door
--	EV_DoDoor(line,open);
-+	EV_DoDoor(line,dopen); // JWh - renamed
- 	break;
- 	
-       case 87:
-@@ -987,7 +987,7 @@ P_ShootSpecialLine
- 	
-       case 46:
- 	// OPEN DOOR
--	EV_DoDoor(line,open);
-+	EV_DoDoor(line,dopen); // JWh - renamed
- 	P_ChangeSwitchTexture(line,1);
- 	break;
- 	
-@@ -1184,7 +1184,7 @@ int EV_DoDonut(line_t*	line)
- 	s2 = getNextSector(s1->lines[0],s1);
- 	for (i = 0;i < s2->linecount;i++)
- 	{
--	    if ((!s2->lines[i]->flags & ML_TWOSIDED) ||
-+	    if ((!(s2->lines[i]->flags & ML_TWOSIDED)) || // JWh - brackets added
- 		(s2->lines[i]->backsector == s1))
- 		continue;
- 	    s3 = s2->lines[i]->backsector;
-diff --git a/headless_doom/p_spec.h b/headless_doom/p_spec.h
-index 39155bf..7a66b68 100644
---- a/headless_doom/p_spec.h
-+++ b/headless_doom/p_spec.h
-@@ -321,7 +321,6 @@ void    P_RemoveActivePlat(plat_t* plat);
- void    EV_StopPlat(line_t* line);
- void    P_ActivateInStasis(int tag);
- 
--
- //
- // P_DOORS
- //
-@@ -330,7 +329,7 @@ typedef enum
-     normal,
-     close30ThenOpen,
-     close,
--    open,
-+    dopen, // JWh - termux stdio.h defines 'open', causing a clash.
-     raiseIn5Mins,
-     blazeRaise,
-     blazeOpen,
-diff --git a/headless_doom/p_switch.c b/headless_doom/p_switch.c
-index 5880732..dcc80b0 100644
---- a/headless_doom/p_switch.c
-+++ b/headless_doom/p_switch.c
-@@ -454,7 +454,7 @@ P_UseSpecialLine
- 	
-       case 103:
- 	// Open Door
--	if (EV_DoDoor(line,open))
-+	if (EV_DoDoor(line,dopen)) // JWh - renamed
- 	    P_ChangeSwitchTexture(line,0);
- 	break;
- 	
-@@ -537,7 +537,7 @@ P_UseSpecialLine
- 	
-       case 61:
- 	// Open Door
--	if (EV_DoDoor(line,open))
-+	if (EV_DoDoor(line,dopen)) // JWh - renamed
- 	    P_ChangeSwitchTexture(line,1);
- 	break;
- 	
-diff --git a/headless_doom/r_bsp.c b/headless_doom/r_bsp.c
-index adc9f75..9da0749 100644
---- a/headless_doom/r_bsp.c
-+++ b/headless_doom/r_bsp.c
-@@ -303,7 +303,7 @@ void R_AddLine (seg_t*	line)
- 	// Totally off the left edge?
- 	if (tspan >= span)
- 	    return;	
--	angle2 = -clipangle;
-+	angle2 = 0-clipangle; // JWh - MSVC rejects unary minus with unsigned types
-     }
-     
-     // The seg is in the view range,
-@@ -455,7 +455,7 @@ boolean R_CheckBBox (fixed_t*	bspcoord)
- 	if (tspan >= span)
- 	    return false;
- 	
--	angle2 = -clipangle;
-+	angle2 = 0-clipangle; // JWh - MSVC rejects unary minus with unsigned types
-     }
- 
- 
-diff --git a/headless_doom/r_data.c b/headless_doom/r_data.c
-index acabd53..73763ec 100644
---- a/headless_doom/r_data.c
-+++ b/headless_doom/r_data.c
-@@ -45,6 +45,10 @@ rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
- #include  <alloca.h>
- #endif
- 
-+#ifdef HEADLESS
-+#include "headless.h"   // JWh - for alloca
-+#endif
-+
- 
- #include "r_data.h"
- 
-@@ -87,7 +91,7 @@ typedef struct
-     boolean		masked;	
-     short		width;
-     short		height;
--    void		**columndirectory;	// OBSOLETE
-+    int		columndirectory;	// OBSOLETE // JWh - 64-bit compat, use 4 bytes
-     short		patchcount;
-     mappatch_t	patches[1];
- } maptexture_t;
-@@ -241,9 +245,10 @@ void R_GenerateComposite (int texnum)
- 	
-     texture = textures[texnum];
- 
--    block = Z_Malloc (texturecompositesize[texnum],
--		      PU_STATIC, 
--		      &texturecomposite[texnum]);	
-+    block = Z_Malloc (texturecompositesize[texnum] + 1, // JWh - allocate 1 extra byte which may be drawn
-+		      PU_STATIC,                                // in some circumstances. Issue first seen in E1M2,
-+		      &texturecomposite[texnum]);	            // at headless_count 902 x 276 y 109. Zero this byte.
-+    block[texturecompositesize[texnum]] = 0;
- 
-     collump = texturecolumnlump[texnum];
-     colofs = texturecolumnofs[texnum];
-@@ -479,13 +484,13 @@ void R_InitTextures (void)
-     }
-     numtextures = numtextures1 + numtextures2;
- 	
--    textures = Z_Malloc (numtextures*4, PU_STATIC, 0);
--    texturecolumnlump = Z_Malloc (numtextures*4, PU_STATIC, 0);
--    texturecolumnofs = Z_Malloc (numtextures*4, PU_STATIC, 0);
--    texturecomposite = Z_Malloc (numtextures*4, PU_STATIC, 0);
--    texturecompositesize = Z_Malloc (numtextures*4, PU_STATIC, 0);
--    texturewidthmask = Z_Malloc (numtextures*4, PU_STATIC, 0);
--    textureheight = Z_Malloc (numtextures*4, PU_STATIC, 0);
-+    textures = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
-+    texturecolumnlump = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
-+    texturecolumnofs = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
-+    texturecomposite = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
-+    texturecompositesize = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
-+    texturewidthmask = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
-+    textureheight = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
- 
-     totalwidth = 0;
-     
-@@ -567,7 +572,7 @@ void R_InitTextures (void)
- 	R_GenerateLookup (i);
-     
-     // Create translation table for global animation.
--    texturetranslation = Z_Malloc ((numtextures+1)*4, PU_STATIC, 0);
-+    texturetranslation = Z_Malloc ((numtextures+1)*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
-     
-     for (i=0 ; i<numtextures ; i++)
- 	texturetranslation[i] = i;
-@@ -587,7 +592,7 @@ void R_InitFlats (void)
-     numflats = lastflat - firstflat + 1;
- 	
-     // Create translation table for global animation.
--    flattranslation = Z_Malloc ((numflats+1)*4, PU_STATIC, 0);
-+    flattranslation = Z_Malloc ((numflats+1)*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
-     
-     for (i=0 ; i<numflats ; i++)
- 	flattranslation[i] = i;
-@@ -609,9 +614,9 @@ void R_InitSpriteLumps (void)
-     lastspritelump = W_GetNumForName ("S_END") - 1;
-     
-     numspritelumps = lastspritelump - firstspritelump + 1;
--    spritewidth = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
--    spriteoffset = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
--    spritetopoffset = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
-+    spritewidth = Z_Malloc (numspritelumps*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
-+    spriteoffset = Z_Malloc (numspritelumps*sizeof(void*), PU_STATIC, 0);
-+    spritetopoffset = Z_Malloc (numspritelumps*sizeof(void*), PU_STATIC, 0);
- 	
-     for (i=0 ; i< numspritelumps ; i++)
-     {
-@@ -639,7 +644,7 @@ void R_InitColormaps (void)
-     lump = W_GetNumForName("COLORMAP"); 
-     length = W_LumpLength (lump) + 255; 
-     colormaps = Z_Malloc (length, PU_STATIC, 0); 
--    colormaps = (byte *)( ((int)colormaps + 255)&~0xff); 
-+    colormaps = (byte *)( ((intptr_t)colormaps + 255)&~0xff);  // JWh - 64-bit compatibility
-     W_ReadLump (lump,colormaps); 
- }
- 
+
 diff --git a/headless_doom/r_draw.c b/headless_doom/r_draw.c
 index 0145044..d36a977 100644
 --- a/headless_doom/r_draw.c

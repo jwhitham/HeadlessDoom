@@ -184,7 +184,7 @@ void T_VerticalDoor (vldoor_t* door)
 		
 	      case close30ThenOpen:
 	      case blazeOpen:
-	      case dopen: // JWh - renamed
+	      case dopen: // DSB-17 - renamed
 		door->sector->specialdata = NULL;
 		P_RemoveThinker (&door->thinker);  // unlink and free
 		break;
@@ -329,7 +329,7 @@ EV_DoDoor
 	    break;
 	    
 	  case normal:
-	  case dopen: // JWh - renamed
+	  case dopen: // DSB-17 - renamed
 	    door->direction = 1;
 	    door->topheight = P_FindLowestCeilingSurrounding(sec);
 	    door->topheight -= 4*FRACUNIT;
@@ -478,7 +478,7 @@ EV_VerticalDoor
       case 32:
       case 33:
       case 34:
-	door->type = dopen; // JWh - renamed
+	door->type = dopen; // DSB-17 - renamed
 	line->special = 0;
 	break;
 	

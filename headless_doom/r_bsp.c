@@ -303,7 +303,7 @@ void R_AddLine (seg_t*	line)
 	// Totally off the left edge?
 	if (tspan >= span)
 	    return;	
-	angle2 = 0-clipangle; // JWh - MSVC rejects unary minus with unsigned types
+	angle2 = 0-clipangle; // DSB-20 - MSVC rejects unary minus with unsigned types
     }
     
     // The seg is in the view range,
@@ -455,7 +455,7 @@ boolean R_CheckBBox (fixed_t*	bspcoord)
 	if (tspan >= span)
 	    return false;
 	
-	angle2 = 0-clipangle; // JWh - MSVC rejects unary minus with unsigned types
+	angle2 = 0-clipangle; // DSB-20 - MSVC rejects unary minus with unsigned types
     }
 
 

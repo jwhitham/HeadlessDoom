@@ -46,7 +46,7 @@ rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 #endif
 
 #ifdef HEADLESS
-#include "headless.h"   // JWh - for alloca
+#include "headless.h"   // DSB-6 - for alloca
 #endif
 
 
@@ -91,7 +91,7 @@ typedef struct
     boolean		masked;	
     short		width;
     short		height;
-    int		columndirectory;	// OBSOLETE // JWh - 64-bit compat, use 4 bytes
+    int		columndirectory;	// OBSOLETE // DSB-3 - 64-bit compat, use 4 bytes
     short		patchcount;
     mappatch_t	patches[1];
 } maptexture_t;
@@ -245,10 +245,10 @@ void R_GenerateComposite (int texnum)
 	
     texture = textures[texnum];
 
-    block = Z_Malloc (texturecompositesize[texnum] + 1, // JWh - allocate 1 extra byte which may be drawn
-		      PU_STATIC,                                // in some circumstances. Issue first seen in E1M2,
-		      &texturecomposite[texnum]);	            // at headless_count 902 x 276 y 109. Zero this byte.
-    block[texturecompositesize[texnum]] = 0;
+    block = Z_Malloc (texturecompositesize[texnum] + 1, // DSB-21 - one extra byte
+		      PU_STATIC,
+		      &texturecomposite[texnum]);
+    block[texturecompositesize[texnum]] = 0; // DSB-21 - zero extra byte
 
     collump = texturecolumnlump[texnum];
     colofs = texturecolumnofs[texnum];
@@ -484,7 +484,7 @@ void R_InitTextures (void)
     }
     numtextures = numtextures1 + numtextures2;
 	
-    textures = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
+    textures = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0); // DSB-3 - 64-bit compat
     texturecolumnlump = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
     texturecolumnofs = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
     texturecomposite = Z_Malloc (numtextures*sizeof(void*), PU_STATIC, 0);
@@ -572,7 +572,7 @@ void R_InitTextures (void)
 	R_GenerateLookup (i);
     
     // Create translation table for global animation.
-    texturetranslation = Z_Malloc ((numtextures+1)*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
+    texturetranslation = Z_Malloc ((numtextures+1)*sizeof(void*), PU_STATIC, 0); // DSB-3 - 64-bit compat
     
     for (i=0 ; i<numtextures ; i++)
 	texturetranslation[i] = i;
@@ -592,7 +592,7 @@ void R_InitFlats (void)
     numflats = lastflat - firstflat + 1;
 	
     // Create translation table for global animation.
-    flattranslation = Z_Malloc ((numflats+1)*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
+    flattranslation = Z_Malloc ((numflats+1)*sizeof(void*), PU_STATIC, 0); // DSB-3 - 64-bit compat
     
     for (i=0 ; i<numflats ; i++)
 	flattranslation[i] = i;
@@ -614,7 +614,7 @@ void R_InitSpriteLumps (void)
     lastspritelump = W_GetNumForName ("S_END") - 1;
     
     numspritelumps = lastspritelump - firstspritelump + 1;
-    spritewidth = Z_Malloc (numspritelumps*sizeof(void*), PU_STATIC, 0); // JWh - 64-bit compat
+    spritewidth = Z_Malloc (numspritelumps*sizeof(void*), PU_STATIC, 0); // DSB-3 - 64-bit compat
     spriteoffset = Z_Malloc (numspritelumps*sizeof(void*), PU_STATIC, 0);
     spritetopoffset = Z_Malloc (numspritelumps*sizeof(void*), PU_STATIC, 0);
 	
@@ -644,7 +644,7 @@ void R_InitColormaps (void)
     lump = W_GetNumForName("COLORMAP"); 
     length = W_LumpLength (lump) + 255; 
     colormaps = Z_Malloc (length, PU_STATIC, 0); 
-    colormaps = (byte *)( ((intptr_t)colormaps + 255)&~0xff);  // JWh - 64-bit compatibility
+    colormaps = (byte *)( ((intptr_t)colormaps + 255)&~0xff);  // DSB-3 - 64-bit compatibility
     W_ReadLump (lump,colormaps); 
 }
 

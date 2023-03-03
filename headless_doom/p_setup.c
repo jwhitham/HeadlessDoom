@@ -43,7 +43,7 @@ rcsid[] = "$Id: p_setup.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 
 #include "s_sound.h"
 
-#include "m_misc.h" // JWh - for M_LumpSprintf
+#include "m_misc.h" // DSB-14 - for M_LumpSprintf
 #include "doomstat.h"
 
 
@@ -534,7 +534,7 @@ void P_GroupLines (void)
     }
 	
     // build line tables for each sector	
-    linebuffer = Z_Malloc (total*sizeof(void*), PU_LEVEL, 0); // JWh - 64-bit compat
+    linebuffer = Z_Malloc (total*sizeof(void*), PU_LEVEL, 0); // DSB-3 - 64-bit compat
     sector = sectors;
     for (i=0 ; i<numsectors ; i++, sector++)
     {
@@ -629,9 +629,9 @@ P_SetupLevel
     if ( gamemode == commercial)
     {
 	if (map<10)
-	    M_LumpSprintf (lumpname,"map0%i", map);  // JWh - use bounded format
+	    M_LumpSprintf (lumpname,"map0%i", map);  // DSB-14
 	else
-	    M_LumpSprintf (lumpname,"map%i", map);   // JWh - use bounded format
+	    M_LumpSprintf (lumpname,"map%i", map);   // DSB-14
     }
     else
     {

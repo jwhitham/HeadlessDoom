@@ -329,7 +329,7 @@ typedef enum
     normal,
     close30ThenOpen,
     close,
-    dopen, // JWh - termux stdio.h defines 'open', causing a clash.
+    dopen, // DSB-17 - termux stdio.h defines 'open', causing a clash.
     raiseIn5Mins,
     blazeRaise,
     blazeOpen,

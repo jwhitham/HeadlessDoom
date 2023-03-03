@@ -21,7 +21,7 @@
 //
 //-----------------------------------------------------------------------------
 
-#ifndef HEADLESS
+#ifndef HEADLESS // DSB-12
 
 static const char
 rcsid[] = "$Id: p_tick.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";

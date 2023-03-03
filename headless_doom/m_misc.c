@@ -117,7 +117,7 @@ M_WriteFile
   void*		source,
   int		length )
 {
-    FILE* handle;
+    FILE* handle; // DSB-16 - use stdio.h file I/O functions
     int		count;
 	
     handle = fopen ( name, "wb" );
@@ -143,8 +143,7 @@ M_ReadFile
 ( char const*	name,
   byte**	buffer )
 {
-#ifndef HEADLESS
-    /* Not used in Headless Doom */
+#ifndef HEADLESS // DSB-16 - Not used in Headless Doom
     int	handle, count, length;
     struct stat	fileinfo;
     byte		*buf;
@@ -230,7 +229,7 @@ char*		mousedev;
 extern char*	chat_macros[];
 
 
-#ifndef HEADLESS
+#ifndef HEADLESS    // DSB-12 - removed code that accesses config files
 
 typedef struct
 {

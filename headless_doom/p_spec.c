@@ -72,7 +72,7 @@ typedef struct
 //
 typedef struct
 {
-    signed char istexture;	// if false, it is a flat // JWh - use explicit signed type
+    signed char istexture;	// if false, it is a flat // DSB-4 - use explicit signed type
     char	endname[9];
     char	startname[9];
     int		speed;
@@ -542,7 +542,7 @@ P_CrossSpecialLine
 	// All from here to RETRIGGERS.
       case 2:
 	// Open Door
-	EV_DoDoor(line,dopen); // JWh - renamed
+	EV_DoDoor(line,dopen); // DSB-17 - renamed
 	line->special = 0;
 	break;
 
@@ -846,7 +846,7 @@ P_CrossSpecialLine
 
       case 86:
 	// Open Door
-	EV_DoDoor(line,dopen); // JWh - renamed
+	EV_DoDoor(line,dopen); // DSB-17 - renamed
 	break;
 	
       case 87:
@@ -987,7 +987,7 @@ P_ShootSpecialLine
 	
       case 46:
 	// OPEN DOOR
-	EV_DoDoor(line,dopen); // JWh - renamed
+	EV_DoDoor(line,dopen); // DSB-17 - renamed
 	P_ChangeSwitchTexture(line,1);
 	break;
 	
@@ -1184,7 +1184,7 @@ int EV_DoDonut(line_t*	line)
 	s2 = getNextSector(s1->lines[0],s1);
 	for (i = 0;i < s2->linecount;i++)
 	{
-	    if ((!(s2->lines[i]->flags & ML_TWOSIDED)) || // JWh - brackets added
+	    if ((!s2->lines[i]->flags & ML_TWOSIDED) || // DSB-19 - brackets added
 		(s2->lines[i]->backsector == s1))
 		continue;
 	    s3 = s2->lines[i]->backsector;
