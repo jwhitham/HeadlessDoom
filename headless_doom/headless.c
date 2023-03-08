@@ -100,7 +100,7 @@ void I_FinishUpdate (void)
                 for (x = 0; x < SCREENWIDTH; x++) {
                     if (ref[x] != now[x]) {
                         if (diff == 0) {
-                            printf("different: frame %u x %u y %u ref 0x%02x got 0x%02x\n",
+                            printf("different: frame %u x %u y %u expected 0x%02x got 0x%02x\n",
                                     headless_count, x, y, ref[x], now[x]);
                             fflush(stdout);
                         }
@@ -109,7 +109,8 @@ void I_FinishUpdate (void)
                 }
             }
             if (diff > 1) {
-                printf("frame %u has a total of %u differences\n", headless_count, diff);
+                printf("frame %u has %u more differences\n",
+                        headless_count, diff - 1);
                 fflush(stdout);
             }
             if (diff > (SCREENWIDTH * SCREENHEIGHT / 4)) {
@@ -128,7 +129,6 @@ void I_FinishUpdate (void)
     switch (headless_mode) {
         case TEST:
         case TEST_PCX:
-        case TEST_BIN:
             if (2 != fscanf (crc_out, "%08x %u", &v1, &v2)) {
                 I_Error ("Couldn't read CRC and frame number from 'crc.dat' frame %u",
                         headless_count);
@@ -149,6 +149,7 @@ void I_FinishUpdate (void)
             fprintf (crc_out, "%08x %u\n", crc, headless_count);
             fflush (crc_out);
             break;
+        case TEST_BIN:
         case BENCHMARK:
             break;
     }
