@@ -58,7 +58,7 @@ Headless Doom logs these important events using modifications in
 
 Tests of `gamemode` wrongly used enumeration values from
 `GameMission_t`, causing compilation errors. The original
-behaviour is preserved.
+behavior is preserved.
 
 # DSB-9 - Incorrect memset bounds in G_DoLoadLevel
 
@@ -174,7 +174,7 @@ uninitialised if `type` is not one of two expected values.
 
 Although other values of `type` may be impossible, the compiler cannot
 determine this, and initialisation is a good idea to prevent unpredictable
-behaviour.
+behavior.
 
 # DSB-19 - Boolean and bitwise operators mixed with unclear operator precedence
 
@@ -203,10 +203,113 @@ from 0 is equivalent and accepted by the compiler.
     angle2 = 0-clipangle;
 
 
-# DSB-21 - drawing after the end of a short column
+# DSB-21 - drawing pixels outside of short textures
 
+In Doom, wall textures consist of columns of pixels. A column may contain 128
+pixels, but can be much shorter. For example a staircase texture such as STEP5
+is 32 by 16 pixels.
 
-# DSB-22 - drawing before the beginning of a short column
+Drawing is performed by `R_DrawColumn`, which assumes that columns contain
+128 pixels, like this:
+
+    do {
+        *dest = dc_colormap[dc_source[(frac>>FRACBITS)&127]];
+        dest += SCREENWIDTH; 
+        frac += fracstep;
+    } while (count--); 
+
+If the column actually contains fewer pixels, then `R_DrawColumn`
+relies on its input parameters to ensure that the undefined pixels are never
+drawn. A Doom level designer can force these undefined pixels to be drawn
+anyway by choosing relative sector heights so that the undefined part of the texture
+is exposed. This leads to the
+[Tutti-frutti effect](https://doomwiki.org/wiki/Tutti-frutti_effect).
+
+Even if the Doom level designer assigns the sector heights correctly,
+imprecision in fixed point calculations can still cause `R_DrawColumn` to draw
+pixels before and after the end of a short column. The scale factors which
+determine `frac`, `count` and `dest` are subject to rounding errors which
+can cause `frac` to be negative (before the start of the column) or
+greater than the column height. This happens only in rare circumstances,
+and for a full-length 128 pixel column, the effect is only that a pixel
+will be taken from the top of the texture but drawn at the bottom or vice
+versa.
+
+However, for a short column, the effect is that undefined memory
+is accessed. For a texture like STEP5 with height 16, pixels 16 .. 127 are
+undefined. If `frac` is negative, pixel 127 is accessed. If `frac` overflows,
+pixel 16 is accessed. Often, this is not noticeable,
+because `R_DrawColumn` draws a pixel from an adjacent column,
+or from a nearby column in the case of an underflow, and this is likely
+to "look right". But there is no guarantee of this, as the start of the
+column may be close to the end of its block of memory.
+
+![Drawing after the end of a short column](bugs/DSB-21.png)
+
+This screenshot from E1M2 (with headless\_count 902)
+shows two instances of the effect on a STEP5 texture. They are highlighted in pink
+(Doom colour 0xff). The left pixel would normally be taken from the top of the
+next column, which is a valid memory location. The right pixel
+would be taken from uninitialised memory outside of the texture,
+and might have any value.
+
+This problem is not limited to short columns. `R_DrawColumn` may also
+draw undefined memory for "masked" columns, which appear in partially
+transparent textures. The partially transparent texture is split into "posts",
+each of which is a short column. Rounding errors can cause `R_DrawColumn`
+to draw pixels before and after the post. The problem is common enough that
+Doom actually has a workaround for it: [padding bytes are added at the beginning and end
+of each post](https://doomwiki.org/wiki/Picture_format). Unfortunately
+the byte at the beginning is not used, because underflow does not result
+in accessing `dc_source[-1]`, but rather `dc_source[127]`. This may have
+any value, though it's quite likely to be taken from a nearby post, and
+so it may still "look right".
+
+Various solutions are possible for this bug, both in terms of implementation
+and desired outcome. In terms of outcome, if invalid memory is accessed,
+any action is reasonable, such as (for example) always drawing black pixels. But if
+underflow/overflow always causes an access to a nearby post or column,
+should this also be replaced by black? 
+
+In terms of implementation, it is desirable to avoid 
+altering `R_DrawColumn` since it forms a large part of the CPU time
+used by Doom. But large code changes are also a bad idea anywhere,
+because they move further from the original game code.
+
+Version 1.10 of Headless Doom drew black pixels for
+negative `frac` values within a second loop inside `R_DrawColumn`.
+This avoided invalid memory accesses due to underflow, but does not
+help with overflow. Worse still, in several places in the game, it leads
+to entirely different rendering, as seen in the following screenshot
+(frame 20984, E2M4). In this case Doom actually relies on negative `frac`
+values to correctly draw the desired texture (MARBLE1)
+and there are no invalid memory accesses because the texture is 128 pixels
+in height, so the bug fix is clearly wrong.
+
+![Headless Doom E2M4 rendering error](bugs/DSB-21-2.png)
+
+For version 1.11 of Headless Doom, I considered adding `dc_limit` to
+accompany `dc_source`, indicating the extent of the current texture. This
+would have no effect on full-height textures like MARBLE1, but it
+alters the main loop within `R_DrawColumn`, and subtly changes
+the behavior of Doom when rounding errors occur, since it is no
+longer possible to draw a pixel from a nearby column as a result of
+underflow or overflow.
+
+I therefore decided instead to pad all texture memory allocation with
+128 additional zero bytes. This preserves the original behaviour of Doom
+in situations where this did not lead to invalid memory accesses,
+and it does not alter `R_DrawColumn` or substantially change any other
+code. However, memory usage is increased in the places where
+texture memory is allocated: the `R_GenerateComposite` function which
+allocates space for textures with patches, and (more seriously)
+`W_CacheLumpNum`, which loads textures from WAD files. This affects
+all WAD file accesses, because `W_CacheLumpNum` is not just used for
+textures. This is a downside; however, there is no perfect solution.
+
+Because version 1.10 rendered parts of the game incorrectly, this led to
+changes in `crc.dat`.
+
 
 
 

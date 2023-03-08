@@ -132,17 +132,6 @@ void R_DrawColumn (void)
     fracstep = dc_iscale; 
     frac = dc_texturemid + (dc_yl-centery)*fracstep; 
 
-    // JWh: If the position is before the start of the column, fill
-    // with black to avoid accessing undefined memory (before dc_source).
-    // Issue first seen in E1M1 at headless_count 191 x 149 y 85.
-    while (frac < 0) {
-        *dest = 0;
-        dest += SCREENWIDTH;
-        frac += fracstep;
-        count --;
-        if (count < 0) return;
-    }
-
     // Inner loop that does the actual texture mapping,
     //  e.g. a DDA-lile scaling.
     // This is as fast as it gets.

@@ -245,10 +245,10 @@ void R_GenerateComposite (int texnum)
 	
     texture = textures[texnum];
 
-    block = Z_Malloc (texturecompositesize[texnum] + 1, // DSB-21 - one extra byte
+    block = Z_Malloc (texturecompositesize[texnum] + 128, // DSB-21
 		      PU_STATIC,
 		      &texturecomposite[texnum]);
-    block[texturecompositesize[texnum]] = 0; // DSB-21 - zero extra byte
+	memset (&block[texturecompositesize[texnum]], 0, 128); // DSB-21
 
     collump = texturecolumnlump[texnum];
     colofs = texturecolumnofs[texnum];

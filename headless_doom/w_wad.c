@@ -493,8 +493,10 @@ W_CacheLumpNum
 	// read the lump in
 	
 	//printf ("cache miss on lump %i\n",lump);
-	ptr = Z_Malloc (W_LumpLength (lump), tag, &lumpcache[lump]);
+	int len = W_LumpLength (lump); // DSB-21
+	ptr = Z_Malloc (len + 128, tag, &lumpcache[lump]); // DSB-21
 	W_ReadLump (lump, lumpcache[lump]);
+	memset (&ptr[len], 0, 128); // DSB-21
     }
     else
     {
