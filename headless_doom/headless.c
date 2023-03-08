@@ -16,9 +16,11 @@
 typedef enum {
     BENCHMARK,
     TEST,
-    TEST_AND_PCX,
+    TEST_PCX,
+    TEST_BIN,
     WRITE_CRC,
-    WRITE_CRC_AND_PCX,
+    WRITE_CRC_PCX,
+    WRITE_CRC_BIN,
 } t_headless_mode;
 
 static t_headless_mode headless_mode = BENCHMARK;
@@ -27,6 +29,8 @@ unsigned headless_count;
 static unsigned test_start_frame = 0;
 static unsigned test_end_frame = 99999;
 static FILE * crc_out = NULL;
+static FILE * bin_out = NULL;
+static FILE * bin_in = NULL;
 static int fake_time = 0;
 static uint64_t start_time = 0;
 byte* save_p;
@@ -54,45 +58,99 @@ void I_ShutdownGraphics(void)
 
 void I_FinishUpdate (void)
 {
-    /* Here is where screens[0] is passed to CRC-32 */
-    unsigned crc, v1, v2;
+    unsigned crc, v1, v2, x, y, diff;
 
     headless_count ++;
     if (headless_mode == BENCHMARK) {
         return;
     }
 
-    if ((headless_count >= test_start_frame)
-    && ((headless_mode == WRITE_CRC_AND_PCX)
-        || (headless_mode == TEST_AND_PCX))) {
-        char name [32];
+    /* read/write screenshots and reference files */
+    switch (headless_mode) {
+        case WRITE_CRC_PCX:
+        case TEST_PCX:
+            /* write PCX screenshots */
+            if (headless_count >= test_start_frame) {
+                char name [32];
 
-        snprintf (name, sizeof (name), "%05u.pcx", headless_count);
-        WritePCXfile (name, screens[0],
-              SCREENWIDTH, SCREENHEIGHT,
-              cur_palette);
+                snprintf (name, sizeof (name), "%05u.pcx", headless_count);
+                WritePCXfile (name, screens[0],
+                      SCREENWIDTH, SCREENHEIGHT,
+                      cur_palette);
+            }
+            break;
+        case WRITE_CRC_BIN:
+            /* write reference binary file */
+            if (fwrite (screens[0], SCREENHEIGHT * SCREENWIDTH, 1, bin_out) != 1) {
+                I_Error("Unable to write frame %u to reference.dat",
+                        headless_count);
+            }
+            break;
+        case TEST_BIN:
+            /* read reference binary file, compare */
+            diff = 0;
+            for (y = 0; y < SCREENHEIGHT; y++) {
+                byte ref[SCREENWIDTH];
+                byte* now = &screens[0][y * SCREENWIDTH];
+
+                if (fread (ref, SCREENWIDTH, 1, bin_in) != 1) {
+                    I_Error("Unable to read frame %u y %u from reference.dat",
+                            headless_count, y);
+                }
+                for (x = 0; x < SCREENWIDTH; x++) {
+                    if (ref[x] != now[x]) {
+                        if (diff == 0) {
+                            printf("different: frame %u x %u y %u ref 0x%02x got 0x%02x\n",
+                                    headless_count, x, y, ref[x], now[x]);
+                            fflush(stdout);
+                        }
+                        diff++;
+                    }
+                }
+            }
+            if (diff > 1) {
+                printf("frame %u has a total of %u differences\n", headless_count, diff);
+                fflush(stdout);
+            }
+            if (diff > (SCREENWIDTH * SCREENHEIGHT / 4)) {
+                I_Error("Too many differences! Game desynced?");
+            }
+            break;
+        case TEST:
+        case WRITE_CRC:
+        case BENCHMARK:
+            break;
     }
 
+    /* Here is where screens[0] is passed to CRC-32 */
     v1 = v2 = 0;
     crc = crc32_8bytes (screens[0], SCREENHEIGHT * SCREENWIDTH, 0);
-    if ((headless_mode == TEST)
-    || (headless_mode == TEST_AND_PCX)) {
-        if (2 != fscanf (crc_out, "%08x %u", &v1, &v2)) {
-            I_Error ("Couldn't read CRC and frame number from 'crc.dat' frame %u",
-                    headless_count);
-        }
-        if (v2 != headless_count) {
-            I_Error ("Incorrect frame number in 'crc.dat', expected %u got %u",
-                    headless_count, v2);
-        }
-        if ((headless_count >= test_start_frame) && (v1 != crc)) {
-            I_Error ("Incorrect CRC-32, frame %u, "
-                     "expected %08x got %08x",
-                    headless_count, v1, crc);
-        }
-    } else {
-        fprintf (crc_out, "%08x %u\n", crc, headless_count);
-        fflush (crc_out);
+    switch (headless_mode) {
+        case TEST:
+        case TEST_PCX:
+        case TEST_BIN:
+            if (2 != fscanf (crc_out, "%08x %u", &v1, &v2)) {
+                I_Error ("Couldn't read CRC and frame number from 'crc.dat' frame %u",
+                        headless_count);
+            }
+            if (v2 != headless_count) {
+                I_Error ("Incorrect frame number in 'crc.dat', expected %u got %u",
+                        headless_count, v2);
+            }
+            if ((headless_count >= test_start_frame) && (v1 != crc)) {
+                I_Error ("Incorrect CRC-32, frame %u, "
+                         "expected %08x got %08x",
+                        headless_count, v1, crc);
+            }
+            break;
+        case WRITE_CRC:
+        case WRITE_CRC_PCX:
+        case WRITE_CRC_BIN:
+            fprintf (crc_out, "%08x %u\n", crc, headless_count);
+            fflush (crc_out);
+            break;
+        case BENCHMARK:
+            break;
     }
 
     if (headless_count >= test_end_frame) {
@@ -174,11 +232,15 @@ void IdentifyVersion (void)
     if (strcmp(mode, "test") == 0) {
         headless_mode = TEST;
     } else if (strcmp(mode, "test_pcx") == 0) {
-        headless_mode = TEST_AND_PCX;
+        headless_mode = TEST_PCX;
+    } else if (strcmp(mode, "test_bin") == 0) {
+        headless_mode = TEST_BIN;
     } else if (strcmp(mode, "write_crc") == 0) {
         headless_mode = WRITE_CRC;
     } else if (strcmp(mode, "write_pcx") == 0) {
-        headless_mode = WRITE_CRC_AND_PCX;
+        headless_mode = WRITE_CRC_PCX;
+    } else if (strcmp(mode, "write_bin") == 0) {
+        headless_mode = WRITE_CRC_BIN;
     } else if ((strcmp(mode, "") == 0)
     || (strcmp(mode, "benchmark") == 0)) {
         headless_mode = BENCHMARK;
@@ -188,7 +250,8 @@ void IdentifyVersion (void)
 
     switch (headless_mode) {
         case TEST:
-        case TEST_AND_PCX:
+        case TEST_PCX:
+        case TEST_BIN:
             printf ("Headless Doom running in Test mode\n");
             crc_out = fopen ("crc.dat", "rt");
             if (!crc_out) {
@@ -196,7 +259,8 @@ void IdentifyVersion (void)
             }
             break;
         case WRITE_CRC:
-        case WRITE_CRC_AND_PCX:
+        case WRITE_CRC_PCX:
+        case WRITE_CRC_BIN:
             printf ("Headless Doom running in Test (write) mode\n");
             crc_out = fopen ("crc.dat", "wt");
             if (!crc_out) {
@@ -205,6 +269,27 @@ void IdentifyVersion (void)
             break;
         case BENCHMARK:
             printf ("Headless Doom running in Benchmark mode\n");
+            break;
+    }
+
+    switch (headless_mode) {
+        case TEST:
+        case TEST_PCX:
+        case WRITE_CRC:
+        case WRITE_CRC_PCX:
+        case BENCHMARK:
+            break;
+        case WRITE_CRC_BIN:
+            bin_out = fopen ("reference.dat", "wb");
+            if (!bin_out) {
+                I_Error ("Unable to create 'reference.dat'");
+            }
+            break;
+        case TEST_BIN:
+            bin_in = fopen ("reference.dat", "rb");
+            if (!bin_in) {
+                I_Error ("Unable to read 'reference.dat'");
+            }
             break;
     }
     fflush (stdout);
@@ -264,11 +349,12 @@ void D_DoAdvanceDemo (void)
         default:
             switch (headless_mode) {
                 case TEST:
-                case TEST_AND_PCX:
+                case TEST_PCX:
                     printf ("Test complete - %u frames tested ok\n", headless_count);
                     break;
                 case WRITE_CRC:
-                case WRITE_CRC_AND_PCX:
+                case WRITE_CRC_PCX:
+                case WRITE_CRC_BIN:
                     printf ("Test (write) complete - CRC calculated for %u frames\n", headless_count);
                     break;
                 case BENCHMARK:
