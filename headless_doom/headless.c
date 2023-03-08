@@ -28,6 +28,7 @@ static byte cur_palette [768];
 unsigned headless_count;
 static unsigned test_start_frame = 0;
 static unsigned test_end_frame = 99999;
+static unsigned total_diff_count = 0;
 static FILE * crc_out = NULL;
 static FILE * bin_out = NULL;
 static FILE * bin_in = NULL;
@@ -58,7 +59,7 @@ void I_ShutdownGraphics(void)
 
 void I_FinishUpdate (void)
 {
-    unsigned crc, v1, v2, x, y, diff;
+    unsigned crc, v1, v2, x, y, diff_count;
 
     headless_count ++;
     if (headless_mode == BENCHMARK) {
@@ -88,7 +89,7 @@ void I_FinishUpdate (void)
             break;
         case TEST_BIN:
             /* read reference binary file, compare */
-            diff = 0;
+            diff_count = 0;
             for (y = 0; y < SCREENHEIGHT; y++) {
                 byte ref[SCREENWIDTH];
                 byte* now = &screens[0][y * SCREENWIDTH];
@@ -99,22 +100,20 @@ void I_FinishUpdate (void)
                 }
                 for (x = 0; x < SCREENWIDTH; x++) {
                     if (ref[x] != now[x]) {
-                        if (diff == 0) {
+                        if (diff_count == 0) {
                             printf("different: frame %u x %u y %u expected 0x%02x got 0x%02x\n",
                                     headless_count, x, y, ref[x], now[x]);
                             fflush(stdout);
                         }
-                        diff++;
+                        diff_count++;
+                        total_diff_count++;
                     }
                 }
             }
-            if (diff > 1) {
+            if (diff_count > 1) {
                 printf("frame %u has %u more differences\n",
-                        headless_count, diff - 1);
+                        headless_count, diff_count - 1);
                 fflush(stdout);
-            }
-            if (diff > (SCREENWIDTH * SCREENHEIGHT / 4)) {
-                I_Error("Too many differences! Game desynced?");
             }
             break;
         case TEST:
@@ -352,6 +351,10 @@ void D_DoAdvanceDemo (void)
                 case TEST:
                 case TEST_PCX:
                     printf ("Test complete - %u frames tested ok\n", headless_count);
+                    break;
+                case TEST_BIN:
+                    printf ("Test complete - %u frames tested - %u differences\n",
+                            headless_count, total_diff_count);
                     break;
                 case WRITE_CRC:
                 case WRITE_CRC_PCX:
