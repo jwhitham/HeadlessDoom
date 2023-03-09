@@ -178,16 +178,22 @@ behavior.
 
 # DSB-19 - Boolean and bitwise operators mixed with unclear operator precedence
 
-GCC warns about expressions that mix Boolean and bitwise operators
-and also rely on potentially unexpected operator precedence orders. For example:
+GCC and Clang warn about expressions that mix Boolean and bitwise operators
+and also rely on potentially unexpected [operator
+precedence](https://en.wikipedia.org/wiki/Operators_in_C_and_C%2B%2B). In
+`p_spec.c` there is:
 
     if (!s2->lines[i]->flags & ML_TWOSIDED) ...
 
-This expression does have a well-defined meaning in C, but it depends
-on operator precedence and might not be intended. Adding more brackets
-removes possible ambiguity, making the meaning clearer.
+This expression does have a well-defined meaning in C:
 
-    if (!(s2->lines[i]->flags & ML_TWOSIDED)) ...
+    if ((!s2->lines[i]->flags) & ML_TWOSIDED) ...
+
+Adding more brackets removes possible ambiguity. Headless Doom preserves the
+original meaning of Doom's code here, though it's probably not what
+was intended. `ML_TWOSIDED` has value 4, so this condition will never be True.
+Some Doom source ports corrected this bug and added compatibility flags for it, e.g. 
+[PrBoom](https://github.com/libretro/libretro-prboom/blob/da2dfa749d12f20dfa54ab4b63845988a0c9a14a/src/p_floor.c#L914-L926).
 
 # DSB-20 - Unary minus used with unsigned types
 
@@ -310,32 +316,13 @@ textures. This is a downside; however, there is no perfect solution.
 Because version 1.10 rendered parts of the game incorrectly, this led to
 changes in `crc.dat`.
 
+Doom source ports such as PrBoom have substantially rewritten 
+`R_DrawColumn` and this has involved adding [boundary
+checks](https://github.com/libretro/libretro-prboom/blob/da2dfa749d12f20dfa54ab4b63845988a0c9a14a/src/r_drawcolumn.inl#L272)
+to deal with this bug. These alter the appearance of the game, but in such
+a subtle way that it is unlikely to be noticed without byte-level
+comparisons.
 
-
-
-
-diff --git a/headless_doom/r_draw.c b/headless_doom/r_draw.c
-index 0145044..d36a977 100644
---- a/headless_doom/r_draw.c
-+++ b/headless_doom/r_draw.c
-@@ -132,6 +132,17 @@ void R_DrawColumn (void)
-     fracstep = dc_iscale; 
-     frac = dc_texturemid + (dc_yl-centery)*fracstep; 
- 
-+    // JWh: If the position is before the start of the column, fill
-+    // with black to avoid accessing undefined memory (before dc_source).
-+    // Issue first seen in E1M1 at headless_count 191 x 149 y 85.
-+    while (frac < 0) {
-+        *dest = 0;
-+        dest += SCREENWIDTH;
-+        frac += fracstep;
-+        count --;
-+        if (count < 0) return;
-+    }
-+
-     // Inner loop that does the actual texture mapping,
-     //  e.g. a DDA-lile scaling.
-     // This is as fast as it gets.
 @@ -461,7 +472,7 @@ void R_InitTranslationTables (void)
      int		i;
  	
