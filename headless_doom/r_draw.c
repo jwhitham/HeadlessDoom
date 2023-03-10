@@ -461,7 +461,7 @@ void R_InitTranslationTables (void)
     int		i;
 	
     translationtables = Z_Malloc (256*3+255, PU_STATIC, 0);
-    translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // JWh - 64-bit compat
+    translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // DSB-3
     
     // translate just the 16 green colors
     for (i=0 ; i<256 ; i++)

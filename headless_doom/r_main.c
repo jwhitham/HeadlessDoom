@@ -325,7 +325,7 @@ R_PointToAngle
 	    if (x>y)
 	    {
 		// octant 8
-		return 0-tantoangle[SlopeDiv(y,x)]; // JWh - MSVC rejects unary minus with unsigned types
+		return 0-tantoangle[SlopeDiv(y,x)]; // DSB-20
 	    }
 	    else
 	    {
@@ -453,9 +453,8 @@ void R_InitPointToAngle (void)
 fixed_t R_ScaleFromGlobalAngle (angle_t visangle)
 {
     fixed_t		scale;
-    unsigned anglea; // JWh - need to use logical right shift for finesine
-    unsigned angleb; // lookup, otherwise array index is negative. Issue
-                     // first seen in E1M2 headless_count 1098 x 61 y 66
+    unsigned anglea; // DSB-22
+    unsigned angleb; // DSB-22
     int			sinea;
     int			sineb;
     fixed_t		num;

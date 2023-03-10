@@ -323,28 +323,52 @@ to deal with this bug. These alter the appearance of the game, but in such
 a subtle way that it is unlikely to be noticed without byte-level
 comparisons.
 
-@@ -461,7 +472,7 @@ void R_InitTranslationTables (void)
-     int		i;
- 	
-     translationtables = Z_Malloc (256*3+255, PU_STATIC, 0);
--    translationtables = (byte *)(( (int)translationtables + 255 )& ~255);
-+    translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // JWh - 64-bit compat
-     
-     // translate just the 16 green colors
-     for (i=0 ; i<256 ; i++)
-diff --git a/headless_doom/r_main.c b/headless_doom/r_main.c
-index ad942c7..d7f1339 100644
---- a/headless_doom/r_main.c
-+++ b/headless_doom/r_main.c
-@@ -325,7 +325,7 @@ R_PointToAngle
- 	    if (x>y)
- 	    {
- 		// octant 8
--		return -tantoangle[SlopeDiv(y,x)];
-+		return 0-tantoangle[SlopeDiv(y,x)]; // JWh - MSVC rejects unary minus with unsigned types
- 	    }
- 	    else
- 	    {
+# DSB-22 - negative index used with the finesine table
+
+There is an assumption in `R_ScaleFromGlobalAngle` documented by a comment:
+
+    // both sines are allways positive
+    sinea = finesine[anglea>>ANGLETOFINESHIFT];	
+    sineb = finesine[angleb>>ANGLETOFINESHIFT];
+
+This assumption should hold if a texture is only drawn
+if viewed from the front. However, the calculations that determine
+the viewing angle are not exact, and `angleb` in particular can be
+a small negative number if the angle of the wall texture is very close to the
+viewing angle of the player.
+
+In Doom, both `anglea` and `angleb` are
+signed integers so a negative sign is preserved by the right shift, causing an access to
+undefined memory. For example, in E1M2 at frame 1098, `angleb` has value
+-1310720 while processing a wall. In this editor screenshot, the player is
+at the position marked with a '+' and the line is highlighted in yellow:
+
+![Wall and player aligned](bugs/DSB-22.png)
+
+The player's view runs almost exactly parallel to the line. If the frame is
+rendered without the shotgun weapon sprite, we can see that the texture
+appears to have been rendered strangely (the two affected columns on
+the screen are between the two white markers over the status bar).
+
+![Wall and player aligned](bugs/DSB-22-2.png)
+
+This may be an example of the [bad seg
+angle](https://doomwiki.org/wiki/Bad_seg_angle) bug, where the angle of a line
+is not recomputed after it is split by the BSP nodes builder, and indeed this
+line has been split (at 704,-83) and the angle seems to be slightly incorrect.
+The entire line (from 640,-96 to 808,-64) has an angle of 79.21 degrees,
+but the section from 704,-83 to 808,-64) has an angle of 79.65 degrees.
+However, the `angle` field in the `seg_t` data is 0x87ac, corresponding to 79.21
+degrees.
+
+Headless Doom uses unsigned integers for `anglea` and `angleb` so negative
+values simply wrap around to the correct entries in the `finesine` table. This
+does not fix the rendering of the texture but it does prevent access to
+undefined memory.
+
+
+
+
 @@ -453,8 +453,9 @@ void R_InitPointToAngle (void)
  fixed_t R_ScaleFromGlobalAngle (angle_t visangle)
  {
