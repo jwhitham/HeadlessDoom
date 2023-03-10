@@ -210,7 +210,7 @@ void R_RenderSegLoop (void)
     int			yl;
     int			yh;
     int			mid;
-    fixed_t		texturecolumn = 0; // JWh - ensure initialised
+    fixed_t		texturecolumn = 0; // DSB-18
     int			top;
     int			bottom;
 
@@ -264,10 +264,7 @@ void R_RenderSegLoop (void)
 	    // calculate texture offset
 	    angle = (rw_centerangle + xtoviewangle[rw_x])>>ANGLETOFINESHIFT;
 
-	    // JWh - if the line is almost aligned with the camera, the
-	    // angle is undefined. Prevent an overflow. Issue first seen
-	    // in E1M2 headless_count 1097 x 61 y 84
-	    if (angle >= (FINEANGLES / 2)) {
+	    if (angle >= (FINEANGLES / 2)) { // DSB-23
 		angle = 0;
 	    }
 
@@ -407,7 +404,7 @@ R_StoreWallRange
     
     // calculate rw_distance for scale calculation
     rw_normalangle = curline->angle + ANG90;
-    offsetangle = abs((int)(rw_normalangle-rw_angle1)); // JWh - abs is signed!
+    offsetangle = abs((int)(rw_normalangle-rw_angle1)); // DSB-24
     
     if (offsetangle > ANG90)
 	offsetangle = ANG90;
@@ -629,7 +626,7 @@ R_StoreWallRange
 	offsetangle = rw_normalangle-rw_angle1;
 	
 	if (offsetangle > ANG180)
-	    offsetangle = 0-offsetangle; // JWh - MSVC rejects unary minus with unsigned types
+	    offsetangle = 0-offsetangle; // DSB-20
 
 	if (offsetangle > ANG90)
 	    offsetangle = ANG90;

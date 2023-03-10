@@ -323,7 +323,7 @@ to deal with this bug. These alter the appearance of the game, but in such
 a subtle way that it is unlikely to be noticed without byte-level
 comparisons.
 
-# DSB-22 - negative index used with the finesine table
+# DSB-22 - Negative index used with the finesine table
 
 There is an assumption in `R_ScaleFromGlobalAngle` documented by a comment:
 
@@ -366,67 +366,58 @@ values simply wrap around to the correct entries in the `finesine` table. This
 does not fix the rendering of the texture but it does prevent access to
 undefined memory.
 
+# DSB-23 - Overflow with finetangent table
+
+Similar to DSB-22, there is an assumption in `R_RenderSegLoop` that a
+rendered texture will always be facing the player, and hence the
+following tangent computation will always be given an angle in the
+range -90 to 90 degrees:
+
+	    angle = (rw_centerangle + xtoviewangle[rw_x])>>ANGLETOFINESHIFT;
+	    texturecolumn = rw_offset-FixedMul(finetangent[angle],rw_distance);
+
+These angles are represented using integers, with 0 being slightly more than
+-90 degrees, and 4095 being slightly less than 90 degrees. If the player's view
+is almost parallel to the texture, then the angle may be outside of this
+range, and the result is an access to undefined memory at an array index
+such as 4096 (overflow) or 8191 (underflow with wrap-around). This happens
+in the same circumstances as DSB-22, and indeed in Headless Doom this
+condition is first triggered by the same line, during E1M2 at frame 1098.
+
+The purpose of this code is to determine which column of the texture
+should be drawn (i.e. the 'X' value in texture pixels).
+tan(90) and tan(-90) are undefined, and when the line
+is almost parallel to the player view, any texture column is a valid choice.
+Therefore Headless Doom substitutes 0 if the angle overflows the table:
+
+    if (angle >= (FINEANGLES / 2)) { // DSB-23
+        angle = 0;
+    }
+
+This bug has been called [the shady segtextured
+overflow](https://www.doomworld.com/forum/topic/54242-the-shady-segtextured-overflow/).
+It seems to be little-known and may still exist in some source ports,
+possibly because any texture column is a valid choice, so there is no
+visible issue, and overflow of `finetangent` probably just results in an
+access to another table such as `finesine`.
+
+# DSB-24 - Parameter of abs function is signed
+
+The C library function `abs` has a signed parameter and has no effect for
+positive values. The following code is identified by some compilers as likely
+to be incorrect:
+
+    offsetangle = abs(rw_normalangle-rw_angle1);
+
+In fact the code is correct, but relies on implicit conversion of the unsigned
+integer parameter to a signed integer. Adding an explicit conversion resolves
+a compiler warning or error:
+
+    offsetangle = abs((int)(rw_normalangle-rw_angle1));
 
 
 
-@@ -453,8 +453,9 @@ void R_InitPointToAngle (void)
- fixed_t R_ScaleFromGlobalAngle (angle_t visangle)
- {
-     fixed_t		scale;
--    int			anglea;
--    int			angleb;
-+    unsigned anglea; // JWh - need to use logical right shift for finesine
-+    unsigned angleb; // lookup, otherwise array index is negative. Issue
-+                     // first seen in E1M2 headless_count 1098 x 61 y 66
-     int			sinea;
-     int			sineb;
-     fixed_t		num;
-diff --git a/headless_doom/r_segs.c b/headless_doom/r_segs.c
-index 1962d92..28b1582 100644
---- a/headless_doom/r_segs.c
-+++ b/headless_doom/r_segs.c
-@@ -210,7 +210,7 @@ void R_RenderSegLoop (void)
-     int			yl;
-     int			yh;
-     int			mid;
--    fixed_t		texturecolumn;
-+    fixed_t		texturecolumn = 0; // JWh - ensure initialised
-     int			top;
-     int			bottom;
- 
-@@ -263,6 +263,14 @@ void R_RenderSegLoop (void)
- 	{
- 	    // calculate texture offset
- 	    angle = (rw_centerangle + xtoviewangle[rw_x])>>ANGLETOFINESHIFT;
-+
-+	    // JWh - if the line is almost aligned with the camera, the
-+	    // angle is undefined. Prevent an overflow. Issue first seen
-+	    // in E1M2 headless_count 1097 x 61 y 84
-+	    if (angle >= (FINEANGLES / 2)) {
-+		angle = 0;
-+	    }
-+
- 	    texturecolumn = rw_offset-FixedMul(finetangent[angle],rw_distance);
- 	    texturecolumn >>= FRACBITS;
- 	    // calculate lighting
-@@ -399,7 +407,7 @@ R_StoreWallRange
-     
-     // calculate rw_distance for scale calculation
-     rw_normalangle = curline->angle + ANG90;
--    offsetangle = abs(rw_normalangle-rw_angle1);
-+    offsetangle = abs((int)(rw_normalangle-rw_angle1)); // JWh - abs is signed!
-     
-     if (offsetangle > ANG90)
- 	offsetangle = ANG90;
-@@ -621,7 +629,7 @@ R_StoreWallRange
- 	offsetangle = rw_normalangle-rw_angle1;
- 	
- 	if (offsetangle > ANG180)
--	    offsetangle = -offsetangle;
-+	    offsetangle = 0-offsetangle; // JWh - MSVC rejects unary minus with unsigned types
- 
- 	if (offsetangle > ANG90)
- 	    offsetangle = ANG90;
+
 diff --git a/headless_doom/r_things.c b/headless_doom/r_things.c
 index c201fff..5d9407a 100644
 --- a/headless_doom/r_things.c
