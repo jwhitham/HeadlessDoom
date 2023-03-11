@@ -254,7 +254,7 @@ column may be close to the end of its block of memory.
 
 This screenshot from E1M2 (with headless\_count 902)
 shows two instances of the effect on a STEP5 texture. They are highlighted in pink
-(Doom colour 0xff). The left pixel would normally be taken from the top of the
+(Doom color 0xff). The left pixel would normally be taken from the top of the
 next column, which is a valid memory location. The right pixel
 would be taken from uninitialised memory outside of the texture,
 and might have any value.
@@ -303,7 +303,7 @@ longer possible to draw a pixel from a nearby column as a result of
 underflow or overflow.
 
 I therefore decided instead to pad all texture memory allocation with
-128 additional zero bytes. This preserves the original behaviour of Doom
+128 additional zero bytes. This preserves the original behavior of Doom
 in situations where this did not lead to invalid memory accesses,
 and it does not alter `R_DrawColumn` or substantially change any other
 code. However, memory usage is increased in the places where

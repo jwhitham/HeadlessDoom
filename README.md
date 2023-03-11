@@ -1,22 +1,25 @@
 
 "Headless Doom" is a benchmark/test program based on Doom. I have used
 it for testing compilers, CPU simulators, FPGA hardware, timing analysis
-software and a coverage testing tool. It is written in C, with some GCC
-extensions, and is portable to any 32/64-bit platform supported by
-GCC or Clang.
+software and a coverage testing tool. It is written in C
+and should be portable to any 32/64-bit platform.
 
 ![Partially-rendered frame from E1M3](pic.png)
 
 Over more than ten years, I used versions of "Headless Doom" on 
 x86 Linux, x64 Linux, x86 Windows, Microblaze (bare metal), Android and 
 ARM Linux (RPi, RPi model 2, and Pandaboard). It uses the original 
-source code release from id Software, with some bug fixes and 
-modifications of my own. This source code is demo-compatible with
+source code release from id Software.
+
+This source code is demo-compatible with
 the original MS-DOS game and renders the game at the original 320x200
-resolution.
+resolution. 56111 frames from the "Doom Done Quick" demo are rendered
+in a way that is as similar to original Doom as possible given the
+need to [fix some bugs](BUGS.md) in order to have repeatable behavior
+and portable code.
 
 
-# Requirements:
+# Requirements
 
 To run the benchmark or the test, you will need Ultimate Doom. You can
 [buy a copy of the game from Steam](https://store.steampowered.com/app/2280/DOOM_1993/).
@@ -38,9 +41,9 @@ http://quake.speeddemosarchive.com/quake/qdq/movies/ddq.html
 
 
 
-# Instructions:
+# Instructions
 
-Run `make` to compile with GCC, or build the project in Visual Studio.
+Run `make` to compile with GCC/Clang, or build the project in Visual Studio.
 
 Copy `doom.wad` into the `headless\_doom` directory,
 and unzip `DdQ-1941.zip` into the `headless\_doom` directory.
@@ -60,7 +63,7 @@ Other options (`write_crc`, `write_pcx`) recompute the CRC file `crc.dat` and wr
 a screenshot for each frame respectively.
 
 
-# Typical benchmark timings:
+# Typical benchmark timings
 
     Platform                     Compiler        Typical time
 
@@ -84,8 +87,19 @@ The CRC test typically requires 25% more time.
 I am interested in benchmark timings on unusual or vintage hardware - if you
 would like to contribute these, please send them by email.
 
+# Bugs
 
-# Videos:
+Headless Doom aims to be as similar to Doom as possible while
+still meeting the requirements of a benchmark program, i.e. repeatable
+behavior and portability.
+
+Doom has various bugs which cause it to access undefined memory or
+limit portability. Headless Doom fixes these, but does not make
+other alterations. [I have classified all of the bugs which were
+fixed in Headless Doom and assigned identifiers to them](BUGS.md).
+
+
+# Videos
 
 The Doom Done Quick demo may be watched here:
    https://www.youtube.com/watch?v=oZGRL8-bhhw
