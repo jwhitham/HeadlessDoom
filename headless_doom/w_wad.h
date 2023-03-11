@@ -56,7 +56,7 @@ typedef struct
 typedef struct
 {
     char	name[8];
-    FILE*   handle;
+    FILE*   handle; // DSB-16
     int		position;
     int		size;
 } lumpinfo_t;

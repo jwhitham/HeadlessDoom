@@ -38,10 +38,10 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 #define O_BINARY		0
 #endif
 
-#include <ctype.h> // JWh - for 'toupper'
-#include <string.h> // JWh - for 'strlen'
+#include <ctype.h> // DSB-6 - for 'toupper'
+#include <string.h> // DSB-6
 #ifdef HEADLESS
-#include "headless.h" // for alloca
+#include "headless.h" // DSB-6 - for 'alloca'
 #endif
 
 #include "doomtype.h"
@@ -72,12 +72,12 @@ void**			lumpcache;
 
 #define strcmpi	strcasecmp
 
-void my_strupr (char* s) // JWh - strupr is not always available in the C library
+void my_strupr (char* s) // DSB-27
 {
     while (*s) { *s = toupper(*s); s++; }
 }
 
-int filelength (FILE* handle)  // JWh - use stdio file functions
+int filelength (FILE* handle)  // DSB-16 - use stdio file functions
 { 
     int size;
     
@@ -166,7 +166,7 @@ void W_AddFile (char *filename)
 	reloadlump = numlumps;
     }
 		
-    if ( (handle = fopen (filename, "rb")) == NULL) // JWh - use stdio file functions
+    if ( (handle = fopen (filename, "rb")) == NULL) // DSB-16 - use stdio file functions
     {
 	printf (" couldn't open %s\n",filename);
 	return;
@@ -187,7 +187,7 @@ void W_AddFile (char *filename)
     else 
     {
 	// WAD file
-	fread (&header, 1, sizeof(header), handle); // JWh - use stdio file functions
+	fread (&header, 1, sizeof(header), handle); // DSB-16 - use stdio file functions
 	if (strncmp(header.identification,"IWAD",4))
 	{
 	    // Homebrew levels?
@@ -203,8 +203,8 @@ void W_AddFile (char *filename)
 	header.infotableofs = LONG(header.infotableofs);
 	length = header.numlumps*sizeof(filelump_t);
 	fileinfo = alloca (length);
-	fseek (handle, header.infotableofs, SEEK_SET); // JWh - use stdio file functions
-	fread (fileinfo, 1, length, handle);           // JWh - use stdio file functions
+	fseek (handle, header.infotableofs, SEEK_SET); // DSB-16 - use stdio file functions
+	fread (fileinfo, 1, length, handle);           // DSB-16 - use stdio file functions
 	numlumps += header.numlumps;
     }
 
@@ -217,7 +217,7 @@ void W_AddFile (char *filename)
 
     lump_p = &lumpinfo[startlump];
 	
-    storehandle = reloadname ? NULL : handle; // JWh - use stdio file functions
+    storehandle = reloadname ? NULL : handle; // DSB-16 - use stdio file functions
 	
     for (i=startlump ; i<numlumps ; i++,lump_p++, fileinfo++)
     {
@@ -252,7 +252,7 @@ void W_Reload (void)
     if (!reloadname)
 	return;
 		
-    if ( (handle = fopen (reloadname, "rb")) == NULL) // JWh - use stdio file functions
+    if ( (handle = fopen (reloadname, "rb")) == NULL) // DSB-16 - use stdio file functions
 	I_Error ("W_Reload: couldn't open %s",reloadname);
 
     fread (&header, 1, sizeof(header), handle);
@@ -373,7 +373,7 @@ int W_CheckNumForName (char* name)
     name8.s[8] = 0;
 
     // case insensitive
-    my_strupr (name8.s);		// JWh - strupr not always available
+    my_strupr (name8.s);		// DSB-27
 
     v1 = name8.x[0];
     v2 = name8.x[1];
@@ -384,7 +384,7 @@ int W_CheckNumForName (char* name)
 
     while (lump_p-- != lumpinfo)
     {
-	const int* name_p = (int*) lump_p->name; // JWh - aliasing will not matter here
+	const int* name_p = (int*) lump_p->name; // DSB-25 - aliasing will not matter here
 	if (name_p[0] == v1 && name_p[1] == v2)
 	{
 	    return lump_p - lumpinfo;
@@ -453,7 +453,7 @@ W_ReadLump
     if (l->handle == NULL)
     {
 	// reloadable file, so use open / read / close
-	if ( (handle = fopen (reloadname, "rb")) == NULL) // JWh - use stdio file functions
+	if ( (handle = fopen (reloadname, "rb")) == NULL) // DSB-16 - use stdio file functions
 	    I_Error ("W_ReadLump: couldn't open %s",reloadname);
     }
     else

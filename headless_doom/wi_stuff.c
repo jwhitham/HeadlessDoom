@@ -42,7 +42,7 @@ rcsid[] = "$Id: wi_stuff.c,v 1.7 1997/02/03 22:45:13 b1 Exp $";
 
 #include "doomstat.h"
 
-#include "m_misc.h" // JWh - for M_LumpSprintf
+#include "m_misc.h" // DSB-14 - for M_LumpSprintf
 
 // Data.
 #include "sounds.h"
@@ -1547,7 +1547,7 @@ void WI_loadData(void)
     if (gamemode == commercial)
 	strcpy(name, "INTERPIC");
     else 
-	M_LumpSprintf(name, "WIMAP%d", wbs->epsd);
+	M_LumpSprintf(name, "WIMAP%d", wbs->epsd); // DSB-14
     
     if ( gamemode == retail )
     {

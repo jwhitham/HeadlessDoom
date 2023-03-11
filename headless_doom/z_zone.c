@@ -192,7 +192,7 @@ Z_Malloc
     memblock_t* newblock;
     memblock_t*	base;
 
-    size = (size + sizeof(void*) - 1) & ~(sizeof(void*) - 1); // JWh - 64-bit compatibility
+    size = (size + sizeof(void*) - 1) & ~(sizeof(void*) - 1); // DSB-3
     
     // scan through the block list,
     // looking for the first free block
@@ -437,7 +437,7 @@ Z_ChangeTag2
     if (block->id != ZONEID)
 	I_Error ("Z_ChangeTag: freed a pointer without ZONEID");
 
-    if (tag >= PU_PURGELEVEL && (unsigned)((intptr_t)block->user) < 0x100) // JWh - 64-bit compat
+    if (tag >= PU_PURGELEVEL && (unsigned)((intptr_t)block->user) < 0x100) // DSB-3
 	I_Error ("Z_ChangeTag: an owner is required for purgable blocks");
 
     block->tag = tag;
