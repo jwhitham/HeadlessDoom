@@ -4,6 +4,7 @@ DDQ.BAT
 *.o
 *.ok
 *.exe
+*.elf
 reference.dat
 .vs
 Debug
