@@ -1,5 +1,14 @@
 
-Classification of Doom source code bugs
+Headless Doom aims to be as similar to Doom as possible while
+still meeting the requirements of a benchmark program, i.e. repeatable
+behavior and portability.
+
+Doom has various bugs which cause it to access undefined memory or
+limit portability. Headless Doom fixes these, but does not make
+other alterations.
+
+I have classified all of the bugs which were
+fixed in Headless Doom and assigned identifiers to them.
 
 
 # DSB-1 - Missing explicit integer types
@@ -19,17 +28,17 @@ A single statement combines two assignments, e.g.
 
 Generally, this takes the form of casting pointers to/from integers,
 but in some places a size of 4 bytes is explicitly used when calculating
-memory sizes.
+memory sizes, and in some others, it is assumed that pointers
+are the same size as `int`.
 
-    statcopy = (void*)atoi(myargv[p+1]);
-    return (int)&(((doomdata_t *)0)->cmds[netbuffer->numtics]); 
+Note that Headless Doom keeps Doom's assumption that `int` is a 32-bit type.
 
 # DSB-4 - Assumption that char is signed
 
 On x86, `char` is conventionally a signed type, but the C standard
 does not specify this, and on other platforms, e.g. ARM, it is unsigned.
-
-    char	forwardmove;	// *2048 for move
+This affects demo playback through the `ticcmd_t` data structure
+in which `signed char` types represent parts of a movement vector.
 
 # DSB-5 - Headless Doom should play demos rather than an interactive game
 
@@ -54,13 +63,13 @@ without `-DHEADLESS`.
 Headless Doom logs these important events using modifications in
 `g_game.c`.
 
-# DSB-8 - GameMission_t / GameMode_t mixup
+# DSB-8 - GameMission\_t / GameMode\_t mixup
 
 Tests of `gamemode` wrongly used enumeration values from
 `GameMission_t`, causing compilation errors. The original
 behavior is preserved.
 
-# DSB-9 - Incorrect memset bounds in G_DoLoadLevel
+# DSB-9 - Incorrect memset bounds in G\_DoLoadLevel
 
 `memset` functions in `G_DoLoadLevel` should clear all
 of the provided memory area, but instead they clear
@@ -165,12 +174,12 @@ declared anyway. For example, the Termux version of `stdio.h` defines `open`
 
 To reduce such problems, `open` is renamed to `dopen`.
 
-# DSB-18 - Uninitialised local variables
+# DSB-18 - Uninitialized local variables
 
 Some functions contain local variables that might be used before being
 assigned, as a result of an unexpected code path being taken. For
 example, in `EV_BuildStairs`, the value of the local variable `stairsize` will be
-uninitialised if `type` is not one of two expected values.
+uninitialized if `type` is not one of two expected values.
 
 Although other values of `type` may be impossible, the compiler cannot
 determine this, and initialisation is a good idea to prevent unpredictable
@@ -256,7 +265,7 @@ This screenshot from E1M2 (with headless\_count 902)
 shows two instances of the effect on a STEP5 texture. They are highlighted in pink
 (Doom color 0xff). The left pixel would normally be taken from the top of the
 next column, which is a valid memory location. The right pixel
-would be taken from uninitialised memory outside of the texture,
+would be taken from uninitialized memory outside of the texture,
 and might have any value.
 
 This problem is not limited to short columns. `R_DrawColumn` may also

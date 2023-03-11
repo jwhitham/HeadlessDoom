@@ -45,23 +45,22 @@ http://quake.speeddemosarchive.com/quake/qdq/movies/ddq.html
 
 Run `make` to compile with GCC/Clang, or build the project in Visual Studio.
 
-Copy `doom.wad` into the `headless\_doom` directory,
-and unzip `DdQ-1941.zip` into the `headless\_doom` directory.
+Copy `doom.wad` into the `headless_doom` directory,
+and unzip `DdQ-1941.zip` into the `headless_doom` directory.
 
-Run `headless\_doom.exe` to run the benchmark. This runs through 32 levels
+Run `headless_doom.exe` to run the benchmark. This runs through 32 levels
 of the game by playing the "Doom Done Quick" demo, then exits. As a final
 step, the program prints the total time that elapsed. The program does not 
 use your computer's real-time clock: all frames are rendered, regardless
 of CPU speed.
 
-Run `headless\_doom.exe test` to run the test. This does the same thing as the benchmark,
+Run `headless_doom.exe test` to run the test. This does the same thing as the benchmark,
 but also computes the CRC-32 of each frame rendered, and compares this 
 against a "known good" list. As a result it's significantly slower. This
 mode can be used to detect subtle software and hardware errors.
 
-Other options (`write_crc`, `write_pcx`) recompute the CRC file `crc.dat` and write out
-a screenshot for each frame respectively.
-
+Other features such as `write_crc`, `write_pcx`, `write_bin`, `test_bin` exist
+for maintenance and debugging (see `headless.c` for details).
 
 # Typical benchmark timings
 
