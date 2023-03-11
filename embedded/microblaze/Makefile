@@ -110,13 +110,18 @@ $(O)/file_DDQ-EP%.o: $(HD)/DDQ-EP%.LMP
 $(O)/file_doom.wad.o: $(HD)/doom.wad
 	$(OBJCOPY_BIN) $< $@
 
-headless_doom.elf:	$(OBJS) $(O)/i_main.o $(O)/shim_libc.o $(FILES)
+headless_doom.elf:	$(OBJS) \
+            $(O)/i_main.o $(O)/shim_libc.o $(O)/shim_asm.o $(FILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) \
         $(FILES) $(OBJS) \
-        $(O)/i_main.o $(O)/shim_libc.o \
+        $(O)/i_main.o $(O)/shim_libc.o $(O)/shim_asm.o \
 	-o headless_doom.elf $(LIBS)
 
 $(O)/shim_libc.o:	shim_libc.c
+	@mkdir -p $(O)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(O)/shim_asm.o:	shim_asm.S
 	@mkdir -p $(O)
 	$(CC) $(CFLAGS) -c $< -o $@
 

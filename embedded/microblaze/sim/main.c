@@ -40,14 +40,38 @@ static void Trace (void * t_user, MB_Context * mc ,
 
 static void Put(void * m_user, unsigned flags, unsigned fsl, unsigned data)
 {
-    fprintf(stderr, "Cannot execute put instruction\n");
-    exit(1);
+    // see shim_asm.S for definitions of these functions
+    switch (fsl) {
+        case 0:
+            // outbyte function
+            if (isprint(data) || data == '\n') {
+                fputc(data, stdout);
+                fflush(stdout);
+            }
+            break;
+        case 1:
+            // exit function
+            exit(data);
+        default:
+            fprintf(stderr, "Cannot execute put instruction for FSL %d\n", fsl);
+            exit(1);
+    }
 }
 
 static unsigned Get(void * m_user, unsigned flags, unsigned fsl)
 {
-    fprintf(stderr, "Cannot execute get instruction\n");
-    exit(1);
+    // see shim_asm.S
+    switch (fsl) {
+        case 0:
+            // gettimeofday (seconds - and capture)
+            return 0;
+        case 1:
+            // gettimeofday (microseconds when the seconds were captured)
+            return 0;
+        default:
+            fprintf(stderr, "Cannot execute get instruction for FSL %d\n", fsl);
+            exit(1);
+    }
 }
 
 int main ( int argc , char ** argv )
