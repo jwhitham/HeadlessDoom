@@ -415,61 +415,35 @@ a compiler warning or error:
 
     offsetangle = abs((int)(rw_normalangle-rw_angle1));
 
+# DSB-25 - Resolve aliasing warnings
+
+`R_InitSpriteDefs` searches for sprite bitmaps by name, but names are
+compared by considering the first 4 bytes as a single integer.
+
+    intname = *(int *)namelist[i];
+    for (l=start+1 ; l<end ; l++)
+    {
+        if (*(int *)lumpinfo[l].name == intname)
+        if (name_p[0] == intname)
+        { ...
+
+The code mixes accesses to the same memory using both `int*` and `char*`. This is
+known as [type punning](https://en.wikipedia.org/wiki/Type_punning) and
+this can cause issues when the code is optimized, as optimization assumes
+that pointers of different types will refer to different memory. In this
+case, the memory is read-only, so this has no ill effects, but the
+compiler may warn/generate an error anyway. I found that explicitly marking
+the accesses as read-only with `const` would avoid a warning.
+
+# DSB-26 - Mixing stderr and stdout
+
+Doom's debug messages mostly go to `stdout` (e.g. via `printf`) but in
+some of the Linux-specific modules `stderr` is used for debug messages instead. Mixing these
+together can lead to confusing results because of how messages are buffered.
+Headless Doom only outputs errors to `stderr`.
 
 
 
-diff --git a/headless_doom/r_things.c b/headless_doom/r_things.c
-index c201fff..5d9407a 100644
---- a/headless_doom/r_things.c
-+++ b/headless_doom/r_things.c
-@@ -216,7 +216,8 @@ void R_InitSpriteDefs (char** namelist)
- 	//  filling in the frames for whatever is found
- 	for (l=start+1 ; l<end ; l++)
- 	{
--	    if (*(int *)lumpinfo[l].name == intname)
-+	    const int* name_p = (int*) &lumpinfo[l].name; // JWh - aliasing will not matter here
-+	    if (name_p[0] == intname)
- 	    {
- 		frame = lumpinfo[l].name[4] - 'A';
- 		rotation = lumpinfo[l].name[5] - '0';
-@@ -789,7 +790,7 @@ void R_SortVisSprites (void)
-     int			i;
-     int			count;
-     vissprite_t*	ds;
--    vissprite_t*	best;
-+    vissprite_t*	best = NULL; // JWh - ensure initialised
-     vissprite_t		unsorted;
-     fixed_t		bestscale;
- 
-diff --git a/headless_doom/s_sound.c b/headless_doom/s_sound.c
-index bcfb538..5af70bb 100644
---- a/headless_doom/s_sound.c
-+++ b/headless_doom/s_sound.c
-@@ -43,6 +43,7 @@ rcsid[] = "$Id: s_sound.c,v 1.6 1997/02/03 22:45:12 b1 Exp $";
- 
- #include "doomstat.h"
- 
-+#include "m_misc.h" // JWh - for Lump_Snprintf
- 
- // Purpose?
- const char snd_prefixen[]
-@@ -164,7 +165,7 @@ void S_Init
- {  
-   int		i;
- 
--  fprintf( stderr, "S_Init: default sfx volume %d\n", sfxVolume);
-+  // fprintf( stderr, "S_Init: default sfx volume %d\n", sfxVolume); // JWh - debug to stdout only
- 
-   // Whatever these did with DMX, these are rather dummies now.
-   I_SetChannels();
-@@ -365,6 +366,7 @@ S_StartSoundAtVolume
-     sfx->lumpnum = I_GetSfxLumpNum(sfx);
- 
- #ifndef SNDSRV
-+#ifndef HEADLESS
-   // cache data if necessary
-   if (!sfx->data)
-   {
 @@ -378,6 +380,7 @@ S_StartSoundAtVolume
      //       sfx_id, sfx->lumpnum, (int)sfx->data );
      

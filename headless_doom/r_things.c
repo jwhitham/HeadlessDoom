@@ -216,7 +216,7 @@ void R_InitSpriteDefs (char** namelist)
 	//  filling in the frames for whatever is found
 	for (l=start+1 ; l<end ; l++)
 	{
-	    const int* name_p = (int*) &lumpinfo[l].name; // JWh - aliasing will not matter here
+	    const int* name_p = (int*) &lumpinfo[l].name; // DSB-24
 	    if (name_p[0] == intname)
 	    {
 		frame = lumpinfo[l].name[4] - 'A';
@@ -790,7 +790,7 @@ void R_SortVisSprites (void)
     int			i;
     int			count;
     vissprite_t*	ds;
-    vissprite_t*	best = NULL; // JWh - ensure initialised
+    vissprite_t*	best = NULL; // DSB-18
     vissprite_t		unsorted;
     fixed_t		bestscale;
 

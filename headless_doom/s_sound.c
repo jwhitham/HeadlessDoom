@@ -43,7 +43,7 @@ rcsid[] = "$Id: s_sound.c,v 1.6 1997/02/03 22:45:12 b1 Exp $";
 
 #include "doomstat.h"
 
-#include "m_misc.h" // JWh - for Lump_Snprintf
+#include "m_misc.h" // DSB-14 - for M_LumpSprintf
 
 // Purpose?
 const char snd_prefixen[]
@@ -165,7 +165,7 @@ void S_Init
 {  
   int		i;
 
-  // fprintf( stderr, "S_Init: default sfx volume %d\n", sfxVolume); // JWh - debug to stdout only
+  // fprintf( stderr, "S_Init: default sfx volume %d\n", sfxVolume); // DSB-26
 
   // Whatever these did with DMX, these are rather dummies now.
   I_SetChannels();
@@ -654,7 +654,7 @@ S_ChangeMusic
 ( int			musicnum,
   int			looping )
 {
-    musicinfo_t*	music = NULL; // JWh - always initialised
+    musicinfo_t*	music = NULL; // DSB-18
     char		namebuf[9];
 
     if ( (musicnum <= mus_None)
