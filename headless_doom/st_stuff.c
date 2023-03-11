@@ -61,7 +61,7 @@ rcsid[] = "$Id: st_stuff.c,v 1.6 1997/02/03 22:45:13 b1 Exp $";
 #include "dstrings.h"
 #include "sounds.h"
 
-#include "m_misc.h" // JWh - for M_LumpSprintf
+#include "m_misc.h" // DSB-14
 
 //
 // STATUS BAR DATA
@@ -1135,7 +1135,7 @@ void ST_loadGraphics(void)
     // Load the numbers, tall and short
     for (i=0;i<10;i++)
     {
-	M_LumpSprintf(namebuf, "STTNUM%d", i);
+	M_LumpSprintf(namebuf, "STTNUM%d", i); // DSB-14
 	tallnum[i] = (patch_t *) W_CacheLumpName(namebuf, PU_STATIC);
 
 	M_LumpSprintf(namebuf, "STYSNUM%d", i);
