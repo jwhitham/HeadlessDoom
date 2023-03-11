@@ -68,7 +68,7 @@ def Get_Pcmp_Bf(topcode):
     assert topcode == 0x20
     out = []
     out.append("if ( iword & 0x400 ) { temp = 0 ;\n")
-    for i in xrange(4):
+    for i in range(4):
         out.append("if ((( a >> %u ) & 0xff ) == (( b >> %u ) & 0xff ))" % 
                     (i * 8, i * 8))
         out.append("{ temp = %u ; }\n" % (4 - i))
@@ -331,7 +331,7 @@ def Get_Pycode():
     return ''.join(out)
 
 def Main():
-    fout = file('mb_autogen.c', 'wt')
+    fout = open('mb_autogen.c', 'wt')
     fout.write(Get_Pycode())
     fout.close()
 
