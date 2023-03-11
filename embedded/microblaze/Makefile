@@ -7,7 +7,7 @@
 CC=  mb-gcc  # gcc or g++
 
 CFLAGS=-g -O2 -DHEADLESS
-LDFLAGS=
+LDFLAGS=-Wl,"--defsym=_HEAP_SIZE=0x600000" -Wl,"--defsym=_STACK_SIZE=0x10000"
 LIBS=
 OBJCOPY_BIN=mb-objcopy -I binary -O elf32-microblaze -B microblaze
 
@@ -111,7 +111,9 @@ $(O)/file_doom.wad.o: $(HD)/doom.wad
 	$(OBJCOPY_BIN) $< $@
 
 headless_doom.elf:	$(OBJS) $(O)/i_main.o $(O)/shim_libc.o $(FILES)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(O)/i_main.o $(O)/shim_libc.o $(FILES) \
+	$(CC) $(CFLAGS) $(LDFLAGS) \
+        $(FILES) $(OBJS) \
+        $(O)/i_main.o $(O)/shim_libc.o \
 	-o headless_doom.elf $(LIBS)
 
 $(O)/shim_libc.o:	shim_libc.c

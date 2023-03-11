@@ -24,7 +24,8 @@
 #define PAGE_SHIFT      16
 #define NUM_PAGES       0x10000
 
-#define endian_swap(x) (x)
+#include <arpa/inet.h>
+#define endian_swap(x) (htonl((x)))
 
 #include "mb_core.h"
 
