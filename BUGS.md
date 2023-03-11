@@ -460,3 +460,23 @@ original Linux port of Doom added a `my_strupr` function as a replacement.
 To support this, the `ctype.h` header is needed for the `toupper`
 function/macro.
 
+# DSB-28 - Comparisons of signed and unsigned types
+
+In various places Doom compares a signed value to an unsigned value,
+which can lead to unexpected behavior if the signed value is negative.
+Normally this has no effect on behaviour because the signed value
+is always positive, but in the `A_Saw` function, the comparison
+is between an unsigned angle and a negative constant:
+
+	if (angle - player->mo->angle < -ANG90/20)
+	    player->mo->angle = angle + ANG90/21;
+
+The constant is converted to a large unsigned value and therefore the
+comparison will often be True even when the left-hand side is positive.
+
+This does not matter in Headless Doom because the
+`A_Saw` function is never executed during the demo, but for completeness
+an explicit cast is added to preserve Doom's behavior without compiler
+warnings or errors. The same solution was used in PrBoom.
+
+
