@@ -4,7 +4,7 @@ it for testing compilers, CPU simulators, FPGA hardware, timing analysis
 software and a coverage testing tool. It is written in C
 and should be portable to any 32/64-bit platform.
 
-![Partially-rendered frame from E1M3](pic.png)
+![Video of benchmark running](pic.gif)
 
 Over more than ten years, I used versions of "Headless Doom" on 
 x86 Linux, x64 Linux, x86 Windows, Microblaze (bare metal), Android and 
@@ -110,8 +110,7 @@ title screens etc.)
 Doom's rendering process is shown here:
    https://www.youtube.com/watch?v=ujXrQVyl610
 
-The screenshot at the top of this file comes from this video. It shows
-Headless Doom running on a PowerPC E500 with execution slowed by
+This shows Headless Doom 1.10 running on a PowerPC E500 with execution slowed by
 a factor of 16667, so that 60 microseconds of CPU time is one second of
 video time. You can see how the game draws the walls, floor and sprites. See
 also: https://www.jwhitham.org/2016/03/a-detailed-timing-trace-with-video.html )
