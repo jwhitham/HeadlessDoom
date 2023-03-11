@@ -18,8 +18,9 @@ in a way that is as similar to original Doom as possible given the
 need to [fix some bugs](BUGS.md) in order to have repeatable behavior
 and portable code.
 
-
 # Requirements
+
+Latest Version: 1.11
 
 To run the benchmark or the test, you will need Ultimate Doom. You can
 [buy a copy of the game from Steam](https://store.steampowered.com/app/2280/DOOM_1993/).
@@ -64,22 +65,22 @@ for maintenance and debugging (see `headless.c` for details).
 
 # Typical benchmark timings
 
-    Platform                     Compiler        Typical time
+    Platform                     Compiler        Typical time   Version
 
-    RPi 2 (ARMv7 1GHz)           GCC 4.6.3       77.3s
-    RPi (ARMv6 700MHz)           GCC 4.6.3       217.1s
-    RPi 3 (Cortex-A53 1.2GHz)    GCC 10.2.1      54.0s
-    Linux x86 (Core2 E8600)      GCC 4.7.2       10.3s
-    Linux x64 (Core2 E8600)      GCC 4.7.2       9.4s
-    Windows x86 (Core i5 2500)   GCC 4.7.4       6.8s
-    Windows x64 (Core i3 8350)   GCC 8.3.1       5.3s
-    Windows x64 (Core i3 8350)   MSVC 2019       4.7s
-    Linux x64 (Core i3 3220)     GCC 4.7.2       6.9s
-    Linux x86 (Core i3 3220)     GCC 4.1.2       7.5s
-    Android 11.0 (SDMMAGPIE)     Clang 10.0.1    9.6s
-    Linux PowerPC (E500)         GCC 4.9.2       81.4s
-    Android 6.0 (Snapdragon 410) Clang 3.9.0     69.3s
-    W10 Linux x64 (AMD A6-6310)  GCC 4.8.4       17.1s
+    RPi 2 (ARMv7 1GHz)           GCC 4.6.3       77.3s          1.11
+    RPi (ARMv6 700MHz)           GCC 4.6.3       217.1s         1.10
+    RPi 3 (Cortex-A53 1.2GHz)    GCC 10.2.1      47.5s          1.11
+    Windows x64 (Core i3 5005U)  GCC 4.7.2       10.9s          1.11
+    Linux x64 (Core2 E8600)      GCC 4.7.2       9.4s           1.10
+    Windows x86 (Core i5 2500)   GCC 4.7.4       6.8s           1.10
+    Windows x64 (Core i3 8350)   GCC 8.3.1       5.3s           1.11
+    Windows x64 (Core i3 8350)   MSVC 2019       4.7s           1.11
+    Linux x64 (Core i3 3220)     GCC 4.7.2       6.9s           1.10
+    Linux x86 (Core i3 3220)     GCC 4.1.2       7.5s           1.10
+    Android 11.0 (SDMMAGPIE)     Clang 10.0.1    8.9s           1.11
+    Linux PowerPC (E500)         GCC 4.9.2       81.4s          1.10
+    Android 6.0 (Snapdragon 410) Clang 3.9.0     69.3s          1.10
+    W10 Linux x64 (AMD A6-6310)  GCC 4.8.4       17.1s          1.10
 
 The CRC test typically requires 25% more time.
 
