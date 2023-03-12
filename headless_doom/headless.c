@@ -10,6 +10,7 @@
 #include "sounds.h"
 #include "s_sound.h"
 #include "g_game.h"
+#include "m_swap.h"
 
 #include "headless.h"
 
@@ -190,7 +191,36 @@ int I_GetTime (void)
     return fake_time++;
 }
 
-void M_CheckAddFile(const char* name, unsigned expect_crc)
+static void M_EndianCheck()
+{
+    static const char *test1 = "\x12\x34";
+    unsigned short test2 = 0;
+    memcpy(&test2, test1, 2);
+    switch(SHORT(test2)) {
+        case 0x3412:
+            // Correctly converted
+            return;
+        case 0x1234:
+            // Incorrect conversion
+            switch(test2) {
+                case 0x1234:
+                    I_Error("Incorrect endianness - rebuild with __BIG_ENDIAN__");
+                    return;
+                case 0x3412:
+                    I_Error("Incorrect endianness - rebuild without __BIG_ENDIAN__");
+                    return;
+                default:
+                    break;
+            }
+            break;
+        default:
+            break;
+    }
+    I_Error("Endianness test failed - strange value %04x / %04x",
+            test2, SHORT(test2));
+}
+
+static void M_CheckAddFile(const char* name, unsigned expect_crc)
 {
     if (headless_mode != BENCHMARK) {
         /* Test the input files */
@@ -204,6 +234,7 @@ void M_CheckAddFile(const char* name, unsigned expect_crc)
             I_Error ("Required file '%s' is missing", name);
             return;
         }
+        printf("Test mode: checking CRC of '%s': ", name);
         while ((size = (int) fread(buf, 1, sizeof(buf), fd)) > 0) {
             crc = crc32_8bytes (buf, size, crc);
         }
@@ -213,14 +244,16 @@ void M_CheckAddFile(const char* name, unsigned expect_crc)
             return;
         }
         fclose(fd);
+        printf("ok\n");
     }
     D_AddFile((char*) name);
 }
 
 void IdentifyVersion (void)
 {
-    const char * mode = "";
+    const char * mode = "test";
 
+    M_EndianCheck();
     if (myargc > 1) {
         mode = myargv[1];
     }

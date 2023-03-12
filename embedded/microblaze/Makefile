@@ -105,7 +105,7 @@ FILES=$(O)/file_DDQ-EP1.o \
 $(HD)/doom.wad:
 	make -C $(HD) doom.wad
 
-$(HD)/DDQ-EP1.LMP:
+$(HD)/DDQ-EP1.LMP $(HD)/DDQ-EP2.LMP $(HD)/DDQ-EP3.LMP $(HD)/DDQ-EP4.LMP:
 	make -C $(HD) DDQ-EP1.LMP
 
 $(O)/file_DDQ-EP%.o: $(HD)/DDQ-EP%.LMP
