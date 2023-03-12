@@ -17,6 +17,9 @@
 #include "mb_elf.h"
 
 
+typedef struct user_data_t {
+    uint64_t inst_count;
+} user_data_t;
 
 static void Trace (void * t_user, MB_Context * mc , 
                     MB_Trace_Name trace_name, const void * param)
@@ -38,7 +41,7 @@ static void Trace (void * t_user, MB_Context * mc ,
 }
 
 
-static void Put(void * m_user, unsigned flags, unsigned fsl, unsigned data)
+static void Put(void * m_user, uint32_t flags, uint32_t fsl, uint32_t data)
 {
     // see shim_asm.S for definitions of these functions
     switch (fsl) {
@@ -58,7 +61,7 @@ static void Put(void * m_user, unsigned flags, unsigned fsl, unsigned data)
     }
 }
 
-static unsigned Get(void * m_user, unsigned flags, unsigned fsl)
+static uint32_t Get(void * m_user, uint32_t flags, uint32_t fsl)
 {
     // see shim_asm.S
     switch (fsl) {

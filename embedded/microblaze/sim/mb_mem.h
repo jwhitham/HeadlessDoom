@@ -32,29 +32,29 @@
 struct MB_System_Context_struct ;
 
 struct MB_System_Context_struct * MB_System_Init ( MB_Trace_Fn trace_fn , 
-                            unsigned latency , void * t_user ) ;
+                            uint32_t latency , void * t_user ) ;
 void MB_System_Delete ( struct MB_System_Context_struct * sc ) ;
 
 MB_Context * MB_System_Get_MB_Context ( struct MB_System_Context_struct * sc ) ;
 
-void MB_Map_IO ( struct MB_System_Context_struct * sc , unsigned page , 
+void MB_Map_IO ( struct MB_System_Context_struct * sc , uint32_t page , 
                             MB_Load_Fn load_fn , MB_Store_Fn store_fn  ,
                             void * io_user ) ;
-void MB_Unmap_IO ( struct MB_System_Context_struct * sc , unsigned page ) ;
-void MB_Write ( struct MB_System_Context_struct * sc , unsigned address , 
-                            const char * data , unsigned size ) ;
-void MB_Read ( struct MB_System_Context_struct * sc , unsigned address , 
-                            char * data , unsigned size ) ;
-unsigned MB_Write_From_File ( struct MB_System_Context_struct * sc , 
-                            unsigned address , int fd , unsigned size ) ;
-unsigned MB_Read_To_File ( struct MB_System_Context_struct * sc , 
-                            unsigned address , int fd , unsigned size ) ;
+void MB_Unmap_IO ( struct MB_System_Context_struct * sc , uint32_t page ) ;
+void MB_Write ( struct MB_System_Context_struct * sc , uint32_t address , 
+                            const char * data , uint32_t size ) ;
+void MB_Read ( struct MB_System_Context_struct * sc , uint32_t address , 
+                            char * data , uint32_t size ) ;
+uint32_t MB_Write_From_File ( struct MB_System_Context_struct * sc , 
+                            uint32_t address , int fd , uint32_t size ) ;
+uint32_t MB_Read_To_File ( struct MB_System_Context_struct * sc , 
+                            uint32_t address , int fd , uint32_t size ) ;
 
 
-void Page_Store ( unsigned * page_data , unsigned address , 
-                            unsigned data , unsigned size ) ;
-unsigned Page_Load ( unsigned * page_data , 
-                            unsigned address , unsigned size ) ;
+void Page_Store ( uint32_t * page_data , uint32_t address , 
+                            uint32_t data , uint32_t size ) ;
+uint32_t Page_Load ( uint32_t * page_data , 
+                            uint32_t address , uint32_t size ) ;
 
 #endif
 

@@ -129,8 +129,8 @@ static const char * __Read_Elf (
             return "lseek() failed." ;
         }
 
-        MB_Write_From_File ( sc , (unsigned) phdr . p_paddr , 
-                        fd , (unsigned) phdr . p_filesz ) ;
+        MB_Write_From_File ( sc , (uint32_t) phdr . p_paddr , 
+                        fd , (uint32_t) phdr . p_filesz ) ;
         lseek ( fd , cur_pos , SEEK_SET ) ;
         loaded ++ ;
     }
@@ -139,7 +139,7 @@ static const char * __Read_Elf (
         return "ELF contains no loadable sections?" ;
     }
     MB_Jump ( MB_System_Get_MB_Context ( sc ) , 
-                    (unsigned) ehdr . e_entry ) ;
+                    (uint32_t) ehdr . e_entry ) ;
 
     /* success */
     return NULL ;

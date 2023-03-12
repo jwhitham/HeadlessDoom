@@ -36,7 +36,7 @@
 static const char * fsl_type[] = { "", "c", "n", "nc" };
 
 
-void MB_Jump ( MB_Context * c , unsigned target_pc )
+void MB_Jump ( MB_Context * c , uint32_t target_pc )
 {
     c -> pc = target_pc ;
     c -> next_iword = MB_FLUSH_NOP ;
@@ -48,7 +48,7 @@ void MB_Jump ( MB_Context * c , unsigned target_pc )
 
 void MB_Reset ( MB_Context * c )
 {
-    unsigned i ;
+    uint32_t i ;
 
     for ( i = 0 ; i < 32 ; i ++ )
     {
@@ -63,9 +63,9 @@ void MB_Reset ( MB_Context * c )
     MB_Jump ( c , 0 ) ;
 }
 
-static void Set_D ( MB_Context * c , unsigned x ) 
+static void Set_D ( MB_Context * c , uint32_t x ) 
 { 
-    unsigned r = ( c -> cur_iword >> 21 ) & 0x1f ;
+    uint32_t r = ( c -> cur_iword >> 21 ) & 0x1f ;
     if ( r != 0 )
     {
         c -> gpr [ r ] = x ;
@@ -77,9 +77,9 @@ static void Set_D ( MB_Context * c , unsigned x )
  * These are not very common unless the code has been built
  * without barrel shifter support. */
 static const char * Annex_Sign_Extend_Short_Shift (
-            MB_Context * c , unsigned a )
+            MB_Context * c , uint32_t a )
 {
-    unsigned    x , out = 0 ;
+    uint32_t    x , out = 0 ;
     const char * name = "?" ;
 
     switch ( c -> cur_iword & 0x7f )
@@ -111,7 +111,7 @@ static const char * Annex_Sign_Extend_Short_Shift (
             } else {
                 c -> msr &= ~MSR_C ;
             }
-            out = (unsigned) ( (int) a >> 1 ) ;
+            out = (uint32_t) ( (int32_t) a >> 1 ) ;
             name = "sra" ;
             break ;
         case 0x21 : /* src (pg 140) */
@@ -159,9 +159,9 @@ static const char * Annex_Sign_Extend_Short_Shift (
 
     /* Opcodes for accessing the SPRs */
 static const char * Annex_SPR_Ops ( MB_Context * c ,
-            unsigned a )
+            uint32_t a )
 {
-    unsigned out = c -> msr ;
+    uint32_t out = c -> msr ;
     const char * name = "?" ;
 
     switch ( c -> cur_iword & 0xc000 )
@@ -218,16 +218,16 @@ static const char * Annex_SPR_Ops ( MB_Context * c ,
 void MB_Step ( MB_Context * c , int interrupt_flag )
 {
     /* Instruction pipeline */
-    unsigned    iword , topcode , ea ;
+    uint32_t    iword , topcode , ea ;
     int         imm_inst = 0 ;
     int         div_zero = 0 ;
     int         nodelay , valid = 1 ;
-    unsigned    a , b , temp , carry_in , rA , rB , rD ;
+    uint32_t    a , b , temp , carry_in , rA , rB , rD ;
     int         condition , sub_call = 0 ;
     const char * temp_name = "?" ;
     char        name [ NS + 1 ] ;
     const int   pcoffset = -8 ;
-    unsigned    latency = 1 ;
+    uint32_t    latency = 1 ;
     int         bubble = 0;
 
     do {
@@ -291,7 +291,7 @@ void MB_Step ( MB_Context * c , int interrupt_flag )
             b = (( c -> immediate << 16 ) | 
                     ( iword & 0xffff )) ;
         } else if (( iword & 0x8000 ) != 0 ) {
-            b = iword | (int) ( 0xffff << 16 ) ;
+            b = iword | (int32_t) ( 0xffff << 16 ) ;
         } else {
             b = iword & 0xffff ;
         }
@@ -307,12 +307,12 @@ void MB_Step ( MB_Context * c , int interrupt_flag )
              * (page 79 of ISA ref, onwards) */
             switch (( iword >> 21 ) & 7 )
             {
-                case 0 :    condition = ( (int) a == 0 ) ; break ;
-                case 1 :    condition = ( (int) a != 0 ) ; break ;
-                case 2 :    condition = ( (int) a < 0 ) ; break ;
-                case 3 :    condition = ( (int) a <= 0 ) ; break ;
-                case 4 :    condition = ( (int) a > 0 ) ; break ;
-                case 5 :    condition = ( (int) a >= 0 ) ; break ;
+                case 0 :    condition = ( (int32_t) a == 0 ) ; break ;
+                case 1 :    condition = ( (int32_t) a != 0 ) ; break ;
+                case 2 :    condition = ( (int32_t) a < 0 ) ; break ;
+                case 3 :    condition = ( (int32_t) a <= 0 ) ; break ;
+                case 4 :    condition = ( (int32_t) a > 0 ) ; break ;
+                case 5 :    condition = ( (int32_t) a >= 0 ) ; break ;
                 default :   condition = 0 ; break ;
             }
 
@@ -414,7 +414,7 @@ void MB_Step ( MB_Context * c , int interrupt_flag )
                 } else {
                     latency += 32 + 1;
                 }
-                temp = (unsigned) ( (int) b / (int) a ) ;
+                temp = (uint32_t) ( (int32_t) b / (int32_t) a ) ;
             }
             snprintf ( name , NS , "%s: r%u = r%u / r%u = 0x%x\n" , 
                         temp_name , rD , rA , rB , temp ) ;

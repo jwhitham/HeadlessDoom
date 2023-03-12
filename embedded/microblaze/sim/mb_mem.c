@@ -32,28 +32,28 @@
 
 
 typedef struct MB_Memory_Page_struct {
-    unsigned *          data ;
+    uint32_t *          data ;
     MB_Load_Fn          io_load_fn ;
     MB_Store_Fn         io_store_fn ;
     void *              io_user ;
 } MB_Memory_Page ;
 
 typedef struct MB_System_Context_struct {
-    unsigned            check ;
+    uint32_t            check ;
     MB_Memory_Page      memory_page [ NUM_PAGES ] ;
     MB_Context *        mb_context ;
-    unsigned            latency ;
+    uint32_t            latency ;
 } MB_System_Context ;
 
 
 
-static unsigned Load ( void * m_user , unsigned address , unsigned size ) ;
-static unsigned IFetch ( void * m_user , unsigned address , unsigned size ) ;
-static void Store ( void * m_user , unsigned address , 
-                            unsigned data , unsigned size ) ;
+static uint32_t Load ( void * m_user , uint32_t address , uint32_t size ) ;
+static uint32_t IFetch ( void * m_user , uint32_t address , uint32_t size ) ;
+static void Store ( void * m_user , uint32_t address , 
+                            uint32_t data , uint32_t size ) ;
 
 MB_System_Context * MB_System_Init ( MB_Trace_Fn trace_fn , 
-                             unsigned latency , void * t_user )
+                             uint32_t latency , void * t_user )
 {
     MB_System_Context * sc = calloc ( 1 , sizeof ( MB_System_Context ) ) ;
     MB_Context * mc = calloc ( 1 , sizeof ( MB_Context ) ) ;
@@ -82,12 +82,12 @@ MB_Context * MB_System_Get_MB_Context ( MB_System_Context * sc )
 
 void MB_System_Delete ( MB_System_Context * sc )
 {
-    unsigned i ;
+    uint32_t i ;
 
     assert ( sc -> check == CHECK ) ;
     for ( i = 0 ; i < NUM_PAGES ; i ++ )
     {
-        unsigned * d = sc -> memory_page [ i ] . data ;
+        uint32_t * d = sc -> memory_page [ i ] . data ;
 
         if ( d != NULL )
         {
@@ -104,7 +104,7 @@ static int Is_IO_Page ( MB_Memory_Page * p )
 }
 
 static MB_Memory_Page * Lookup ( MB_System_Context * sc , 
-                unsigned page , int allocate )
+                uint32_t page , int allocate )
 {
     MB_Memory_Page * p ;
 
@@ -121,12 +121,12 @@ static MB_Memory_Page * Lookup ( MB_System_Context * sc ,
     return p ;
 }
 
-void Page_Store ( unsigned * page_data , unsigned address , 
-                            unsigned data , unsigned size )
+void Page_Store ( uint32_t * page_data , uint32_t address , 
+                            uint32_t data , uint32_t size )
 {
-    unsigned within_page = address >> 2 ;
-    unsigned within_word = ( address & 3 ) ;
-    unsigned mask , modify , shift ; 
+    uint32_t within_page = address >> 2 ;
+    uint32_t within_word = ( address & 3 ) ;
+    uint32_t mask , modify , shift ; 
 
     if ( size == 4 )
     {
@@ -146,11 +146,11 @@ void Page_Store ( unsigned * page_data , unsigned address ,
     page_data [ within_page ] = endian_swap ( modify ) ;
 }
 
-unsigned Page_Load ( unsigned * page_data , unsigned address , unsigned size )
+uint32_t Page_Load ( uint32_t * page_data , uint32_t address , uint32_t size )
 {
-    unsigned within_page = address >> 2 ;
-    unsigned within_word = ( address & 3 ) ;
-    unsigned data = endian_swap ( page_data [ within_page ] ) ;
+    uint32_t within_page = address >> 2 ;
+    uint32_t within_word = ( address & 3 ) ;
+    uint32_t data = endian_swap ( page_data [ within_page ] ) ;
 
     if ( size == 4 )
     {
@@ -163,7 +163,7 @@ unsigned Page_Load ( unsigned * page_data , unsigned address , unsigned size )
     }
 }
 
-static unsigned IFetch ( void * m_user , unsigned address , unsigned size )
+static uint32_t IFetch ( void * m_user , uint32_t address , uint32_t size )
 {
     MB_System_Context * sc = (MB_System_Context *) m_user ;
 
@@ -171,10 +171,10 @@ static unsigned IFetch ( void * m_user , unsigned address , unsigned size )
     return Load ( m_user , address , size ) ;
 }
 
-static unsigned Load ( void * m_user , unsigned address , unsigned size )
+static uint32_t Load ( void * m_user , uint32_t address , uint32_t size )
 {
     MB_System_Context * sc = (MB_System_Context *) m_user ;
-    unsigned page = address >> PAGE_SHIFT ;
+    uint32_t page = address >> PAGE_SHIFT ;
     MB_Memory_Page * p ;
 
     assert ( sc -> check == CHECK ) ;
@@ -193,11 +193,11 @@ static unsigned Load ( void * m_user , unsigned address , unsigned size )
     }
 }
 
-static void Store ( void * m_user , unsigned address , 
-                            unsigned data , unsigned size )
+static void Store ( void * m_user , uint32_t address , 
+                            uint32_t data , uint32_t size )
 {
     MB_System_Context * sc = (MB_System_Context *) m_user ;
-    unsigned page = address >> PAGE_SHIFT ;
+    uint32_t page = address >> PAGE_SHIFT ;
     MB_Memory_Page * p ;
 
     assert ( sc -> check == CHECK ) ;
@@ -212,7 +212,7 @@ static void Store ( void * m_user , unsigned address ,
     }
 }
 
-void MB_Map_IO ( MB_System_Context * sc , unsigned page , 
+void MB_Map_IO ( MB_System_Context * sc , uint32_t page , 
                             MB_Load_Fn load_fn , MB_Store_Fn store_fn  ,
                             void * io_user )
 {
@@ -230,7 +230,7 @@ void MB_Map_IO ( MB_System_Context * sc , unsigned page ,
     p -> io_user = io_user ;
 }
 
-void MB_Unmap_IO ( MB_System_Context * sc , unsigned page )
+void MB_Unmap_IO ( MB_System_Context * sc , uint32_t page )
 {
     MB_Memory_Page * p ;
 
@@ -241,17 +241,17 @@ void MB_Unmap_IO ( MB_System_Context * sc , unsigned page )
     p -> io_user = NULL ;
 }
 
-static unsigned MB_Access ( MB_System_Context * sc , unsigned address , 
-                char * data , unsigned size , int write_flag , int fd )
+static uint32_t MB_Access ( MB_System_Context * sc , uint32_t address , 
+                char * data , uint32_t size , int write_flag , int fd )
 {
-    unsigned total_bytes = 0 ;
+    uint32_t total_bytes = 0 ;
 
     assert ( sc -> check == CHECK ) ;
     while ( size != 0 )
     {
-        unsigned page = address >> PAGE_SHIFT ;
-        unsigned within_page = ( address & ( PAGE_SIZE - 1 )) ;
-        unsigned space = PAGE_SIZE - within_page ;
+        uint32_t page = address >> PAGE_SHIFT ;
+        uint32_t within_page = ( address & ( PAGE_SIZE - 1 )) ;
+        uint32_t space = PAGE_SIZE - within_page ;
         MB_Memory_Page * p = Lookup ( sc , page , write_flag ) ;
         char * ptr = NULL ;
 
@@ -313,27 +313,27 @@ static unsigned MB_Access ( MB_System_Context * sc , unsigned address ,
     return total_bytes ;
 }
 
-void MB_Write ( MB_System_Context * sc , unsigned address , 
-                            const char * data , unsigned size )
+void MB_Write ( MB_System_Context * sc , uint32_t address , 
+                            const char * data , uint32_t size )
 {
     MB_Access ( sc , address , (char *) data , size , 1 , -1 ) ;
 }
 
 
-void MB_Read ( MB_System_Context * sc , unsigned address , 
-                            char * data , unsigned size ) 
+void MB_Read ( MB_System_Context * sc , uint32_t address , 
+                            char * data , uint32_t size ) 
 {
     MB_Access ( sc , address , data , size , 0 , -1 ) ;
 }
 
-unsigned MB_Write_From_File ( MB_System_Context * sc , unsigned address ,
-                            int fd , unsigned size )
+uint32_t MB_Write_From_File ( MB_System_Context * sc , uint32_t address ,
+                            int fd , uint32_t size )
 {
     return MB_Access ( sc , address , NULL , size , 1 , fd ) ;
 }
 
-unsigned MB_Read_To_File ( MB_System_Context * sc , unsigned address ,
-                            int fd , unsigned size )
+uint32_t MB_Read_To_File ( MB_System_Context * sc , uint32_t address ,
+                            int fd , uint32_t size )
 {
     return MB_Access ( sc , address , NULL , size , 0 , fd ) ;
 }

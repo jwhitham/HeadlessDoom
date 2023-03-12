@@ -29,16 +29,16 @@ def Get_Cmp(topcode):
     {
         case 1 : /* cmp */
             out &= ~ ( 1 << 31 ) ;
-            if ( (int) a > (int) b ) out |= 1 << 31 ;
+            if ( (int32_t) a > (int32_t) b ) out |= 1 << 31 ;
             snprintf ( name , NS , "cmp: r%u = r%u > r%u = %u\\n" ,
-                    rD , rA , rB , ((unsigned) out ) >> 31 ) ;
+                    rD , rA , rB , ((uint32_t) out ) >> 31 ) ;
             break ;
         case 3 : /* cmpu */
             memcpy ( name , "cmpu " , 5 ) ;
             out &= ~ ( 1 << 31 ) ;
             if ( a > b ) out |= 1 << 31 ;
             snprintf ( name , NS , "cmpu: r%u = r%u > r%u = %u\\n" ,
-                    rD , rA , rB , ((unsigned) out ) >> 31 ) ;
+                    rD , rA , rB , ((uint32_t) out ) >> 31 ) ;
             break ;
         default :/* rsubk */
             break ;
@@ -122,7 +122,7 @@ def Get_ALU():
                 out.append('  uint64_t out ;\n')
                 expander = '(uint64_t)'
             else:
-                out.append('  unsigned out ;\n')
+                out.append('  uint32_t out ;\n')
                 expander = ''
 
             if ( carry_in_enable ):
@@ -187,7 +187,7 @@ def Get_ALU():
             else:
                 out.append('rB , ')
 
-            out.append('rA , (unsigned) out ')
+            out.append('rA , (uint32_t) out ')
             if ( carry_out_enable ):
                 out.append(', !! ( c -> msr & MSR_C )')
 
@@ -202,7 +202,7 @@ def Get_ALU():
                 # Special case - check for simulator command
                 out.append("""
         {
-            unsigned cmd = iword & 0x7ff ;
+            uint32_t cmd = iword & 0x7ff ;
 
             if (( iword & ~0x7ff ) == MB_NOP )
             {
@@ -227,7 +227,7 @@ def Get_ALU():
             valid = 0 ;
         }""")
 
-            out.append('  Set_D ( c , (unsigned) out ) ;\n')
+            out.append('  Set_D ( c , (uint32_t) out ) ;\n')
             out.append('  } break ;\n')
 
     return ''.join(out)
@@ -297,7 +297,7 @@ def Get_Barrel():
             out.append('   b = b & 0x1f ;\n')
             if ( special ):
                 # special means sign extend
-                out.append('    Set_D ( c , ((int) a) %s b ) ;\n' % java_op)
+                out.append('    Set_D ( c , ((int32_t) a) %s b ) ;\n' % java_op)
             else:
                 out.append('    Set_D ( c , a %s b ) ;\n' % java_op)
 

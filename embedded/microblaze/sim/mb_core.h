@@ -21,6 +21,7 @@
 #ifndef MB_CORE_H
 #define MB_CORE_H
 
+#include <stdint.h>
 #define NS 255
 
 typedef enum {
@@ -34,31 +35,31 @@ typedef enum {
 
 struct MB_Context_struct ;
 
-typedef unsigned (* MB_Load_Fn) 
-        ( void * m_user , unsigned address , unsigned size ) ;
+typedef uint32_t (* MB_Load_Fn) 
+        ( void * m_user , uint32_t address , uint32_t size ) ;
 typedef void (* MB_Store_Fn) 
-        ( void * m_user , unsigned address , unsigned data , unsigned size ) ;
+        ( void * m_user , uint32_t address , uint32_t data , uint32_t size ) ;
 typedef void (* MB_Trace_Fn) 
         ( void * t_user , struct MB_Context_struct * mc ,
           MB_Trace_Name trace_name , const void * param ) ;
 typedef void (* MB_Put_Fn) 
-        ( void * m_user , unsigned flags, unsigned fsl, unsigned data );
-typedef unsigned (* MB_Get_Fn) 
-        ( void * m_user , unsigned flags, unsigned fsl );
+        ( void * m_user , uint32_t flags, uint32_t fsl, uint32_t data );
+typedef uint32_t (* MB_Get_Fn) 
+        ( void * m_user , uint32_t flags, uint32_t fsl );
 typedef void (* MB_WIC_Fn) 
-        ( void * m_user , unsigned address );
+        ( void * m_user , uint32_t address );
 
 typedef struct MB_Context_struct
 {
-    unsigned        gpr [ 32 ] ;
-    unsigned        pc , msr , next_iword , cur_iword;
-    unsigned        immediate , cur_pc , next_pc ;
-    unsigned        bubble_reg_1, bubble_reg_2, bubble_time;
+    uint32_t        gpr [ 32 ] ;
+    uint32_t        pc , msr , next_iword , cur_iword;
+    uint32_t        immediate , cur_pc , next_pc ;
+    uint32_t        bubble_reg_1, bubble_reg_2, bubble_time;
     int             atomic , immediate_available , delay_enable_ints ;
     void *          m_user ;
     void *          t_user ;
-    unsigned        clock_cycle ;
-    unsigned        instruction_count ;
+    uint64_t        clock_cycle ;
+    uint64_t        instruction_count ;
 
     MB_Load_Fn      ifetch_fn ;
     MB_Load_Fn      load_fn ;
@@ -85,27 +86,27 @@ typedef struct MB_Context_struct
 
 void MB_Reset ( MB_Context * c ) ;
 void MB_Step ( MB_Context * c , int interrupt_flag ) ;
-void MB_Jump ( MB_Context * c , unsigned target_pc ) ;
+void MB_Jump ( MB_Context * c , uint32_t target_pc ) ;
 
-static inline unsigned Get_rD ( MB_Context * c ) 
+static inline uint32_t Get_rD ( MB_Context * c ) 
 {
     return ( c -> cur_iword >> 21 ) & 0x1f ;
 }
 
-static inline unsigned Get_D ( MB_Context * c ) 
+static inline uint32_t Get_D ( MB_Context * c ) 
 { 
     return c -> gpr [ Get_rD ( c ) ] ;
 }
 
-static inline unsigned Get_rA ( MB_Context * c ) 
+static inline uint32_t Get_rA ( MB_Context * c ) 
 {
     return ( c -> cur_iword >> 16 ) & 0x1f ;
 }
 
-static inline unsigned Get_rB ( MB_Context * c ) 
+static inline uint32_t Get_rB ( MB_Context * c ) 
 {
-    unsigned iword = c -> cur_iword ;
-    unsigned rB = ( iword >> 11 ) & 0x1f ;
+    uint32_t iword = c -> cur_iword ;
+    uint32_t rB = ( iword >> 11 ) & 0x1f ;
 
     if (( iword & ( 1 << 29 ) ) != 0 )
     {
