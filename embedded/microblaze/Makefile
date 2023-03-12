@@ -6,7 +6,10 @@
 #
 CC=  mb-gcc  # gcc or g++
 
-CFLAGS=-g -O2 -DHEADLESS
+CFLAGS=-g -O2 -DHEADLESS \
+    -mno-xl-soft-mul -mxl-barrel-shift \
+    -mno-xl-pattern-compare \
+    -mno-xl-soft-div -mcpu=v7.00.b
 LDFLAGS=-Wl,"--defsym=_HEAP_SIZE=0x600000" -Wl,"--defsym=_STACK_SIZE=0x10000"
 LIBS=
 OBJCOPY_BIN=mb-objcopy -I binary -O elf32-microblaze -B microblaze
@@ -119,7 +122,7 @@ headless_doom.elf:	$(OBJS) \
 
 $(O)/shim_libc.o:	shim_libc.c
 	@mkdir -p $(O)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -Wall -Wextra -c $< -o $@
 
 $(O)/shim_asm.o:	shim_asm.S
 	@mkdir -p $(O)
