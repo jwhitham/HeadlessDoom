@@ -1,5 +1,5 @@
 
-CFLAGS = -Wall -g  -I/usr/include/libelf/
+CFLAGS = -Wall -g  -I/usr/include/libelf/ -O2
 LDFLAGS =
 LIBS = -lelf
 OBJS = mb_core.o mb_mem.o mb_elf.o 

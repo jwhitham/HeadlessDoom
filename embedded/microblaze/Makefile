@@ -99,6 +99,7 @@ FILES=$(O)/file_DDQ-EP1.o \
         $(O)/file_DDQ-EP2.o \
         $(O)/file_DDQ-EP3.o \
         $(O)/file_DDQ-EP4.o \
+        $(O)/file_crc.dat.o \
         $(O)/file_doom.wad.o
 
 $(HD)/doom.wad:
@@ -111,6 +112,9 @@ $(O)/file_DDQ-EP%.o: $(HD)/DDQ-EP%.LMP
 	$(OBJCOPY_BIN) $< $@
 
 $(O)/file_doom.wad.o: $(HD)/doom.wad
+	$(OBJCOPY_BIN) $< $@
+
+$(O)/file_crc.dat.o: $(HD)/crc.dat
 	$(OBJCOPY_BIN) $< $@
 
 headless_doom.elf:	$(OBJS) \

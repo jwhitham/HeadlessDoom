@@ -31,7 +31,7 @@ static void Trace (void * t_user, MB_Context * mc ,
                     mc->cur_iword, mc->cur_pc);
         exit(1);
     case MB_EXECUTE:
-        return;
+        break;
     default:
         return;
     }
@@ -44,7 +44,7 @@ static void Put(void * m_user, unsigned flags, unsigned fsl, unsigned data)
     switch (fsl) {
         case 0:
             // outbyte function
-            if (isprint(data) || data == '\n') {
+            if (isprint(data) || data == '\n' || data == '\x08') {
                 fputc(data, stdout);
                 fflush(stdout);
             }

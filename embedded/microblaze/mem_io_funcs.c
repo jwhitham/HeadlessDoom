@@ -19,11 +19,13 @@ extern char _binary_______headless_doom_DDQ_EP2_LMP_start;
 extern char _binary_______headless_doom_DDQ_EP3_LMP_start;
 extern char _binary_______headless_doom_DDQ_EP4_LMP_start;
 extern char _binary_______headless_doom_doom_wad_start;
+extern char _binary_______headless_doom_crc_dat_start;
 extern char _binary_______headless_doom_DDQ_EP1_LMP_end;
 extern char _binary_______headless_doom_DDQ_EP2_LMP_end;
 extern char _binary_______headless_doom_DDQ_EP3_LMP_end;
 extern char _binary_______headless_doom_DDQ_EP4_LMP_end;
 extern char _binary_______headless_doom_doom_wad_end;
+extern char _binary_______headless_doom_crc_dat_end;
 
 static const file_table_entry_t file_table[] = {
     {
@@ -52,6 +54,11 @@ static const file_table_entry_t file_table[] = {
         &_binary_______headless_doom_doom_wad_end,
     },
     {
+        "crc.dat",
+        &_binary_______headless_doom_crc_dat_start,
+        &_binary_______headless_doom_crc_dat_end,
+    },
+    {
         NULL,
         NULL,
         NULL,
@@ -64,7 +71,7 @@ typedef struct file_handle_entry_t {
     size_t size;
 } file_handle_entry_t;
 
-#define NUM_HANDLES 8
+#define NUM_HANDLES 16
 #define FIRST_USABLE_HANDLE 3
 static file_handle_entry_t handle_table[NUM_HANDLES];
 
