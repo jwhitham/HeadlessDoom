@@ -10,7 +10,7 @@ CFLAGS=-g -O2 -DHEADLESS -D__BIG_ENDIAN__ \
     -mno-xl-soft-mul -mxl-barrel-shift \
     -mno-xl-pattern-compare \
     -mno-xl-soft-div -mcpu=v7.00.b
-LDFLAGS=-Wl,"--defsym=_HEAP_SIZE=0x600000" -Wl,"--defsym=_STACK_SIZE=0x10000"
+LDFLAGS=-Wl,"--defsym=_HEAP_SIZE=0x800000" -Wl,"--defsym=_STACK_SIZE=0x10000"
 LIBS=
 OBJCOPY_BIN=mb-objcopy -I binary -O elf32-microblaze -B microblaze
 

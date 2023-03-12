@@ -27,22 +27,22 @@ extern char _binary_______headless_doom_doom_wad_end;
 
 static const file_table_entry_t file_table[] = {
     {
-        "DDQ_EP1.LMP",
+        "DDQ-EP1.LMP",
         &_binary_______headless_doom_DDQ_EP1_LMP_start,
         &_binary_______headless_doom_DDQ_EP1_LMP_end,
     },
     {
-        "DDQ_EP2.LMP",
+        "DDQ-EP2.LMP",
         &_binary_______headless_doom_DDQ_EP2_LMP_start,
         &_binary_______headless_doom_DDQ_EP2_LMP_end,
     },
     {
-        "DDQ_EP3.LMP",
+        "DDQ-EP3.LMP",
         &_binary_______headless_doom_DDQ_EP3_LMP_start,
         &_binary_______headless_doom_DDQ_EP3_LMP_end,
     },
     {
-        "DDQ_EP4.LMP",
+        "DDQ-EP4.LMP",
         &_binary_______headless_doom_DDQ_EP4_LMP_start,
         &_binary_______headless_doom_DDQ_EP4_LMP_end,
     },
