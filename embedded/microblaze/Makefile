@@ -6,7 +6,7 @@
 #
 CC=  mb-gcc  # gcc or g++
 
-CFLAGS=-g -O2 -DHEADLESS \
+CFLAGS=-g -O2 -DHEADLESS -D__BIG_ENDIAN__ \
     -mno-xl-soft-mul -mxl-barrel-shift \
     -mno-xl-pattern-compare \
     -mno-xl-soft-div -mcpu=v7.00.b
@@ -41,9 +41,9 @@ OBJS=				\
 		$(O)/m_argv.o  		\
 		$(O)/m_bbox.o			\
 		$(O)/m_fixed.o		\
-		$(O)/m_swap.o			\
 		$(O)/m_cheat.o		\
 		$(O)/m_random.o		\
+		$(O)/m_swap.o		\
 		$(O)/am_map.o			\
 		$(O)/p_ceilng.o		\
 		$(O)/p_doors.o		\
@@ -114,13 +114,13 @@ $(O)/file_doom.wad.o: $(HD)/doom.wad
 	$(OBJCOPY_BIN) $< $@
 
 headless_doom.elf:	$(OBJS) \
-            $(O)/i_main.o $(O)/shim_libc.o $(O)/shim_asm.o $(FILES)
+            $(O)/i_main.o $(O)/mem_io_funcs.o $(O)/shim_asm.o $(FILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) \
         $(FILES) $(OBJS) \
-        $(O)/i_main.o $(O)/shim_libc.o $(O)/shim_asm.o \
+        $(O)/i_main.o $(O)/mem_io_funcs.o $(O)/shim_asm.o \
 	-o headless_doom.elf $(LIBS)
 
-$(O)/shim_libc.o:	shim_libc.c
+$(O)/mem_io_funcs.o:	mem_io_funcs.c
 	@mkdir -p $(O)
 	$(CC) $(CFLAGS) -Wall -Wextra -c $< -o $@
 

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 
 
 typedef struct file_table_entry_t {
@@ -199,4 +200,3 @@ int inbyte(void)
 {
     return 0;
 }
-

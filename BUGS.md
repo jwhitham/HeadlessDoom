@@ -479,4 +479,15 @@ This does not matter in Headless Doom because the
 an explicit cast is added to preserve Doom's behavior without compiler
 warnings or errors. The same solution was used in PrBoom.
 
+# DSB-29 - Big-endian support does not work
+
+There are two issues with big-endian support in the original release
+of the Doom source code. Functions exist in `m_swap.c` to swap endianness
+but they are excluded by an incorrect `#ifndef` preprocessor command.
+Secondly, the declarations of the functions in `m_swap.h` are incorrect.
+This problem is only noticed when building for a big-endian platform
+which requires defining the `__BIG_ENDIAN__` macro.
+
+If Headless Doom is built for a big-endian platform without `__BIG_ENDIAN__`
+it will crash when allocating `lumpinfo`.
 
