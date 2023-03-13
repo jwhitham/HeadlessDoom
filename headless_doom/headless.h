@@ -2,14 +2,20 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+// This location can be used to provide global workarounds
+// for functions and macros that are not provided by your compiler
+// or C library:
+
 #ifdef __GNUC__
+// Nothing required for GCC / Clang
 #else
 #ifdef _MSC_VER
+// Workarounds for Microsoft Visual C
 #define alloca _alloca
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #else
-#error "Only GCC and MSVC are currently supported; please add support to headless.h"
+// add support for your compiler here
 #endif
 #endif
 

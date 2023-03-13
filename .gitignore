@@ -1,7 +1,11 @@
 *.wad
 DDQ-*
 DDQ.BAT
+HDOOM.*
+FILE
+*.ERR
 *.o
+*.OBJ
 *.ok
 *.exe
 *.elf
@@ -9,3 +13,4 @@ reference.dat
 .vs
 Debug
 Release
+/WATCOM
