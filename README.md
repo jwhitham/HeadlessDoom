@@ -81,11 +81,18 @@ for maintenance and debugging (see `headless.c` for details).
     Linux PowerPC (E500)         GCC 4.9.2       81.4s          1.10
     Android 6.0 (Snapdragon 410) Clang 3.9.0     69.3s          1.10
     W10 Linux x64 (AMD A6-6310)  GCC 4.8.4       17.1s          1.10
+    Microblaze (100MHz sim)      GCC 4.1.1       1397s          1.11
 
 The CRC test typically requires 25% more time.
 
 I am interested in benchmark timings on unusual or vintage hardware - if you
 would like to contribute these, please send them by email.
+
+The Microblaze version ran on a simple simulator which assumed that each
+instruction took exactly 1 clock cycle (no cache, pipeline or bus simulation)
+and that the clock frequency was 100MHz. This was done primarily to ensure
+that big-endian support is working and that all memory accesses are correctly
+aligned, since most platforms are little-endian and tolerate unaligned accessses.
 
 # Bugs
 

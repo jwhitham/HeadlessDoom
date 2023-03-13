@@ -338,7 +338,6 @@ void IdentifyVersion (void)
             break;
     }
     fflush (stdout);
-    start_time = M_GetTimeMicroseconds();
     gamemode = retail;
     M_CheckAddFile ("doom.wad",    0xbf0eaac0U);
     M_CheckAddFile ("DDQ-EP1.LMP", 0x29df95fcU);
@@ -346,6 +345,8 @@ void IdentifyVersion (void)
     M_CheckAddFile ("DDQ-EP3.LMP", 0x29a5a958U);
     M_CheckAddFile ("DDQ-EP4.LMP", 0x9b9f2a3eU);
     singletics = true;
+    printf("\n\n");
+    start_time = M_GetTimeMicroseconds();
 }
 
 void D_DoAdvanceDemo (void)
