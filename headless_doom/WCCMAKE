@@ -5,38 +5,22 @@
 # to build
 
 
-# Select calling conventions.
-# Possible choices are r and s.
-CALLING=s
-
-# Select target CPU.
-CPU=3
-
-# Set optimization options.
-# Watcom before 11.0 does not support option "-oh".
-OPTIM=-oneatx -s
-
-SYSTEM=DOS4GW
-!define $(SYSTEM)
-
-SYSFLAG=-DDOS4GW -bt=dos
-
 CC=wcc386
-
-CFLAGS=-$(CPU)$(CALLING) $(OPTIM) -zp4 -zc $(SYSFLAG) -DHEADLESS
+CFLAGS=-mf -3s -zq -DHEADLESS
 
 OBJS= doomdef.obj doomstat.obj dstrings.obj i_system.obj i_sound.obj i_video.obj i_net.obj tables.obj f_finale.obj f_wipe.obj d_main.obj d_net.obj d_items.obj g_game.obj m_menu.obj m_misc.obj m_argv.obj m_bbox.obj m_fixed.obj m_swap.obj m_cheat.obj m_random.obj am_map.obj p_ceilng.obj p_doors.obj p_enemy.obj p_floor.obj p_inter.obj p_lights.obj p_map.obj p_maputl.obj p_plats.obj p_pspr.obj p_setup.obj p_sight.obj p_spec.obj p_switch.obj p_mobj.obj p_telept.obj p_tick.obj p_saveg.obj p_user.obj r_bsp.obj r_data.obj r_draw.obj r_main.obj r_plane.obj r_segs.obj r_sky.obj r_things.obj w_wad.obj wi_stuff.obj v_video.obj st_lib.obj st_stuff.obj hu_stuff.obj hu_lib.obj s_sound.obj z_zone.obj info.obj sounds.obj crc.obj timing.obj headless.obj
+
+.BEFORE
+        @set DOS4G=QUIET
 
 
 all: hdoom.exe
 
 hdoom.exe: $(OBJS)
         %create $*.lnk
-        @%append $*.lnk sys dos4g
-        @%append $*.lnk op case
-        @%append $*.lnk op stack=256K
-        @%append $*.lnk name $*
-        @for %i in ($(OBJS)) do @%append $*.lnk file '%i'
+        @%append $*.lnk system dos4g
+        @%append $*.lnk name hdoom
+        @%append $*.lnk file headless
         *wlink @$*.lnk
 
 
