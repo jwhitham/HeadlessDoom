@@ -6,7 +6,7 @@
 #
 CC=  mb-gcc  # gcc or g++
 
-CFLAGS=-g -O2 -DHEADLESS -D__BIG_ENDIAN__ \
+CFLAGS=-g -O2 -DHEADLESS -D__BIG_ENDIAN__ -DEMBEDDED_ARGV=0xffff0000 \
     -mno-xl-soft-mul -mxl-barrel-shift \
     -mno-xl-pattern-compare \
     -mno-xl-soft-div -mcpu=v7.00.b

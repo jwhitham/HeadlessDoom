@@ -17,6 +17,7 @@
 typedef enum {
     BENCHMARK,
     TEST,
+    TEST_FAST,
     TEST_PCX,
     TEST_BIN,
     WRITE_CRC,
@@ -118,6 +119,7 @@ void I_FinishUpdate (void)
             }
             break;
         case TEST:
+        case TEST_FAST:
         case WRITE_CRC:
         case BENCHMARK:
             break;
@@ -128,6 +130,7 @@ void I_FinishUpdate (void)
     crc = crc32_8bytes (screens[0], SCREENHEIGHT * SCREENWIDTH, 0);
     switch (headless_mode) {
         case TEST:
+        case TEST_FAST:
         case TEST_PCX:
             if (2 != fscanf (crc_out, "%08x %u", &v1, &v2)) {
                 I_Error ("Couldn't read CRC and frame number from 'crc.dat' frame %u",
@@ -222,7 +225,7 @@ static void M_EndianCheck()
 
 static void M_CheckAddFile(const char* name, unsigned expect_crc)
 {
-    if (headless_mode != BENCHMARK) {
+    if (headless_mode == TEST) {
         /* Test the input files */
         char buf[1024];
         unsigned crc = 0;
@@ -251,9 +254,14 @@ static void M_CheckAddFile(const char* name, unsigned expect_crc)
 
 void IdentifyVersion (void)
 {
-    const char * mode = "test";
+    const char * mode = "";
 
     M_EndianCheck();
+#ifdef EMBEDDED_ARGV
+    /* Load args from a special memory location, count them */
+    myargv = (char **) EMBEDDED_ARGV;
+    for (myargc = 0; myargv[myargc]; myargc++) {}
+#endif
     if (myargc > 1) {
         mode = myargv[1];
     }
@@ -264,6 +272,8 @@ void IdentifyVersion (void)
 
     if (strcmp(mode, "test") == 0) {
         headless_mode = TEST;
+    } else if (strcmp(mode, "test_fast") == 0) {
+        headless_mode = TEST_FAST;
     } else if (strcmp(mode, "test_pcx") == 0) {
         headless_mode = TEST_PCX;
     } else if (strcmp(mode, "test_bin") == 0) {
@@ -283,6 +293,7 @@ void IdentifyVersion (void)
 
     switch (headless_mode) {
         case TEST:
+        case TEST_FAST:
         case TEST_PCX:
         case TEST_BIN:
             printf ("Headless Doom running in Test mode\n");
@@ -307,6 +318,7 @@ void IdentifyVersion (void)
 
     switch (headless_mode) {
         case TEST:
+        case TEST_FAST:
         case TEST_PCX:
         case WRITE_CRC:
         case WRITE_CRC_PCX:
@@ -382,6 +394,7 @@ void D_DoAdvanceDemo (void)
         default:
             switch (headless_mode) {
                 case TEST:
+                case TEST_FAST:
                 case TEST_PCX:
                     printf ("Test complete - %u frames tested ok\n", headless_count);
                     break;
