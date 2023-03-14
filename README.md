@@ -52,8 +52,8 @@ and unzip `DdQ-1941.zip` into the `headless_doom` directory.
 Run `headless_doom.exe` to run the benchmark. This runs through 32 levels
 of the game by playing the "Doom Done Quick" demo, then exits. As a final
 step, the program prints the total time that elapsed. The program does not 
-use your computer's real-time clock: all frames are rendered, regardless
-of CPU speed.
+use your computer's real-time clock to limit the frame rate. All frames are
+rendered regardless of CPU speed.
 
 Run `headless_doom.exe test` to run the test. This does the same thing as the benchmark,
 but also computes the CRC-32 of each frame rendered, and compares this 
