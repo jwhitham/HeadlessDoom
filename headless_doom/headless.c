@@ -182,6 +182,9 @@ void I_InitGraphics (void)
 void I_InitNetwork (void)
 {
     doomcom = malloc (sizeof (*doomcom) );
+    if (!doomcom) {
+        I_Error("I_InitNetwork: Unable to allocate %d bytes", sizeof(*doomcom));
+    }
     memset (doomcom, 0, sizeof(*doomcom) );
     doomcom->id = DOOMCOM_ID;
     doomcom->numnodes = 1;
@@ -223,6 +226,19 @@ static void M_EndianCheck()
             test2, SHORT(test2));
 }
 
+static void M_SizeCheck()
+{
+    if ((sizeof(int) != 4) || (sizeof(short) != 2) || (sizeof(long long) != 8)) {
+        I_Error("Type sizes do not match Doom's expectations");
+    }
+    if ((sizeof(boolean) != 4) || (sizeof(GameMode_t) != 4)) {
+        // Some compilers attempt to pack enums into smaller memory sizes,
+        // but this does not work for Doom, as the sizes must match
+        // the data in the WAD file.
+        I_Error("Enum test failed - size of 'typedef enum' types must be 4");
+    }
+}
+
 static void M_CheckAddFile(const char* name, unsigned expect_crc)
 {
     if (headless_mode == TEST) {
@@ -257,6 +273,7 @@ void IdentifyVersion (void)
     const char * mode = "";
 
     M_EndianCheck();
+    M_SizeCheck();
 #ifdef EMBEDDED_ARGV
     /* Load args from a special memory location, count them */
     myargv = (char **) EMBEDDED_ARGV;

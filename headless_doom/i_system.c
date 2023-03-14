@@ -77,8 +77,13 @@ int  I_GetHeapSize (void)
 
 byte* I_ZoneBase (int*	size)
 {
+    byte* p;
     *size = mb_used*1024*1024;
-    return (byte *) malloc (*size);
+    p = (byte *) malloc (*size);
+    if (!p) {   // DSB-30
+        I_Error("I_ZoneBase: Unable to allocate %d bytes", *size);
+    }
+    return p;
 }
 
 
@@ -154,6 +159,9 @@ byte*	I_AllocLow(int length)
     byte*	mem;
         
     mem = (byte *)malloc (length);
+    if (!mem) {   // DSB-30
+        I_Error("I_AllocLow: Unable to allocate %d bytes", length);
+    }
     memset (mem,0,length);
     return mem;
 }

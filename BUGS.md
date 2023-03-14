@@ -491,3 +491,13 @@ which requires defining the `__BIG_ENDIAN__` macro.
 If Headless Doom is built for a big-endian platform without `__BIG_ENDIAN__`
 it will crash when allocating `lumpinfo`.
 
+# DSB-30 - malloc return value is not checked
+
+Headless Doom always allocates 6Mb for Doom's "zone memory" system.
+This matches the original Doom source code release. In the original
+code, there was no check that `malloc` had succeeded. Headless Doom
+adds such a check, which is important on platforms with
+very little memory. Adjusting the 6Mb setting would allow Headless Doom
+to run with less memory - with the current setting, at least
+9Mb of system RAM is required to run within Dosbox.
+
