@@ -78,6 +78,7 @@ for maintenance and debugging (see `headless.c` for details).
     Linux x64 (Core i3 3220)     GCC 4.7.2       6.9s           1.10
     Linux x86 (Core i3 3220)     GCC 4.1.2       7.5s           1.10
     Android 11.0 (SDMMAGPIE)     Clang 10.0.1    8.9s           1.11
+    MS-DOS (Core i3 8350)        OpenWatcom 1.9  7.8s           1.11
     Linux PowerPC (E500)         GCC 4.9.2       81.4s          1.10
     Android 6.0 (Snapdragon 410) Clang 3.9.0     69.3s          1.10
     W10 Linux x64 (AMD A6-6310)  GCC 4.8.4       17.1s          1.10
@@ -85,8 +86,19 @@ for maintenance and debugging (see `headless.c` for details).
 
 The CRC test typically requires 25% more time.
 
+# Platform notes
+
 I am interested in benchmark timings on unusual or vintage hardware - if you
-would like to contribute these, please send them by email.
+would like to contribute these, please send them by email. Doom will
+require at least 4Mb of RAM and a 32-bit CPU, and storing the data files
+and executable will require about 16Mb of read-only memory of some sort
+(e.g. Flash). To reduce the memory requirements, adjust `mb_used` in `i_system.c`.
+
+Modern hardware (including some Android smartphones) can
+run Headless Doom at around 10,000 frames per second.
+
+The MS-DOS version was built with the Watcom C compiler 
+and runs within DOS/4GW, just like Doom.
 
 The Microblaze version ran on a simple simulator which assumed that each
 instruction took exactly 1 clock cycle (no cache, pipeline or bus simulation)
