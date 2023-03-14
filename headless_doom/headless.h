@@ -15,7 +15,12 @@
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #else
+#ifdef __WATCOMC__
+// Workarounds for Watcom C (MS-DOS)
+#include <alloca.h>
+#else
 // add support for your compiler here
+#endif
 #endif
 #endif
 

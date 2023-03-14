@@ -9,6 +9,7 @@ FILE
 *.ok
 *.exe
 *.elf
+*.PCX
 reference.dat
 .vs
 Debug
