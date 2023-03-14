@@ -5,8 +5,15 @@
 # to build
 
 
+# -5s  -> assume 586 with stack calling convention
+# -oax -> optimization settings
+# -ei  -> typedef enum is the same size as an int
+# -zq  -> minimal messages
+# -mf  -> flat memory model
+# see https://open-watcom.github.io/open-watcom-1.9/cguide.html
+# use -d2 to build in debug mode
 CC=wcc386
-CFLAGS=-mf -3s -zq -d2 -ei -DHEADLESS
+CFLAGS=-mf -5s -oax -zq -ei -DHEADLESS
 
 OBJS= doomdef.obj doomstat.obj dstrings.obj i_system.obj i_sound.obj i_video.obj i_net.obj tables.obj f_finale.obj f_wipe.obj d_main.obj d_net.obj d_items.obj g_game.obj m_menu.obj m_misc.obj m_argv.obj m_bbox.obj m_fixed.obj m_swap.obj m_cheat.obj m_random.obj am_map.obj p_ceilng.obj p_doors.obj p_enemy.obj p_floor.obj p_inter.obj p_lights.obj p_map.obj p_maputl.obj p_plats.obj p_pspr.obj p_setup.obj p_sight.obj p_spec.obj p_switch.obj p_mobj.obj p_telept.obj p_tick.obj p_saveg.obj p_user.obj r_bsp.obj r_data.obj r_draw.obj r_main.obj r_plane.obj r_segs.obj r_sky.obj r_things.obj w_wad.obj wi_stuff.obj v_video.obj st_lib.obj st_stuff.obj hu_stuff.obj hu_lib.obj s_sound.obj z_zone.obj info.obj sounds.obj crc.obj timing.obj headless.obj i_main.obj
 
@@ -14,14 +21,15 @@ OBJS= doomdef.obj doomstat.obj dstrings.obj i_system.obj i_sound.obj i_video.obj
         @set DOS4G=QUIET
 
 
-all: hdoom.exe
+all: hdlsdoom.exe
 
-hdoom.exe: $(OBJS)
+# see https://open-watcom.github.io/open-watcom-v2-wikidocs/lguide.html
+hdlsdoom.exe: $(OBJS)
         %create $*.lnk
         @%append $*.lnk system dos4g
-        @%append $*.lnk op stack=256K
-        @%append $*.lnk name hdoom
-        @%append $*.lnk debug all
+        @%append $*.lnk name hdlsdoom
+        # @%append $*.lnk op stack=256K
+        # @%append $*.lnk debug all
         @for %i in ($(OBJS)) do @%append $*.lnk file %i
         *wlink @$*.lnk
 
