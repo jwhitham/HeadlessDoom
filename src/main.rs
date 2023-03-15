@@ -1,14 +1,13 @@
 
-use libc::c_int;
+//use libc::c_int;
 
 extern {
-    fn root() -> c_int;
+    fn D_DoomMain();
 }
 
 fn main() {
-    let x: c_int;
+    std::env::set_current_dir("headless_doom");
     unsafe {
-        x = root();
+        D_DoomMain();
     }
-    println!("hahaha {}", x);
 }
