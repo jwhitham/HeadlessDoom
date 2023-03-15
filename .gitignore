@@ -15,3 +15,5 @@ reference.dat
 Debug
 Release
 /WATCOM
+/target
+/Cargo.lock
