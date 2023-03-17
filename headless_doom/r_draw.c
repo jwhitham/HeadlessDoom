@@ -95,6 +95,8 @@ byte*			dc_source;
 // just for profiling 
 int			dccount;
 
+
+#if 0
 //
 // A column is a vertical slice/span from a wall texture that,
 //  given the DOOM style restrictions on the view orientation,
@@ -146,6 +148,7 @@ void R_DrawColumn (void)
 	
     } while (count--); 
 } 
+#endif
 
 
 
