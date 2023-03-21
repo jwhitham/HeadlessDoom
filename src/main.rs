@@ -15,14 +15,14 @@ extern {
     static mut myargv: *mut *const i8;
 
 
-    static dc_colormap: [i8; 256];
+    static dc_colormap: *const i8;
     static dc_x: c_int; 
     static dc_yl: c_int; 
     static dc_yh: c_int; 
     static dc_iscale: c_int; 
     static dc_texturemid: c_int;
 
-    static dc_source: [u8; 128];
+    static dc_source: *const u8;
 
     static dccount: c_int;
     static ylookup: [*mut i8; SCREENWIDTH];
@@ -70,7 +70,10 @@ pub extern "C" fn R_DrawColumn () {
         loop {
             // Re-map color indices from wall texture column
             //  using a lighting/special effects LUT.
-            *dest = dc_colormap[dc_source[((frac>>FRACBITS)&127) as usize] as usize];
+            //*dest = dc_colormap[dc_source[((frac>>FRACBITS)&127) as usize] as usize];
+            *dest = *dc_colormap.offset(
+                        *dc_source.offset(((frac>>FRACBITS)&127) as isize)
+                            as isize);
 
             dest = dest.offset(SCREENWIDTH as isize); 
             frac += fracstep;
