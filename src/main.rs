@@ -15,17 +15,17 @@ extern {
     static mut myargv: *mut *const i8;
 
 
-    static dc_colormap: *const i8;
+    static dc_colormap: *const u8;
     static dc_x: c_int; 
     static dc_yl: c_int; 
     static dc_yh: c_int; 
-    static dc_iscale: c_int; 
-    static dc_texturemid: c_int;
+    static dc_iscale: fixed_t; 
+    static dc_texturemid: fixed_t;
 
     static dc_source: *const u8;
 
     static dccount: c_int;
-    static ylookup: [*mut i8; SCREENWIDTH];
+    static ylookup: [*mut u8; SCREENWIDTH];
     static columnofs: [c_int; SCREENWIDTH];
 
     static centery: c_int; 
@@ -57,12 +57,14 @@ pub extern "C" fn R_DrawColumn () {
         // Framebuffer destination address.
         // Use ylookup LUT to avoid multiply with ScreenWidth.
         // Use columnofs LUT for subwindows? 
-        let mut dest: *mut i8 = ylookup[dc_yl as usize].offset(columnofs[dc_x as usize] as isize); 
+        let mut dest: *mut u8 = ylookup[dc_yl as usize].offset(columnofs[dc_x as usize] as isize); 
 
         // Determine scaling,
         //  which is the only mapping to be done.
-        let fracstep = dc_iscale; 
-        let mut frac = dc_texturemid + (dc_yl-centery)*fracstep; 
+        let fracstep: fixed_t = dc_iscale; 
+        let mut frac: fixed_t =
+                dc_texturemid.wrapping_add(
+                    fracstep.wrapping_mul((dc_yl - centery) as fixed_t));
 
         // Inner loop that does the actual texture mapping,
         //  e.g. a DDA-lile scaling.
@@ -76,7 +78,7 @@ pub extern "C" fn R_DrawColumn () {
                             as isize);
 
             dest = dest.offset(SCREENWIDTH as isize); 
-            frac += fracstep;
+            frac = frac.wrapping_add(fracstep);
             if count == 0 {
                 break;
             }
@@ -102,12 +104,12 @@ extern {
     static ds_x1: c_int; 
     static ds_x2: c_int;
 
-    static ds_colormap: *const i8; 
+    static ds_colormap: *const u8; 
 
-    static ds_xfrac: c_int; 
-    static ds_yfrac: c_int; 
-    static ds_xstep: c_int; 
-    static ds_ystep: c_int;
+    static ds_xfrac: fixed_t; 
+    static ds_yfrac: fixed_t; 
+    static ds_xstep: fixed_t; 
+    static ds_ystep: fixed_t;
 
     // start of a 64*64 tile image 
     static ds_source: *const u8;	
@@ -119,10 +121,10 @@ extern {
 pub extern "C" fn R_DrawSpan () { 
    
     unsafe {
-        let mut xfrac = ds_xfrac;
-        let mut yfrac = ds_yfrac;
+        let mut xfrac: fixed_t = ds_xfrac;
+        let mut yfrac: fixed_t = ds_yfrac;
          
-        let mut dest: *mut i8 = ylookup[ds_y as usize].offset(columnofs[ds_x1 as usize] as isize);
+        let mut dest: *mut u8 = ylookup[ds_y as usize].offset(columnofs[ds_x1 as usize] as isize);
 
         // We do not check for zero spans here?
         let mut count = ds_x2 - ds_x1; 
@@ -137,8 +139,8 @@ pub extern "C" fn R_DrawSpan () {
             dest = dest.offset(1);
 
             // Next step in u,v.
-            xfrac += ds_xstep;
-            yfrac += ds_ystep;
+            xfrac = xfrac.wrapping_add(ds_xstep);
+            yfrac = yfrac.wrapping_add(ds_ystep);
             if count == 0 {
                 break;
             }
