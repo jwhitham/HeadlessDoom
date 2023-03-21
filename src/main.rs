@@ -4,6 +4,9 @@ use std::ffi::CString;
 
 type fixed_t = u32;
 
+const FRACBITS: i32 = 16;
+const SCREENWIDTH: usize = 320;
+
 extern {
     fn D_DoomMain();
     // int  myargc;
@@ -12,25 +15,22 @@ extern {
     static mut myargv: *mut *const i8;
 
 
-    static dc_colormap: *const u8; 
+    static dc_colormap: [i8; 256];
     static dc_x: c_int; 
     static dc_yl: c_int; 
     static dc_yh: c_int; 
     static dc_iscale: c_int; 
     static dc_texturemid: c_int;
 
-    static dc_source: *const u8;  
+    static dc_source: [u8; 128];
 
     static dccount: c_int;
-    static ylookup: *const *const i8;
-    static columnofs: *const c_int;
+    static ylookup: [*mut i8; SCREENWIDTH];
+    static columnofs: [c_int; SCREENWIDTH];
 
     static centery: c_int; 
 }
 
-
-const FRACBITS: i32 = 16;
-const SCREENWIDTH: i32 = 320;
 
 //
 // A column is a vertical slice/span from a wall texture that,
@@ -38,57 +38,65 @@ const SCREENWIDTH: i32 = 320;
 //  will always have constant z depth.
 // Thus a special case loop for very fast rendering can
 //  be used. It has also been used with Wolfenstein 3D.
-// 
-extern "C" fn R_DrawColumn () { 
+//
+#[no_mangle]
+pub extern "C" fn R_DrawColumn () { 
     /* int   count; 
     byte*  dest; 
     fixed_t  frac;
     fixed_t  fracstep;   */
  
-    let count = dc_yh - dc_yl; 
+    unsafe {
+        let mut count = dc_yh - dc_yl; 
 
-    // Zero length, column does not exceed a pixel.
-    if count < 0 {
-        return; 
-    }
-     
-    // Framebuffer destination address.
-    // Use ylookup LUT to avoid multiply with ScreenWidth.
-    // Use columnofs LUT for subwindows? 
-    let mut dest = (ylookup[dc_yl] as c_int) + columnofs[dc_x];  
-
-    // Determine scaling,
-    //  which is the only mapping to be done.
-    let mut fracstep = dc_iscale; 
-    let frac = dc_texturemid + (dc_yl-centery)*fracstep; 
-
-    // Inner loop that does the actual texture mapping,
-    //  e.g. a DDA-lile scaling.
-    // This is as fast as it gets.
-    loop {
-        // Re-map color indices from wall texture column
-        //  using a lighting/special effects LUT.
-        *dest = dc_colormap[dc_source[(frac>>FRACBITS)&127]];
-
-        dest += SCREENWIDTH; 
-        frac += fracstep;
-        if count == 0 {
-            break;
+        // Zero length, column does not exceed a pixel.
+        if count < 0 {
+            return; 
         }
-        count -= 1;
+         
+        // Framebuffer destination address.
+        // Use ylookup LUT to avoid multiply with ScreenWidth.
+        // Use columnofs LUT for subwindows? 
+        let mut dest: *mut i8 = ylookup[dc_yl as usize].offset(columnofs[dc_x as usize] as isize); 
+
+        // Determine scaling,
+        //  which is the only mapping to be done.
+        let fracstep = dc_iscale; 
+        let mut frac = dc_texturemid + (dc_yl-centery)*fracstep; 
+
+        // Inner loop that does the actual texture mapping,
+        //  e.g. a DDA-lile scaling.
+        // This is as fast as it gets.
+        loop {
+            // Re-map color indices from wall texture column
+            //  using a lighting/special effects LUT.
+            *dest = dc_colormap[dc_source[((frac>>FRACBITS)&127) as usize] as usize];
+
+            dest = dest.offset(SCREENWIDTH as isize); 
+            frac += fracstep;
+            if count == 0 {
+                break;
+            }
+            count -= 1;
+        }
     }
 } 
 
 fn main() {
     let r = std::env::set_current_dir("headless_doom");
     assert!(r.is_ok());
-    let mut dst: Vec<*const i8> = Vec::with_capacity(3);
-    let arg0 = CString::new("arg0").unwrap();
-    let test = CString::new("test").unwrap();
-    dst.push(arg0.as_ptr());
-    dst.push(test.as_ptr());
+
+    let mut cargs: Vec<CString> = Vec::new();
+    for arg in std::env::args_os() {
+        cargs.push(CString::new(arg.into_string().unwrap()).unwrap());
+    }
+
+    let mut dst: Vec<*const i8> = Vec::new();
+    for carg in &cargs {
+        dst.push(carg.as_ptr());
+    }
     unsafe {
-        myargc = 2;
+        myargc = dst.len() as i32;
         myargv = dst.as_mut_ptr();
         D_DoomMain();
     }
