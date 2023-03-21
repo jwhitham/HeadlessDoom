@@ -85,6 +85,70 @@ pub extern "C" fn R_DrawColumn () {
     }
 } 
 
+//
+// R_DrawSpan 
+// With DOOM style restrictions on view orientation,
+//  the floors and ceilings consist of horizontal slices
+//  or spans with constant z depth.
+// However, rotation around the world z axis is possible,
+//  thus this mapping, while simpler and faster than
+//  perspective correct texture mapping, has to traverse
+//  the texture at an angle in all but a few cases.
+// In consequence, flats are not stored by column (like walls),
+//  and the inner loop has to step in texture space u and v.
+//
+extern {
+    static ds_y: c_int; 
+    static ds_x1: c_int; 
+    static ds_x2: c_int;
+
+    static ds_colormap: *const i8; 
+
+    static ds_xfrac: c_int; 
+    static ds_yfrac: c_int; 
+    static ds_xstep: c_int; 
+    static ds_ystep: c_int;
+
+    // start of a 64*64 tile image 
+    static ds_source: *const u8;	
+}
+
+//
+// Draws the actual span.
+#[no_mangle]
+pub extern "C" fn R_DrawSpan () { 
+   
+    unsafe {
+        let mut xfrac = ds_xfrac;
+        let mut yfrac = ds_yfrac;
+         
+        let mut dest: *mut i8 = ylookup[ds_y as usize].offset(columnofs[ds_x1 as usize] as isize);
+
+        // We do not check for zero spans here?
+        let mut count = ds_x2 - ds_x1; 
+
+        loop {
+            // Current texture index in u,v.
+            let spot = ((yfrac>>(16-6))&(63*64)) + ((xfrac>>16)&63);
+
+            // Lookup pixel from flat texture tile,
+            //  re-index using light/colormap.
+            *dest = *ds_colormap.offset(*ds_source.offset(spot as isize) as isize);
+            dest = dest.offset(1);
+
+            // Next step in u,v.
+            xfrac += ds_xstep;
+            yfrac += ds_ystep;
+            if count == 0 {
+                break;
+            }
+            count -= 1;
+        }
+    }
+} 
+
+
+
 fn main() {
     let r = std::env::set_current_dir("headless_doom");
     assert!(r.is_ok());

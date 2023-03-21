@@ -518,6 +518,7 @@ byte*			ds_source;
 int			dscount;
 
 
+#if 0
 //
 // Draws the actual span.
 void R_DrawSpan (void) 
@@ -564,6 +565,7 @@ void R_DrawSpan (void)
 	
     } while (count--); 
 } 
+#endif
 
 
 
