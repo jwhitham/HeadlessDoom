@@ -25,7 +25,6 @@
 
 // really these are elsewhere
 use libc::c_int;
-use std::ffi::CString;
 
 type fixed_t = u32;
 
@@ -76,8 +75,8 @@ extern {
 extern {
     static dc_colormap: *const u8;
     static dc_x: c_int; 
-    static dc_yl: c_int; 
-    static dc_yh: c_int; 
+    static mut dc_yl: c_int; 
+    static mut dc_yh: c_int; 
     static dc_iscale: fixed_t; 
     static dc_texturemid: fixed_t;
 
@@ -149,16 +148,14 @@ pub extern "C" fn R_DrawColumnLow () {
 
 
 
-/*
 //
 // Spectre/Invisibility.
 //
 const FUZZTABLE: usize = 50;
-const FUZZOFF: i32 = SCREENWIDTH as i32;
+const FUZZOFF: isize = SCREENWIDTH as isize;
 
 
-const fuzzoffset: [i32; FUZZTABLE] =
-{
+const fuzzoffset: [isize; FUZZTABLE] = [
     FUZZOFF,-FUZZOFF,FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,
     FUZZOFF,FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,
     FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,-FUZZOFF,-FUZZOFF,-FUZZOFF,
@@ -166,10 +163,14 @@ const fuzzoffset: [i32; FUZZTABLE] =
     FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,-FUZZOFF,FUZZOFF,
     FUZZOFF,-FUZZOFF,-FUZZOFF,-FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,
     FUZZOFF,FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,FUZZOFF 
-}; 
+]; 
 
-static fuzzpos: i32 = 0; 
+static mut fuzzpos: usize = 0; 
 
+extern {
+    static colormaps: *const u8;
+    static viewheight: i32;
+}
 
 //
 // Framebuffer postprocessing.
@@ -181,91 +182,64 @@ static fuzzpos: i32 = 0;
 //
 #[no_mangle]
 pub extern "C" fn R_DrawFuzzColumn () { 
-    int			count; 
-    byte*		dest; 
-    fixed_t		frac;
-    fixed_t		fracstep;	 
+    unsafe {
+        // Adjust borders. Low... 
+        if dc_yl == 0 {
+            dc_yl = 1;
+        }
 
-    // Adjust borders. Low... 
-    if (!dc_yl) 
-	dc_yl = 1;
+        // .. and high.
+        if dc_yh == viewheight-1 {
+            dc_yh = viewheight - 2; 
+        }
+             
+        let mut count = dc_yh - dc_yl; 
 
-    // .. and high.
-    if (dc_yh == viewheight-1) 
-	dc_yh = viewheight - 2; 
-		 
-    count = dc_yh - dc_yl; 
+        // Zero length.
+        if count < 0 {
+            return; 
+        }
+         
+        // Does not work with blocky mode.
+        let mut dest: *mut u8 = ylookup[dc_yl as usize].offset(columnofs[dc_x as usize] as isize); 
 
-    // Zero length.
-    if (count < 0) 
-	return; 
+        // Looks familiar.
+        let fracstep: fixed_t = dc_iscale; 
+        let mut frac: fixed_t =
+                dc_texturemid.wrapping_add(
+                    fracstep.wrapping_mul((dc_yl - centery) as fixed_t));
 
-    
-#ifdef RANGECHECK 
-    if ((unsigned)dc_x >= SCREENWIDTH
-	|| dc_yl < 0 || dc_yh >= SCREENHEIGHT)
-    {
-	I_Error ("R_DrawFuzzColumn: %i to %i at %i",
-		 dc_yl, dc_yh, dc_x);
+        // Looks like an attempt at dithering,
+        //  using the colormap #6 (of 0-31, a bit
+        //  brighter than average).
+        loop {
+            // Lookup framebuffer, and retrieve
+            //  a pixel that is either one column
+            //  left or right of the current one.
+            // Add index from colormap to index.
+            *dest = *colormaps.offset((6*256) as isize +
+                        *dest.offset(fuzzoffset[fuzzpos]) as isize);
+
+            // Clamp table lookup index.
+            fuzzpos += 1;
+            if fuzzpos == FUZZTABLE {
+                fuzzpos = 0;
+            }
+            
+            dest = dest.offset(SCREENWIDTH as isize); 
+            frac = frac.wrapping_add(fracstep);
+            if count == 0 {
+                break;
+            }
+            count -= 1;
+        }
     }
-#endif
-
-
-    // Keep till detailshift bug in blocky mode fixed,
-    //  or blocky mode removed.
-    // WATCOM code 
-    if (detailshift)
-    {
-	if (dc_x & 1)
-	{
-	    outpw (GC_INDEX,GC_READMAP+(2<<8) ); 
-	    outp (SC_INDEX+1,12); 
-	}
-	else
-	{
-	    outpw (GC_INDEX,GC_READMAP); 
-	    outp (SC_INDEX+1,3); 
-	}
-	dest = destview + dc_yl*80 + (dc_x>>1); 
-    }
-    else
-    {
-	outpw (GC_INDEX,GC_READMAP+((dc_x&3)<<8) ); 
-	outp (SC_INDEX+1,1<<(dc_x&3)); 
-	dest = destview + dc_yl*80 + (dc_x>>2); 
-    }//
-
-    
-    // Does not work with blocky mode.
-    dest = ylookup[dc_yl] + columnofs[dc_x];
-
-    // Looks familiar.
-    fracstep = dc_iscale; 
-    frac = dc_texturemid + (dc_yl-centery)*fracstep; 
-
-    // Looks like an attempt at dithering,
-    //  using the colormap #6 (of 0-31, a bit
-    //  brighter than average).
-    do 
-    {
-	// Lookup framebuffer, and retrieve
-	//  a pixel that is either one column
-	//  left or right of the current one.
-	// Add index from colormap to index.
-	*dest = colormaps[6*256+dest[fuzzoffset[fuzzpos]]]; 
-
-	// Clamp table lookup index.
-	if (++fuzzpos == FUZZTABLE) 
-	    fuzzpos = 0;
-	
-	dest += SCREENWIDTH;
-
-	frac += fracstep; 
-    } while (count--); 
 } 
+
+
  
+/*
   
-*/ 
 
 //
 // R_DrawTranslatedColumn
@@ -379,7 +353,7 @@ void R_InitTranslationTables (void)
     }
 }
 
-
+*/
 
 //
 // R_DrawSpan 

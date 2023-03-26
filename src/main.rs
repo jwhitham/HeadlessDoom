@@ -1,6 +1,7 @@
 
 use libc::c_int;
 use std::ffi::CString;
+mod r_draw;
 
 extern {
     fn D_DoomMain();
@@ -12,7 +13,10 @@ extern {
 
 fn main() {
     let r = std::env::set_current_dir("headless_doom");
-    assert!(r.is_ok());
+    if !r.is_ok() {
+        let r = std::env::set_current_dir("../headless_doom");
+        assert!(r.is_ok());
+    }
 
     let mut cargs: Vec<CString> = Vec::new();
     for arg in std::env::args_os() {
