@@ -55,81 +55,9 @@ extern int		viewwindowy;
 extern byte*		ylookup[MAXHEIGHT]; 
 extern int		columnofs[MAXWIDTH]; 
 
-//
-// R_DrawTranslatedColumn
-// Used to draw player sprites
-//  with the green colorramp mapped to others.
-// Could be used with different translation
-//  tables, e.g. the lighter colored version
-//  of the BaronOfHell, the HellKnight, uses
-//  identical sprites, kinda brightened up.
-//
-byte*	dc_translation;
-byte*	translationtables;
+extern byte*	dc_translation;
+extern byte*	translationtables;
 
-void R_DrawTranslatedColumn (void) 
-{ 
-    int			count; 
-    byte*		dest; 
-    fixed_t		frac;
-    fixed_t		fracstep;	 
- 
-    count = dc_yh - dc_yl; 
-    if (count < 0) 
-	return; 
-				 
-#ifdef RANGECHECK 
-    if ((unsigned)dc_x >= SCREENWIDTH
-	|| dc_yl < 0
-	|| dc_yh >= SCREENHEIGHT)
-    {
-	I_Error ( "R_DrawColumn: %i to %i at %i",
-		  dc_yl, dc_yh, dc_x);
-    }
-    
-#endif 
-
-
-    // WATCOM VGA specific.
-    /* Keep for fixing.
-    if (detailshift)
-    {
-	if (dc_x & 1)
-	    outp (SC_INDEX+1,12); 
-	else
-	    outp (SC_INDEX+1,3);
-	
-	dest = destview + dc_yl*80 + (dc_x>>1); 
-    }
-    else
-    {
-	outp (SC_INDEX+1,1<<(dc_x&3)); 
-
-	dest = destview + dc_yl*80 + (dc_x>>2); 
-    }*/
-
-    
-    // FIXME. As above.
-    dest = ylookup[dc_yl] + columnofs[dc_x]; 
-
-    // Looks familiar.
-    fracstep = dc_iscale; 
-    frac = dc_texturemid + (dc_yl-centery)*fracstep; 
-
-    // Here we do an additional index re-mapping.
-    do 
-    {
-	// Translation tables are used
-	//  to map certain colorramps to other ones,
-	//  used with PLAY sprites.
-	// Thus the "green" ramp of the player 0 sprite
-	//  is mapped to gray, red, black/indigo. 
-	*dest = dc_colormap[dc_translation[dc_source[frac>>FRACBITS]]];
-	dest += SCREENWIDTH;
-	
-	frac += fracstep; 
-    } while (count--); 
-} 
 
 
 

@@ -238,7 +238,6 @@ pub extern "C" fn R_DrawFuzzColumn () {
 
 
  
-/*
   
 
 //
@@ -250,73 +249,53 @@ pub extern "C" fn R_DrawFuzzColumn () {
 //  of the BaronOfHell, the HellKnight, uses
 //  identical sprites, kinda brightened up.
 //
-byte*	dc_translation;
-byte*	translationtables;
+extern {
+    static dc_translation: *const u8;
+    static translationtables: *const u8;
+}
 
-void R_DrawTranslatedColumn (void) 
-{ 
-    int			count; 
-    byte*		dest; 
-    fixed_t		frac;
-    fixed_t		fracstep;	 
- 
-    count = dc_yh - dc_yl; 
-    if (count < 0) 
-	return; 
-				 
-#ifdef RANGECHECK 
-    if ((unsigned)dc_x >= SCREENWIDTH
-	|| dc_yl < 0
-	|| dc_yh >= SCREENHEIGHT)
-    {
-	I_Error ( "R_DrawColumn: %i to %i at %i",
-		  dc_yl, dc_yh, dc_x);
+#[no_mangle]
+pub extern "C" fn R_DrawTranslatedColumn () {
+    unsafe {
+        let mut count = dc_yh - dc_yl; 
+
+        // Zero length.
+        if count < 0 {
+            return; 
+        }
+         
+        // FIXME. As above.
+        let mut dest: *mut u8 = ylookup[dc_yl as usize].offset(columnofs[dc_x as usize] as isize); 
+
+        // Looks familiar.
+        let fracstep: fixed_t = dc_iscale; 
+        let mut frac: fixed_t =
+                dc_texturemid.wrapping_add(
+                    fracstep.wrapping_mul((dc_yl - centery) as fixed_t));
+
+        // Here we do an additional index re-mapping.
+        loop {
+            // Translation tables are used
+            //  to map certain colorramps to other ones,
+            //  used with PLAY sprites.
+            // Thus the "green" ramp of the player 0 sprite
+            //  is mapped to gray, red, black/indigo. 
+            *dest = *dc_colormap.offset(
+                        *dc_translation.offset(
+                            *dc_source.offset(((frac>>FRACBITS)&127) as isize)
+                                as isize)
+                            as isize);
+            dest = dest.offset(SCREENWIDTH as isize); 
+            frac = frac.wrapping_add(fracstep);
+            if count == 0 {
+                break;
+            }
+            count -= 1;
+        }
     }
-    
-#endif 
-
-
-    // WATCOM VGA specific.
-    /* Keep for fixing.
-    if (detailshift)
-    {
-	if (dc_x & 1)
-	    outp (SC_INDEX+1,12); 
-	else
-	    outp (SC_INDEX+1,3);
-	
-	dest = destview + dc_yl*80 + (dc_x>>1); 
-    }
-    else
-    {
-	outp (SC_INDEX+1,1<<(dc_x&3)); 
-
-	dest = destview + dc_yl*80 + (dc_x>>2); 
-    }*/
-
-    
-    // FIXME. As above.
-    dest = ylookup[dc_yl] + columnofs[dc_x]; 
-
-    // Looks familiar.
-    fracstep = dc_iscale; 
-    frac = dc_texturemid + (dc_yl-centery)*fracstep; 
-
-    // Here we do an additional index re-mapping.
-    do 
-    {
-	// Translation tables are used
-	//  to map certain colorramps to other ones,
-	//  used with PLAY sprites.
-	// Thus the "green" ramp of the player 0 sprite
-	//  is mapped to gray, red, black/indigo. 
-	*dest = dc_colormap[dc_translation[dc_source[frac>>FRACBITS]]];
-	dest += SCREENWIDTH;
-	
-	frac += fracstep; 
-    } while (count--); 
 } 
 
+/*
 
 
 
