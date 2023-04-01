@@ -3,6 +3,7 @@
 use libc::c_int;
 use std::ffi::CString;
 mod r_draw;
+mod r_things;
 
 extern {
     fn D_DoomMain();
