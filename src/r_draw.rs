@@ -23,6 +23,7 @@
 //
 //-----------------------------------------------------------------------------
 
+
 // really these are elsewhere
 use libc::c_int;
 
@@ -30,6 +31,7 @@ type fixed_t = u32;
 
 const FRACBITS: i32 = 16;
 const SCREENWIDTH: usize = 320;
+const SCREENHEIGHT: usize = 200;
 
 
 // static const char
@@ -66,8 +68,8 @@ const SBARHEIGHT: i32 = 32;
 //
 
 extern {
-    static ylookup: [*mut u8; SCREENWIDTH];
-    static columnofs: [c_int; SCREENWIDTH];
+    static mut ylookup: [*mut u8; SCREENWIDTH];
+    static mut columnofs: [c_int; SCREENWIDTH];
 
     static centery: c_int; 
 }
@@ -314,7 +316,7 @@ pub extern "C" fn R_InitTranslationTables () {
         //translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // DSB-3
         
         // translate just the 16 green colors
-        for i in 0 as u8..=255 {
+        for i in 0 as u8 ..= 255 {
             let j: isize = i as isize;
             if i >= 0x70 && i<= 0x7f {
                 // map green ramp to gray, brown, red
@@ -400,7 +402,11 @@ pub extern "C" fn R_DrawSpanLow () {
     R_DrawSpan();
 }
 
-/*
+extern {
+    static mut viewwindowx: i32;
+    static mut viewwindowy: i32;
+    static screens: [*mut u8; 5];
+}
 //
 // R_InitBuffer 
 // Creats lookup tables that avoid
@@ -408,34 +414,36 @@ pub extern "C" fn R_DrawSpanLow () {
 //  for getting the framebuffer address
 //  of a pixel to draw.
 //
-void
-R_InitBuffer
-( int		width,
-  int		height ) 
-{ 
-    int		i; 
+#[no_mangle]
+pub extern "C" fn R_InitBuffer(width: i32, height: i32) {
+    unsafe {
+        // Handle resize,
+        //  e.g. smaller view windows
+        //  with border and/or status bar.
+        viewwindowx = (SCREENWIDTH as i32 - width) >> 1; 
 
-    // Handle resize,
-    //  e.g. smaller view windows
-    //  with border and/or status bar.
-    viewwindowx = (SCREENWIDTH-width) >> 1; 
+        // Column offset. For windows.
+        for i in 0 .. width {
+            columnofs[i as usize] = viewwindowx + i;
+        }
 
-    // Column offset. For windows.
-    for (i=0 ; i<width ; i++) 
-	columnofs[i] = viewwindowx + i;
+        // Samw with base row offset.
+        if width == SCREENWIDTH as i32 {
+            viewwindowy = 0; 
+        } else {
+            viewwindowy = (SCREENHEIGHT as i32 - SBARHEIGHT as i32 - height) >> 1; 
+        }
 
-    // Samw with base row offset.
-    if (width == SCREENWIDTH) 
-	viewwindowy = 0; 
-    else 
-	viewwindowy = (SCREENHEIGHT-SBARHEIGHT-height) >> 1; 
-
-    // Preclaculate all row offsets.
-    for (i=0 ; i<height ; i++) 
-	ylookup[i] = screens[0] + (i+viewwindowy)*SCREENWIDTH; 
+        // Preclaculate all row offsets.
+        for i in 0 .. height {
+            ylookup[i as usize] = screens[0].offset(
+                ((i + viewwindowy) as isize) * (SCREENWIDTH as isize));
+        }
+    }
 } 
  
  
+/*
 
 
 //
