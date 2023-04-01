@@ -61,8 +61,51 @@ extern byte*	translationtables;
 
 
 
+void R_DrawColumnLow (void) 
+{ 
+    int			count; 
+    byte*		dest; 
+    byte*		dest2;
+    fixed_t		frac;
+    fixed_t		fracstep;	 
+ 
+    // MISSING COVERAGE
+    exit (1);
+    count = dc_yh - dc_yl; 
 
+    // Zero length.
+    if (count < 0) 
+	return; 
+				 
+#ifdef RANGECHECK 
+    if ((unsigned)dc_x >= SCREENWIDTH
+	|| dc_yl < 0
+	|| dc_yh >= SCREENHEIGHT)
+    {
+	
+	I_Error ("R_DrawColumn: %i to %i at %i", dc_yl, dc_yh, dc_x);
+    }
+    //	dccount++; 
+#endif 
+    // Blocky mode, need to multiply by 2.
+    dc_x <<= 1;
+    
+    dest = ylookup[dc_yl] + columnofs[dc_x];
+    dest2 = ylookup[dc_yl] + columnofs[dc_x+1];
+    
+    fracstep = dc_iscale; 
+    frac = dc_texturemid + (dc_yl-centery)*fracstep;
+    
+    do 
+    {
+	// Hack. Does not work corretly.
+	*dest2 = *dest = dc_colormap[dc_source[(frac>>FRACBITS)&127]];
+	dest += SCREENWIDTH;
+	dest2 += SCREENWIDTH;
+	frac += fracstep; 
 
+    } while (count--);
+}
 
 
 //
@@ -89,7 +132,9 @@ void R_FillBackScreen (void)
 	
     if (scaledviewwidth == 320)
 	return;
-	
+
+    // MISSING COVERAGE
+    exit (1);
     if ( gamemode == commercial)
 	name = name2;
     else
@@ -167,6 +212,8 @@ R_VideoErase
   //  is not optiomal, e.g. byte by byte on
   //  a 32bit CPU, as GNU GCC/Linux libc did
   //  at one point.
+    // MISSING COVERAGE
+    exit (1);
     memcpy (screens[0]+ofs, screens[1]+ofs, count); 
 } 
 
@@ -193,6 +240,8 @@ void R_DrawViewBorder (void)
     if (scaledviewwidth == SCREENWIDTH) 
 	return; 
   
+    // MISSING COVERAGE
+    exit (1);
     top = ((SCREENHEIGHT-SBARHEIGHT)-viewheight)/2; 
     side = (SCREENWIDTH-scaledviewwidth)/2; 
  

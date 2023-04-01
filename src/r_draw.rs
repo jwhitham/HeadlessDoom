@@ -142,10 +142,6 @@ pub extern "C" fn R_DrawColumn () {
 } 
 
 
-#[no_mangle]
-pub extern "C" fn R_DrawColumnLow () { 
-    R_DrawColumn();
-}
 
 
 
