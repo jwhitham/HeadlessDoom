@@ -137,7 +137,7 @@ void R_InitSpriteDefs (char** namelist)
 	
     if (!numsprites)
 	return;
-		
+
     sprites = Z_Malloc(numsprites *sizeof(*sprites), PU_STATIC, NULL);
 	
     start = firstspritelump-1;

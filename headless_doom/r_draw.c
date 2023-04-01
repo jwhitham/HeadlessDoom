@@ -24,8 +24,8 @@
 //-----------------------------------------------------------------------------
 
 
-// static const char
-// rcsid[] = "$Id: r_draw.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
+static const char
+rcsid[] = "$Id: r_draw.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 
 
 #include "doomdef.h"
@@ -42,22 +42,58 @@
 // State.
 #include "doomstat.h"
 
-#define SBARHEIGHT 32
+
+// ?
 #define MAXWIDTH			1120
 #define MAXHEIGHT			832
 
-extern byte*		viewimage; 
-extern int		viewwidth;
-extern int		scaledviewwidth;
-extern int		viewheight;
-extern int		viewwindowx;
-extern int		viewwindowy; 
-extern byte*		ylookup[MAXHEIGHT]; 
-extern int		columnofs[MAXWIDTH]; 
+// status bar height at bottom of screen
+#define SBARHEIGHT		32
 
-extern byte*	dc_translation;
-extern byte*	translationtables;
+//
+// All drawing to the view buffer is accomplished in this file.
+// The other refresh files only know about ccordinates,
+//  not the architecture of the frame buffer.
+// Conveniently, the frame buffer is a linear one,
+//  and we need only the base address,
+//  and the total size == width*height*depth/8.,
+//
 
+
+byte*		viewimage; 
+int		viewwidth;
+int		scaledviewwidth;
+int		viewheight;
+int		viewwindowx;
+int		viewwindowy; 
+byte*		ylookup[MAXHEIGHT]; 
+int		columnofs[MAXWIDTH]; 
+
+// Color tables for different players,
+//  translate a limited part to another
+//  (color ramps used for  suit colors).
+//
+byte		translations[3][256];	
+ 
+ 
+
+
+//
+// R_DrawColumn
+// Source is the top of the column to scale.
+//
+lighttable_t*		dc_colormap; 
+int			dc_x; 
+int			dc_yl; 
+int			dc_yh; 
+fixed_t			dc_iscale; 
+fixed_t			dc_texturemid;
+
+// first pixel in a column (possibly virtual) 
+byte*			dc_source;		
+
+// just for profiling 
+int			dccount;
 
 
 
@@ -106,6 +142,28 @@ void R_DrawColumnLow (void)
 
     } while (count--);
 }
+
+//
+byte*	dc_translation;
+byte*	translationtables;
+
+
+
+int			ds_y; 
+int			ds_x1; 
+int			ds_x2;
+
+lighttable_t*		ds_colormap; 
+
+fixed_t			ds_xfrac; 
+fixed_t			ds_yfrac; 
+fixed_t			ds_xstep; 
+fixed_t			ds_ystep;
+
+// start of a 64*64 tile image 
+byte*			ds_source;	
+
+
 
 
 //
@@ -266,4 +324,4 @@ void R_DrawViewBorder (void)
     V_MarkRect (0,0,SCREENWIDTH, SCREENHEIGHT-SBARHEIGHT); 
 } 
  
-
+ 
