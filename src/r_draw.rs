@@ -251,8 +251,10 @@ pub extern "C" fn R_DrawFuzzColumn () {
 //
 extern {
     static dc_translation: *const u8;
-    static translationtables: *const u8;
+    static mut translationtables: *mut u8;
+    fn Z_Malloc(size: i32, tag: i32, user: *const u8) -> *mut u8;
 }
+const PU_STATIC: i32 = 1;
 
 #[no_mangle]
 pub extern "C" fn R_DrawTranslatedColumn () {
@@ -295,7 +297,6 @@ pub extern "C" fn R_DrawTranslatedColumn () {
     }
 } 
 
-/*
 
 
 
@@ -306,33 +307,30 @@ pub extern "C" fn R_DrawTranslatedColumn () {
 // Assumes a given structure of the PLAYPAL.
 // Could be read from a lump instead.
 //
-void R_InitTranslationTables (void)
-{
-    int		i;
-	
-    translationtables = Z_Malloc (256*3+255, PU_STATIC, 0);
-    translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // DSB-3
-    
-    // translate just the 16 green colors
-    for (i=0 ; i<256 ; i++)
-    {
-	if (i >= 0x70 && i<= 0x7f)
-	{
-	    // map green ramp to gray, brown, red
-	    translationtables[i] = 0x60 + (i&0xf);
-	    translationtables [i+256] = 0x40 + (i&0xf);
-	    translationtables [i+512] = 0x20 + (i&0xf);
-	}
-	else
-	{
-	    // Keep all other colors as is.
-	    translationtables[i] = translationtables[i+256] 
-		= translationtables[i+512] = i;
-	}
+#[no_mangle]
+pub extern "C" fn R_InitTranslationTables () {
+    unsafe {
+        translationtables = Z_Malloc (256*3+255, PU_STATIC, std::ptr::null());
+        //translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // DSB-3
+        
+        // translate just the 16 green colors
+        for i in 0 as u8..=255 {
+            let j: isize = i as isize;
+            if i >= 0x70 && i<= 0x7f {
+                // map green ramp to gray, brown, red
+                *translationtables.offset(j) = 0x60 + (i&0xf);
+                *translationtables.offset(j+256) = 0x40 + (i&0xf);
+                *translationtables.offset(j+512) = 0x20 + (i&0xf);
+            } else {
+                // Keep all other colors as is.
+                *translationtables.offset(j) = i;
+                *translationtables.offset(j+256) = i;
+                *translationtables.offset(j+512) = i;
+            }
+        }
     }
 }
 
-*/
 
 //
 // R_DrawSpan 
@@ -359,7 +357,7 @@ extern {
     static ds_ystep: fixed_t;
 
     // start of a 64*64 tile image 
-    static ds_source: *const u8;	
+    static ds_source: *const u8;
 }
 
 //
