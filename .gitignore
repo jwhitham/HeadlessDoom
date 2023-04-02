@@ -17,3 +17,6 @@ Release
 /WATCOM
 /target
 /Cargo.lock
+*.idx*
+*.out*
+*.run*
