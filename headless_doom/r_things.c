@@ -113,56 +113,12 @@ vissprite_t	overflowsprite;
 
 extern vissprite_t* R_NewVisSprite (void); // moved
 
-//
-// R_DrawMaskedColumn
-// Used for sprites and masked mid textures.
-// Masked means: partly transparent, i.e. stored
-//  in posts/runs of opaque pixels.
-//
 short*		mfloorclip;
 short*		mceilingclip;
 
 fixed_t		spryscale;
 fixed_t		sprtopscreen;
 
-void R_DrawMaskedColumn (column_t* column)
-{
-    int		topscreen;
-    int 	bottomscreen;
-    fixed_t	basetexturemid;
-	
-    basetexturemid = dc_texturemid;
-	
-    for ( ; column->topdelta != 0xff ; ) 
-    {
-	// calculate unclipped screen coordinates
-	//  for post
-	topscreen = sprtopscreen + spryscale*column->topdelta;
-	bottomscreen = topscreen + spryscale*column->length;
-
-	dc_yl = (topscreen+FRACUNIT-1)>>FRACBITS;
-	dc_yh = (bottomscreen-1)>>FRACBITS;
-		
-	if (dc_yh >= mfloorclip[dc_x])
-	    dc_yh = mfloorclip[dc_x]-1;
-	if (dc_yl <= mceilingclip[dc_x])
-	    dc_yl = mceilingclip[dc_x]+1;
-
-	if (dc_yl <= dc_yh)
-	{
-	    dc_source = (byte *)column + 3;
-	    dc_texturemid = basetexturemid - (column->topdelta<<FRACBITS);
-	    // dc_source = (byte *)column + 3 - column->topdelta;
-
-	    // Drawn by either R_DrawColumn
-	    //  or (SHADOW) R_DrawFuzzColumn.
-	    colfunc ();	
-	}
-	column = (column_t *)(  (byte *)column + column->length + 4);
-    }
-	
-    dc_texturemid = basetexturemid;
-}
 
 
 

@@ -25,8 +25,6 @@
 
 
 // really these are elsewhere
-use libc::c_int;
-
 type fixed_t = u32;
 
 const FRACBITS: i32 = 16;
@@ -69,16 +67,16 @@ const SBARHEIGHT: i32 = 32;
 
 extern {
     static mut ylookup: [*mut u8; SCREENWIDTH];
-    static mut columnofs: [c_int; SCREENWIDTH];
+    static mut columnofs: [i32; SCREENWIDTH];
 
-    static centery: c_int; 
+    static centery: i32; 
 }
 
 extern {
     static dc_colormap: *const u8;
-    static dc_x: c_int; 
-    static mut dc_yl: c_int; 
-    static mut dc_yh: c_int; 
+    static dc_x: i32; 
+    static mut dc_yl: i32; 
+    static mut dc_yh: i32; 
     static dc_iscale: fixed_t; 
     static dc_texturemid: fixed_t;
 
@@ -343,9 +341,9 @@ pub extern "C" fn R_InitTranslationTables () {
 //  and the inner loop has to step in texture space u and v.
 //
 extern {
-    static ds_y: c_int; 
-    static ds_x1: c_int; 
-    static ds_x2: c_int;
+    static ds_y: i32; 
+    static ds_x1: i32; 
+    static ds_x2: i32;
 
     static ds_colormap: *const u8; 
 

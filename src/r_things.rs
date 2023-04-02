@@ -26,7 +26,11 @@
 type boolean = i32;
 const c_false: boolean = 0;
 const c_true: boolean = 1;
+
+const FRACBITS: i32 = 16;
+const FRACUNIT: i32 = 1 << FRACBITS;
 const SCREENWIDTH: usize = 320;
+
 type fixed_t = u32;
 const MAXVISSPRITES: usize = 128;
 
@@ -123,6 +127,15 @@ pub struct vissprite_t {
     mobjflags: i32,
 }
 
+// posts are runs of non masked source pixels
+#[repr(C)]
+pub struct post_t {
+    topdelta: u8,	// -1 is the last post in a column
+    length: u8, 	// length data bytes follows
+}
+
+// column_t is a list of 0 or more post_t, (byte)-1 terminated
+pub type column_t = post_t;
 
 extern {
     static mut maxframe: i32;
@@ -379,4 +392,55 @@ pub extern "C" fn R_NewVisSprite () -> *mut vissprite_t {
     }
 }
 
+extern {
+    static dc_x: i32; 
+    static mut dc_yl: i32; 
+    static mut dc_yh: i32; 
+    static mut dc_texturemid: fixed_t;
+
+    static mut dc_source: *const u8;
+
+    static mut mfloorclip: *mut i16;
+    static mut mceilingclip: *mut i16;
+
+    static mut spryscale: fixed_t;
+    static mut sprtopscreen: fixed_t;
+    static colfunc: extern "C" fn ();
+}
+//
+// R_DrawMaskedColumn
+// Used for sprites and masked mid textures.
+// Masked means: partly transparent, i.e. stored
+//  in posts/runs of opaque pixels.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_DrawMaskedColumn (column: *mut column_t) {
+    let basetexturemid = dc_texturemid;
+    let mut column_tmp = column;
+
+    while (*column_tmp).topdelta != 0xff {
+        // calculate unclipped screen coordinates
+        //  for post
+        let topscreen = sprtopscreen.wrapping_add(spryscale.wrapping_mul((*column_tmp).topdelta as fixed_t));
+        let bottomscreen = topscreen.wrapping_add(spryscale.wrapping_mul((*column_tmp).length as fixed_t));
+
+        dc_yl = ((topscreen as i32) + FRACUNIT - 1) >> FRACBITS;
+        dc_yh = ((bottomscreen as i32) - 1) >> FRACBITS;
+            
+        dc_yh = i32::min(dc_yh, (*mfloorclip.offset(dc_x as isize) as i32) - 1);
+        dc_yl = i32::max(dc_yl, (*mceilingclip.offset(dc_x as isize) as i32) + 1);
+
+        if dc_yl <= dc_yh {
+            dc_source = (column_tmp as *mut u8).offset(3);
+            dc_texturemid = basetexturemid.wrapping_sub(((*column_tmp).topdelta as fixed_t) << FRACBITS);
+
+            // Drawn by either R_DrawColumn
+            //  or (SHADOW) R_DrawFuzzColumn.
+            colfunc ();
+        }
+        column_tmp = (column_tmp as *mut u8).offset(((*column_tmp).length as isize) + 4) as *mut column_t;
+    }
+
+    dc_texturemid = basetexturemid;
+}
 
