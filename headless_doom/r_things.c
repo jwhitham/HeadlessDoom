@@ -109,35 +109,9 @@ char*		spritename;
 vissprite_t	vissprites[MAXVISSPRITES];
 vissprite_t*	vissprite_p;
 int		newvissprite;
-
-
-
-
-//
-// R_ClearSprites
-// Called at frame start.
-//
-void R_ClearSprites (void)
-{
-    vissprite_p = vissprites;
-}
-
-
-//
-// R_NewVisSprite
-//
 vissprite_t	overflowsprite;
 
-vissprite_t* R_NewVisSprite (void)
-{
-    if (vissprite_p == &vissprites[MAXVISSPRITES])
-	return &overflowsprite;
-    
-    vissprite_p++;
-    return vissprite_p-1;
-}
-
-
+extern vissprite_t* R_NewVisSprite (void); // moved
 
 //
 // R_DrawMaskedColumn

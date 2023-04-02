@@ -27,6 +27,8 @@ type boolean = i32;
 const c_false: boolean = 0;
 const c_true: boolean = 1;
 const SCREENWIDTH: usize = 320;
+type fixed_t = u32;
+const MAXVISSPRITES: usize = 128;
 
 //	
 // Sprites are patches with a special naming convention
@@ -80,6 +82,47 @@ struct lumpinfo_t {
     position: i32,
     size: i32,
 }
+
+type lighttable_t = u8;	
+
+// A vissprite_t is a thing
+//  that will be drawn during a refresh.
+// I.e. a sprite object that is partly visible.
+#[repr(C)]
+pub struct vissprite_t {
+    // Doubly linked list.
+    prev: *mut vissprite_t,
+    next: *mut vissprite_t,
+    
+    x1: i32,
+    x2: i32,
+
+    // for line side calculation
+    gx: fixed_t,
+    gy: fixed_t,
+
+    // global bottom / top for silhouette clipping
+    gz: fixed_t,
+    gzt: fixed_t,
+
+    // horizontal position of x1
+    startfrac: fixed_t,
+    
+    scale: fixed_t,
+    
+    // negative if flipped
+    xiscale: fixed_t,
+
+    texturemid: fixed_t,
+    patch: i32,
+
+    // for color translation and shadow draw,
+    //  maxbright frames as well
+    colormap: *mut lighttable_t,
+   
+    mobjflags: i32,
+}
+
 
 extern {
     static mut maxframe: i32;
@@ -300,6 +343,39 @@ pub extern "C" fn R_InitSprites (namelist: *mut *mut i8) {
         }
         
         R_InitSpriteDefs (namelist);
+    }
+}
+
+extern {
+    static mut vissprites: [vissprite_t; MAXVISSPRITES];
+    static mut vissprite_p: *mut vissprite_t;
+    static mut overflowsprite: vissprite_t;
+}
+
+//
+// R_ClearSprites
+// Called at frame start.
+//
+#[no_mangle]
+pub extern "C" fn R_ClearSprites () {
+    unsafe {
+        vissprite_p = vissprites.as_mut_ptr();
+    }
+}
+
+
+//
+// R_NewVisSprite
+//
+#[no_mangle]
+pub extern "C" fn R_NewVisSprite () -> *mut vissprite_t {
+    unsafe {
+        if vissprite_p == vissprites.as_mut_ptr().offset(MAXVISSPRITES as isize) {
+            return &mut overflowsprite;
+        }
+        
+        vissprite_p = vissprite_p.offset(1);
+        return vissprite_p.offset(-1);
     }
 }
 
