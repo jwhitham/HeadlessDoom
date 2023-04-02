@@ -26,6 +26,7 @@
 type boolean = i32;
 const c_false: boolean = 0;
 const c_true: boolean = 1;
+const SCREENWIDTH: usize = 320;
 
 //	
 // Sprites are patches with a special naming convention
@@ -91,8 +92,7 @@ extern {
 // R_InstallSpriteLump
 // Local function for R_InitSprites.
 //
-#[no_mangle]
-pub extern "C" fn R_InstallSpriteLump(
+fn R_InstallSpriteLump(
         lump: i32, frame: u32, rotation: u32, flipped: boolean) {
     
     unsafe {
@@ -178,8 +178,7 @@ const PU_STATIC: i32 = 1;
 //  letter/number appended.
 // The rotation character can be 0 to signify no rotations.
 //
-#[no_mangle]
-pub extern "C" fn R_InitSpriteDefs (namelist: *mut *mut i8) { 
+fn R_InitSpriteDefs (namelist: *mut *mut i8) { 
     unsafe {
         // count the number of sprite names
         numsprites = 0;
@@ -284,4 +283,24 @@ pub extern "C" fn R_InitSpriteDefs (namelist: *mut *mut i8) {
         }
     }
 }
+
+extern {
+    static mut negonearray: [i16; SCREENWIDTH];
+}
+
+//
+// R_InitSprites
+// Called at program start.
+//
+#[no_mangle]
+pub extern "C" fn R_InitSprites (namelist: *mut *mut i8) { 
+    unsafe {
+        for i in 0 .. SCREENWIDTH {
+            negonearray[i] = -1;
+        }
+        
+        R_InitSpriteDefs (namelist);
+    }
+}
+
 
