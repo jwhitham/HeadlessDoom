@@ -25,11 +25,8 @@
 
 
 // really these are elsewhere
-type fixed_t = u32;
+use crate::defs::*;
 
-const FRACBITS: i32 = 16;
-const SCREENWIDTH: usize = 320;
-const SCREENHEIGHT: usize = 200;
 
 
 // static const char

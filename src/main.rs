@@ -2,6 +2,7 @@
 
 use libc::c_int;
 use std::ffi::CString;
+mod defs;
 mod r_draw;
 mod r_things;
 
