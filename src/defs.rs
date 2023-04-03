@@ -12,7 +12,14 @@ pub const SCREENHEIGHT: usize = 200;
 pub type fixed_t = u32;
 pub const MAXVISSPRITES: usize = 128;
 
-//	
+pub const PU_CACHE: i32 = 101;
+
+pub const MF_TRANSLATION: i32 = 0xc000000;
+
+pub const MF_TRANSSHIFT: i32 = 26;
+
+
+// 
 // Sprites are patches with a special naming convention
 //  so they can be recognized by R_InitSprites.
 // The base name is NNNNFx or NNNNFxFx, with
@@ -65,7 +72,22 @@ pub struct lumpinfo_t {
     pub size: i32,
 }
 
-pub type lighttable_t = u8;	
+pub type lighttable_t = u8; 
+
+// Patches.
+// A patch holds one or more columns.
+// Patches are used for sprites and all masked pictures,
+// and we compose textures from the TEXTURE1/2 lists
+// of patches.
+#[repr(C)]
+pub struct patch_t {
+    pub width: i16,  // bounding box size 
+    pub height: i16, 
+    pub leftoffset: i16, // pixels to the left of origin 
+    pub topoffset: i16, // pixels below the origin 
+    pub columnofs: [i32; 8], // only [width] used
+    // the [0] is &columnofs[width] 
+}
 
 // A vissprite_t is a thing
 //  that will be drawn during a refresh.
@@ -108,8 +130,8 @@ pub struct vissprite_t {
 // posts are runs of non masked source pixels
 #[repr(C)]
 pub struct post_t {
-    pub topdelta: u8,	// -1 is the last post in a column
-    pub length: u8, 	// length data bytes follows
+    pub topdelta: u8, // -1 is the last post in a column
+    pub length: u8,  // length data bytes follows
 }
 
 // column_t is a list of 0 or more post_t, (byte)-1 terminated

@@ -23,6 +23,7 @@
 
 
 use crate::defs::*;
+use crate::r_draw::R_DrawTranslatedColumn;
 
 extern {
     static mut maxframe: i32;
@@ -270,7 +271,7 @@ pub unsafe extern "C" fn R_NewVisSprite () -> *mut vissprite_t {
 }
 
 extern {
-    static dc_x: i32; 
+    static mut dc_x: i32; 
     static mut dc_yl: i32; 
     static mut dc_yh: i32; 
     static mut dc_texturemid: fixed_t;
@@ -282,7 +283,7 @@ extern {
 
     static mut spryscale: fixed_t;
     static mut sprtopscreen: fixed_t;
-    static colfunc: extern "C" fn ();
+    static mut colfunc: extern "C" fn ();
 }
 //
 // R_DrawMaskedColumn
@@ -321,3 +322,53 @@ pub unsafe extern "C" fn R_DrawMaskedColumn (column: *mut column_t) {
     dc_texturemid = basetexturemid;
 }
 
+extern {
+    static mut dc_colormap: *const u8;
+    static fuzzcolfunc: extern "C" fn ();
+    static basecolfunc: extern "C" fn ();
+    static mut dc_translation: *const u8;
+    static translationtables: *mut u8;
+    static mut dc_iscale: fixed_t; 
+    static detailshift: i32; 
+    static centeryfrac: fixed_t; 
+    fn W_CacheLumpNum (lump: i32, tag: i32) -> *mut patch_t;
+    fn FixedMul (a: fixed_t, b: fixed_t) -> fixed_t;
+}
+//
+// R_DrawVisSprite
+//  mfloorclip and mceilingclip should also be set.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_DrawVisSprite (vis: *mut vissprite_t, _x1: i32, _x2: i32) {
+    let patch = W_CacheLumpNum ((*vis).patch + firstspritelump, PU_CACHE);
+
+    dc_colormap = (*vis).colormap;
+    
+    if dc_colormap == std::ptr::null() {
+        // NULL colormap = shadow draw
+        colfunc = fuzzcolfunc;
+    } else if ((*vis).mobjflags & MF_TRANSLATION) != 0 {
+        colfunc = R_DrawTranslatedColumn;
+        dc_translation = translationtables.offset(
+                - 256 +
+            ( ((*vis).mobjflags & MF_TRANSLATION) >> (MF_TRANSSHIFT-8) ) as isize);
+    }
+    
+    dc_iscale = (i32::abs((*vis).xiscale as i32) as u32) >> detailshift;
+    dc_texturemid = (*vis).texturemid;
+    let mut frac = (*vis).startfrac;
+    spryscale = (*vis).scale;
+    sprtopscreen = centeryfrac.wrapping_sub(FixedMul(dc_texturemid, spryscale));
+  
+    dc_x=(*vis).x1;
+    while dc_x<=(*vis).x2 {
+        let texturecolumn = frac>>FRACBITS;
+        let column = (patch as *mut u8).offset(
+                       i32::from_le((*patch).columnofs[texturecolumn as usize]) as isize) as *mut column_t;
+        R_DrawMaskedColumn (column);
+        dc_x += 1;
+        frac = frac.wrapping_add((*vis).xiscale);
+    }
+
+    colfunc = basecolfunc;
+}

@@ -122,58 +122,6 @@ fixed_t		sprtopscreen;
 
 
 
-//
-// R_DrawVisSprite
-//  mfloorclip and mceilingclip should also be set.
-//
-void
-R_DrawVisSprite
-( vissprite_t*		vis,
-  int			x1,
-  int			x2 )
-{
-    column_t*		column;
-    int			texturecolumn;
-    fixed_t		frac;
-    patch_t*		patch;
-	
-	
-    patch = W_CacheLumpNum (vis->patch+firstspritelump, PU_CACHE);
-
-    dc_colormap = vis->colormap;
-    
-    if (!dc_colormap)
-    {
-	// NULL colormap = shadow draw
-	colfunc = fuzzcolfunc;
-    }
-    else if (vis->mobjflags & MF_TRANSLATION)
-    {
-	colfunc = R_DrawTranslatedColumn;
-	dc_translation = translationtables - 256 +
-	    ( (vis->mobjflags & MF_TRANSLATION) >> (MF_TRANSSHIFT-8) );
-    }
-	
-    dc_iscale = abs(vis->xiscale)>>detailshift;
-    dc_texturemid = vis->texturemid;
-    frac = vis->startfrac;
-    spryscale = vis->scale;
-    sprtopscreen = centeryfrac - FixedMul(dc_texturemid,spryscale);
-	
-    for (dc_x=vis->x1 ; dc_x<=vis->x2 ; dc_x++, frac += vis->xiscale)
-    {
-	texturecolumn = frac>>FRACBITS;
-#ifdef RANGECHECK
-	if (texturecolumn < 0 || texturecolumn >= SHORT(patch->width))
-	    I_Error ("R_DrawSpriteRange: bad texturecolumn");
-#endif
-	column = (column_t *) ((byte *)patch +
-			       LONG(patch->columnofs[texturecolumn]));
-	R_DrawMaskedColumn (column);
-    }
-
-    colfunc = basecolfunc;
-}
 
 
 
