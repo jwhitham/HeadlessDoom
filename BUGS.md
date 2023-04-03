@@ -504,3 +504,12 @@ Headless Doom to run with less memory. With a value of 1,
 an OpenWatcom MS-DOS build of Headless Doom will require only 4Mb
 within Dosbox.
 
+# DSB-31 - patch\_t.columnofs array bound is incorrect
+
+The `patch\_t` struct contains an array named `columnofs` with a fixed
+size of 8 elements, but in fact the size of this array is determined
+dynamically and may be up to 256 elements. The memory is
+allocated when `patch_t` is loaded from the
+WAD file, so there is no overflow here, but the value 8 is misleading,
+and it is preferable to use `[]` to signify that the array size is unknown.
+
