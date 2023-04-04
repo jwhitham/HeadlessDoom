@@ -364,7 +364,9 @@ pub unsafe extern "C" fn R_DrawVisSprite (vis: *mut vissprite_t, _x1: i32, _x2: 
     while dc_x<=(*vis).x2 {
         let texturecolumn = frac>>FRACBITS;
         let column = (patch as *mut u8).offset(
-                       i32::from_le((*patch).columnofs[texturecolumn as usize]) as isize) as *mut column_t;
+                       i32::from_le(
+                           *(*patch).columnofs.as_ptr().offset(texturecolumn as isize))
+                       as isize) as *mut column_t;
         R_DrawMaskedColumn (column);
         dc_x += 1;
         frac = frac.wrapping_add((*vis).xiscale);
