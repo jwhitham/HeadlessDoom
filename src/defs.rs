@@ -85,7 +85,7 @@ pub struct patch_t {
     pub height: i16, 
     pub leftoffset: i16, // pixels to the left of origin 
     pub topoffset: i16, // pixels below the origin 
-    pub columnofs: [i32; 8], // only [width] used
+    pub columnofs: [i32; 0], // only [width] used
     // the [0] is &columnofs[width] 
 }
 
