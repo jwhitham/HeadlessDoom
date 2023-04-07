@@ -17,7 +17,7 @@
 // $Log:$
 //
 // DESCRIPTION:
-//	Refresh of things, i.e. objects represented by sprites.
+// Refresh of things, i.e. objects represented by sprites.
 //
 //-----------------------------------------------------------------------------
 
@@ -25,6 +25,7 @@
 use crate::defs::*;
 use crate::r_draw::R_DrawTranslatedColumn;
 
+const MINZ = FRACUNIT*4;
 extern {
     static mut maxframe: i32;
     static mut sprtemp: sprtemp_t;
@@ -333,6 +334,7 @@ extern {
     static centeryfrac: fixed_t; 
     fn W_CacheLumpNum (lump: i32, tag: i32) -> *mut patch_t;
     fn FixedMul (a: fixed_t, b: fixed_t) -> fixed_t;
+    fn FixedDiv (a: fixed_t, b: fixed_t) -> fixed_t;
 }
 //
 // R_DrawVisSprite
@@ -374,3 +376,133 @@ pub unsafe extern "C" fn R_DrawVisSprite (vis: *mut vissprite_t, _x1: i32, _x2: 
 
     colfunc = basecolfunc;
 }
+
+extern {
+    static viewx: fixed_t;
+    static viewy: fixed_t;
+    static viewcos: fixed_t;
+    static viewsin: fixed_t;
+    static projection: fixed_t;
+}
+//
+// R_ProjectSprite
+// Generates a vissprite for a thing
+//  if it might be visible.
+//
+#[no_mangle]
+pub extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
+    // transform the origin point
+    let tr_x = (* thing).x - viewx;
+    let tr_y = (* thing).y - viewy;
+ 
+    let mut gxt = FixedMul(tr_x,viewcos); 
+    let mut gyt = -FixedMul(tr_y,viewsin);
+    
+    let tz = gxt-gyt; 
+
+    // thing is behind view plane?
+    if tz < MINZ {
+        return;
+    }
+    
+    let xscale = FixedDiv(projection, tz);
+ 
+    gxt = -FixedMul(tr_x,viewsin); 
+    gyt = FixedMul(tr_y,viewcos); 
+    let mut tx = -(gyt+gxt); 
+
+    // too far off the side?
+    if i32::abs(tx)>(tz<<2) {
+        return;
+    }
+    
+    // decide which patch to use for sprite relative to player
+    if ((*thing).sprite as u32) >= numsprites {
+        panic!("R_ProjectSprite: invalid sprite number {}", (*thing).sprite);
+    }
+    let sprdef = sprites.offset((*thing).sprite as isize);
+    if ((*thing).frame & FF_FRAMEMASK) >= (*sprdef).numframes {
+        panic!("R_ProjectSprite: invalid sprite frame {} : {}",
+            (*thing).sprite, (*thing).frame);
+    }
+    let sprframe = (*sprdef).spriteframes.offset((*thing).frame & FF_FRAMEMASK);
+
+    let lump: i32;
+    let flip: boolean;
+    if (*sprframe).rotate {
+         // choose a different rotation based on player view
+         let ang = R_PointToAngle ((*thing).x, (*thing).y);
+         let rot = (ang-(*thing).angle+(unsigned)(ANG45/2)*9)>>29;
+         lump = (*sprframe).lump[rot];
+         flip = (*sprframe).flip[rot] as boolean;
+    } else {
+        // use single rotation for all views
+        lump = (*sprframe).lump[0];
+        flip = (*sprframe).flip[0] as boolean;
+    }
+    
+    // calculate edges of the shape
+    tx -= spriteoffset[lump]; 
+    let x1 = (centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS;
+
+    // off the right side?
+    if x1 > viewwidth {
+        return;
+    }
+    
+    tx +=  spritewidth[lump];
+    let x2 = ((centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS) - 1;
+
+    // off the left side
+    if x2 < 0 {
+        return;
+    }
+    
+    // store information in a vissprite
+    let vis = R_NewVisSprite ();
+    (*vis).mobjflags = (*thing).flags;
+    (*vis).scale = xscale<<detailshift;
+    (*vis).gx = (*thing).x;
+    (*vis).gy = (*thing).y;
+    (*vis).gz = (*thing).z;
+    (*vis).gzt = (*thing).z + spritetopoffset[lump];
+    (*vis).texturemid = (*vis).gzt - viewz;
+    (*vis).x1 = if x1 < 0 { 0 } else { x1 };
+    (*vis).x2 = if x2 >= viewwidth { viewwidth-1 } else { x2 }; 
+    iscale = FixedDiv (FRACUNIT, xscale);
+
+    if flip != c_false {
+        (*vis).startfrac = spritewidth[lump]-1;
+        (*vis).xiscale = -iscale;
+    } else {
+        (*vis).startfrac = 0;
+        (*vis).xiscale = iscale;
+    }
+
+    if (*vis).x1 > x1 {
+        (*vis).startfrac += (*vis).xiscale*((*vis).x1-x1);
+    }
+    (*vis).patch = lump;
+
+    // get light level
+    if (*thing).flags & MF_SHADOW {
+        // shadow draw
+        (*vis).colormap = std::ptr::null();
+    } else if fixedcolormap != std::ptr::null() {
+        // fixed map
+        (*vis).colormap = fixedcolormap;
+    } else if (*thing).frame & FF_FULLBRIGHT {
+        // full bright
+        (*vis).colormap = colormaps;
+    } else {
+        // diminished light
+        index = xscale>>(LIGHTSCALESHIFT-detailshift);
+
+        if index >= MAXLIGHTSCALE {
+            index = MAXLIGHTSCALE-1;
+        }
+
+        (*vis).colormap = spritelights.offset(index);
+    }
+} 
+
