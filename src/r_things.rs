@@ -390,7 +390,7 @@ extern {
     static spriteoffset: *mut fixed_t;
     static spritetopoffset: *mut fixed_t;
     static spritewidth: *mut fixed_t;
-    static spritelights: *mut *mut lighttable_t;
+    static mut spritelights: *mut *mut lighttable_t;
     static fixedcolormap: *mut lighttable_t;
     static colormaps: *mut u8;
 
@@ -401,8 +401,7 @@ extern {
 // Generates a vissprite for a thing
 //  if it might be visible.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
+unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
     // transform the origin point
     let tr_x = (* thing).x - viewx;
     let tr_y = (* thing).y - viewy;
@@ -519,3 +518,37 @@ pub unsafe extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
     }
 } 
 
+extern {
+    static validcount: i32;
+    static extralight: i32;
+    static mut scalelight: [[*mut lighttable_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
+}
+//
+// R_AddSprites
+// During BSP traversal, this adds sprites by sector.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_AddSprites (sec: *mut sector_t) {
+
+    // BSP is traversed by subsector.
+    // A sector might have been split into several
+    //  subsectors during BSP building.
+    // Thus we check whether its already added.
+    if (*sec).validcount == validcount {
+        return;
+    }
+
+    // Well, now it will be done.
+    (*sec).validcount = validcount;
+    
+    let lightnum = i32::min((LIGHTLEVELS - 1) as i32,
+            i32::max((((*sec).lightlevel >> LIGHTSEGSHIFT) as i32) + extralight, 0));
+    spritelights = scalelight[lightnum as usize].as_mut_ptr();
+
+    // Handle all things in sector.
+    let mut thing = (*sec).thinglist;
+    while thing != std::ptr::null_mut() {
+        R_ProjectSprite (thing);
+        thing = (*thing).snext;
+    }
+}

@@ -127,38 +127,6 @@ fixed_t		sprtopscreen;
 
 
 
-//
-// R_AddSprites
-// During BSP traversal, this adds sprites by sector.
-//
-void R_AddSprites (sector_t* sec)
-{
-    mobj_t*		thing;
-    int			lightnum;
-
-    // BSP is traversed by subsector.
-    // A sector might have been split into several
-    //  subsectors during BSP building.
-    // Thus we check whether its already added.
-    if (sec->validcount == validcount)
-	return;		
-
-    // Well, now it will be done.
-    sec->validcount = validcount;
-	
-    lightnum = (sec->lightlevel >> LIGHTSEGSHIFT)+extralight;
-
-    if (lightnum < 0)		
-	spritelights = scalelight[0];
-    else if (lightnum >= LIGHTLEVELS)
-	spritelights = scalelight[LIGHTLEVELS-1];
-    else
-	spritelights = scalelight[lightnum];
-
-    // Handle all things in sector.
-    for (thing = sec->thinglist ; thing ; thing = thing->snext)
-	R_ProjectSprite (thing);
-}
 
 
 //
