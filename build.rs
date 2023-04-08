@@ -39,7 +39,7 @@ fn main() {
     bindgen::Builder::default()
         .header(bindings_h)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .constified_enum_module("*")
+        .constified_enum_module(".*")
         .generate().expect("Unable to generate bindings")
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");

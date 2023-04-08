@@ -402,7 +402,7 @@ extern {
 //  if it might be visible.
 //
 #[no_mangle]
-pub extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
+pub unsafe extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
     // transform the origin point
     let tr_x = (* thing).x - viewx;
     let tr_y = (* thing).y - viewy;
@@ -445,7 +445,7 @@ pub extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
     if (*sprframe).rotate != 0 {
          // choose a different rotation based on player view
          let ang = R_PointToAngle ((*thing).x, (*thing).y);
-         let rot = (ang-(*thing).angle+(ANG45/2)*9)>>29;
+         let rot = ((ang.wrapping_sub((*thing).angle)).wrapping_add((ANG45/2)*9))>>29;
          lump = (*sprframe).lump[rot as usize];
          flip = (*sprframe).flip[rot as usize] as boolean;
     } else {
@@ -509,13 +509,13 @@ pub extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
         (*vis).colormap = colormaps;
     } else {
         // diminished light
-        let mut index = xscale>>(LIGHTSCALESHIFT-detailshift);
+        let mut index = xscale>>(LIGHTSCALESHIFT-(detailshift as u32));
 
-        if index >= MAXLIGHTSCALE {
-            index = MAXLIGHTSCALE-1;
+        if index >= (MAXLIGHTSCALE as i32){
+            index = (MAXLIGHTSCALE-1) as i32;
         }
 
-        (*vis).colormap = spritelights.offset(index);
+        (*vis).colormap = *spritelights.offset(index as isize);
     }
 } 
 
