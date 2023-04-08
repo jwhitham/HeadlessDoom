@@ -24,6 +24,7 @@
 
 use crate::defs::*;
 use crate::r_draw::R_DrawTranslatedColumn;
+use crate::defs::mobjflag_t::*;
 
 const MINZ = FRACUNIT*4;
 extern {
