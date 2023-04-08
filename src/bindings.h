@@ -2658,3 +2658,25 @@ typedef struct
 
 } pspdef_t;
 
+
+////////////// r_main.h
+//
+// Lighting LUT.
+// Used for z-depth cuing per column/row,
+//  and other lighting effects (sector ambient, flash).
+//
+
+// Lighting constants.
+// Now why not 32 levels here?
+#define LIGHTLEVELS	        16
+#define LIGHTSEGSHIFT	         4
+
+#define MAXLIGHTSCALE		48
+#define LIGHTSCALESHIFT		12
+#define MAXLIGHTZ	       128
+#define LIGHTZSHIFT		20
+
+// Number of diminishing brightness levels.
+// There a 0-31, i.e. 32 LUT in the COLORMAP lump.
+#define NUMCOLORMAPS		32
+

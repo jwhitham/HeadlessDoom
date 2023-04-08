@@ -26,7 +26,7 @@ use crate::defs::*;
 use crate::r_draw::R_DrawTranslatedColumn;
 use crate::defs::mobjflag_t::*;
 
-const MINZ = FRACUNIT*4;
+const MINZ: fixed_t = (FRACUNIT*4) as fixed_t;
 extern {
     static mut maxframe: i32;
     static mut sprtemp: sprtemp_t;
@@ -227,7 +227,7 @@ unsafe fn R_InitSpriteDefs (namelist: *mut *mut i8) {
 }
 
 extern {
-    static mut negonearray: [i16; SCREENWIDTH];
+    static mut negonearray: [i16; SCREENWIDTH as usize];
 }
 
 //
@@ -236,7 +236,7 @@ extern {
 //
 #[no_mangle]
 pub unsafe extern "C" fn R_InitSprites (namelist: *mut *mut i8) { 
-    for i in 0 .. SCREENWIDTH {
+    for i in 0 .. SCREENWIDTH as usize {
         negonearray[i] = -1;
     }
     
@@ -244,7 +244,7 @@ pub unsafe extern "C" fn R_InitSprites (namelist: *mut *mut i8) {
 }
 
 extern {
-    static mut vissprites: [vissprite_t; MAXVISSPRITES];
+    static mut vissprites: [vissprite_t; MAXVISSPRITES as usize];
     static mut vissprite_p: *mut vissprite_t;
     static mut overflowsprite: vissprite_t;
 }
@@ -304,7 +304,7 @@ pub unsafe extern "C" fn R_DrawMaskedColumn (column: *mut column_t) {
         let topscreen = sprtopscreen.wrapping_add(spryscale.wrapping_mul((*column_tmp).topdelta as fixed_t));
         let bottomscreen = topscreen.wrapping_add(spryscale.wrapping_mul((*column_tmp).length as fixed_t));
 
-        dc_yl = ((topscreen as i32) + FRACUNIT - 1) >> FRACBITS;
+        dc_yl = ((topscreen as i32) + (FRACUNIT as i32) - 1) >> FRACBITS;
         dc_yh = ((bottomscreen as i32) - 1) >> FRACBITS;
             
         dc_yh = i32::min(dc_yh, (*mfloorclip.offset(dc_x as isize) as i32) - 1);
@@ -332,8 +332,9 @@ extern {
     static translationtables: *mut u8;
     static mut dc_iscale: fixed_t; 
     static detailshift: i32; 
+    static centerxfrac: fixed_t; 
     static centeryfrac: fixed_t; 
-    fn W_CacheLumpNum (lump: i32, tag: i32) -> *mut patch_t;
+    fn W_CacheLumpNum (lump: i32, tag: u32) -> *mut patch_t;
     fn FixedMul (a: fixed_t, b: fixed_t) -> fixed_t;
     fn FixedDiv (a: fixed_t, b: fixed_t) -> fixed_t;
 }
@@ -357,7 +358,7 @@ pub unsafe extern "C" fn R_DrawVisSprite (vis: *mut vissprite_t, _x1: i32, _x2: 
             ( ((*vis).mobjflags & MF_TRANSLATION) >> (MF_TRANSSHIFT-8) ) as isize);
     }
     
-    dc_iscale = (i32::abs((*vis).xiscale as i32) as u32) >> detailshift;
+    dc_iscale = i32::abs((*vis).xiscale as i32) >> detailshift;
     dc_texturemid = (*vis).texturemid;
     let mut frac = (*vis).startfrac;
     spryscale = (*vis).scale;
@@ -381,9 +382,19 @@ pub unsafe extern "C" fn R_DrawVisSprite (vis: *mut vissprite_t, _x1: i32, _x2: 
 extern {
     static viewx: fixed_t;
     static viewy: fixed_t;
+    static viewz: fixed_t;
     static viewcos: fixed_t;
     static viewsin: fixed_t;
+    static viewwidth: i32;
     static projection: fixed_t;
+    static spriteoffset: *mut fixed_t;
+    static spritetopoffset: *mut fixed_t;
+    static spritewidth: *mut fixed_t;
+    static spritelights: *mut *mut lighttable_t;
+    static fixedcolormap: *mut lighttable_t;
+    static colormaps: *mut u8;
+
+    fn R_PointToAngle(x: fixed_t, y: fixed_t) -> angle_t;
 }
 //
 // R_ProjectSprite
@@ -418,24 +429,25 @@ pub extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
     }
     
     // decide which patch to use for sprite relative to player
-    if ((*thing).sprite as u32) >= numsprites {
+    if ((*thing).sprite as u32) >= (numsprites as u32) {
         panic!("R_ProjectSprite: invalid sprite number {}", (*thing).sprite);
     }
     let sprdef = sprites.offset((*thing).sprite as isize);
-    if ((*thing).frame & FF_FRAMEMASK) >= (*sprdef).numframes {
+    let masked_frame = ((*thing).frame as isize) & (FF_FRAMEMASK as isize);
+    if masked_frame >= ((*sprdef).numframes as isize) {
         panic!("R_ProjectSprite: invalid sprite frame {} : {}",
             (*thing).sprite, (*thing).frame);
     }
-    let sprframe = (*sprdef).spriteframes.offset((*thing).frame & FF_FRAMEMASK);
+    let sprframe = (*sprdef).spriteframes.offset(masked_frame);
 
-    let lump: i32;
+    let lump: i16;
     let flip: boolean;
-    if (*sprframe).rotate {
+    if (*sprframe).rotate != 0 {
          // choose a different rotation based on player view
          let ang = R_PointToAngle ((*thing).x, (*thing).y);
-         let rot = (ang-(*thing).angle+(unsigned)(ANG45/2)*9)>>29;
-         lump = (*sprframe).lump[rot];
-         flip = (*sprframe).flip[rot] as boolean;
+         let rot = (ang-(*thing).angle+(ANG45/2)*9)>>29;
+         lump = (*sprframe).lump[rot as usize];
+         flip = (*sprframe).flip[rot as usize] as boolean;
     } else {
         // use single rotation for all views
         lump = (*sprframe).lump[0];
@@ -443,7 +455,7 @@ pub extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
     }
     
     // calculate edges of the shape
-    tx -= spriteoffset[lump]; 
+    tx -= *spriteoffset.offset(lump as isize); 
     let x1 = (centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS;
 
     // off the right side?
@@ -451,7 +463,7 @@ pub extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
         return;
     }
     
-    tx +=  spritewidth[lump];
+    tx +=  *spritewidth.offset(lump as isize);
     let x2 = ((centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS) - 1;
 
     // off the left side
@@ -466,14 +478,14 @@ pub extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
     (*vis).gx = (*thing).x;
     (*vis).gy = (*thing).y;
     (*vis).gz = (*thing).z;
-    (*vis).gzt = (*thing).z + spritetopoffset[lump];
+    (*vis).gzt = (*thing).z + *spritetopoffset.offset(lump as isize);
     (*vis).texturemid = (*vis).gzt - viewz;
     (*vis).x1 = if x1 < 0 { 0 } else { x1 };
     (*vis).x2 = if x2 >= viewwidth { viewwidth-1 } else { x2 }; 
-    iscale = FixedDiv (FRACUNIT, xscale);
+    let iscale = FixedDiv (FRACUNIT as fixed_t, xscale);
 
     if flip != c_false {
-        (*vis).startfrac = spritewidth[lump]-1;
+        (*vis).startfrac = *spritewidth.offset(lump as isize)-1;
         (*vis).xiscale = -iscale;
     } else {
         (*vis).startfrac = 0;
@@ -483,21 +495,21 @@ pub extern "C" fn R_ProjectSprite (thing: *mut mobj_t) {
     if (*vis).x1 > x1 {
         (*vis).startfrac += (*vis).xiscale*((*vis).x1-x1);
     }
-    (*vis).patch = lump;
+    (*vis).patch = lump as i32;
 
     // get light level
-    if (*thing).flags & MF_SHADOW {
+    if ((*thing).flags & MF_SHADOW) != 0 {
         // shadow draw
-        (*vis).colormap = std::ptr::null();
-    } else if fixedcolormap != std::ptr::null() {
+        (*vis).colormap = std::ptr::null_mut();
+    } else if fixedcolormap != std::ptr::null_mut() {
         // fixed map
         (*vis).colormap = fixedcolormap;
-    } else if (*thing).frame & FF_FULLBRIGHT {
+    } else if ((*thing).frame & (FF_FULLBRIGHT as i32)) != 0 {
         // full bright
         (*vis).colormap = colormaps;
     } else {
         // diminished light
-        index = xscale>>(LIGHTSCALESHIFT-detailshift);
+        let mut index = xscale>>(LIGHTSCALESHIFT-detailshift);
 
         if index >= MAXLIGHTSCALE {
             index = MAXLIGHTSCALE-1;

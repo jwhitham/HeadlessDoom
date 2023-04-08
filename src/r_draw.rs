@@ -63,8 +63,8 @@ const SBARHEIGHT: i32 = 32;
 //
 
 extern {
-    static mut ylookup: [*mut u8; SCREENWIDTH];
-    static mut columnofs: [i32; SCREENWIDTH];
+    static mut ylookup: [*mut u8; SCREENWIDTH as usize];
+    static mut columnofs: [i32; SCREENWIDTH as usize];
 
     static centery: i32; 
 }
