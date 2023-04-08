@@ -9,8 +9,6 @@ fn main() {
     let mut compiler = cc::Build::new();
     compiler.define("HEADLESS", "");
 
-    let mut bindings = bindgen::Builder::default();
-
     if let Ok(entries) = fs::read_dir("headless_doom") {
         for entry in entries {
             if let Ok(entry) = entry {
@@ -20,12 +18,12 @@ fn main() {
                         let name_str = path.file_name().unwrap().to_str().unwrap();
                         let path_str = path.as_path().to_str().unwrap();
                         if name_str != "i_main.c" {
-                            println!("cargo:rerun-if-changed={}", path_str);
                             if name_str.ends_with(".c") {
                                 compiler.file(path_str);
                             }
-                            if name_str.ends_with(".h") {
-                                bindings = bindings.header(path_str);
+                            if name_str.ends_with(".h") || name_str.ends_with(".c") {
+                                println!("cargo:rerun-if-changed={}",
+                                         path_str);
                             }
                         }
                     }
@@ -34,9 +32,12 @@ fn main() {
         }
     }
 
+    let bindings_h = "src/bindings.h";
+    println!("cargo:rerun-if-changed={}", bindings_h);
     
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings
+    bindgen::Builder::default()
+        .header(bindings_h)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .generate().expect("Unable to generate bindings")
         .write_to_file(out_path.join("bindings.rs"))
