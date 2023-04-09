@@ -25,6 +25,7 @@
 use crate::defs::*;
 use crate::r_draw::R_DrawTranslatedColumn;
 use crate::defs::mobjflag_t::*;
+use crate::defs::powertype_t::*;
 
 const MINZ: fixed_t = (FRACUNIT*4) as fixed_t;
 extern {
@@ -552,3 +553,93 @@ pub unsafe extern "C" fn R_AddSprites (sec: *mut sector_t) {
         thing = (*thing).snext;
     }
 }
+
+extern {
+    static pspritescale: fixed_t;
+    static pspriteiscale: fixed_t;
+    static viewplayer: *mut player_t;
+}
+const BASEYCENTER: i32 = 100;
+//
+// R_DrawPSprite
+//
+// e.g. current weapon
+#[no_mangle]
+pub unsafe extern "C" fn R_DrawPSprite (psp: *mut pspdef_t) {
+    // decide which patch to use
+    if ((*(*psp).state).sprite as u32) >= (numsprites as u32) {
+        panic!("R_DrawPSprite: invalid sprite number {}",
+             (*(*psp).state).sprite);
+    }
+    let sprdef = sprites.offset((*(*psp).state).sprite as isize);
+    let maskframe = (((*(*psp).state).frame as u32) & FF_FRAMEMASK) as u32;
+    if maskframe >= ((*sprdef).numframes as u32) {
+        panic!("R_DrawPSprite: invalid sprite frame {} : {} ",
+             (*(*psp).state).sprite, (*(*psp).state).frame);
+    }
+    let sprframe = (*sprdef).spriteframes.offset(maskframe as isize);
+
+    let lump = (*sprframe).lump[0];
+    let flip = (*sprframe).flip[0] as boolean;
+    
+    // calculate edges of the shape
+    let mut tx = (*psp).sx.wrapping_sub((160 * FRACUNIT) as i32);
+    
+    tx -= *spriteoffset.offset(lump as isize); 
+    let x1 = (centerxfrac + FixedMul (tx,pspritescale) ) >>FRACBITS;
+
+    // off the right side
+    if x1 > viewwidth {
+        return;  
+    }
+
+    tx += *spritewidth.offset(lump as isize);
+    let x2 = ((centerxfrac + FixedMul (tx, pspritescale) ) >>FRACBITS) - 1;
+
+    // off the left side
+    if x2 < 0 {
+        return;
+    }
+    
+    // store information in a vissprite
+    let mut avis: [vissprite_t; 1] = [vissprite_t {
+        prev: std::ptr::null_mut(),
+        next: std::ptr::null_mut(),
+        gx: 0,
+        gy: 0,
+        gz: 0,
+        gzt: 0,
+        patch: lump as i32,
+        colormap: std::ptr::null_mut(),
+        mobjflags: 0,
+        texturemid: ((BASEYCENTER<<FRACBITS) as i32 + (FRACUNIT/2) as i32).wrapping_sub(
+                        (*psp).sy.wrapping_sub(*spritetopoffset.offset(lump as isize))),
+        x1: i32::max(x1, 0),
+        x2: i32::min(x2, viewwidth - 1),
+        scale: pspritescale<<detailshift,
+        xiscale: if flip != c_false { -pspriteiscale } else { pspriteiscale },
+        startfrac: if flip != c_false { *spritewidth.offset(lump as isize) - 1 } else { 0 },
+    }];
+    let mut vis = avis.as_mut_ptr();
+    if (*vis).x1 > x1 {
+        (*vis).startfrac += (*vis).xiscale*((*vis).x1-x1);
+    }
+
+    if ((*viewplayer).powers[pw_invisibility as usize] > 4*32)
+    || (((*viewplayer).powers[pw_invisibility as usize] & 8) != 0) {
+        // shadow draw
+        (*vis).colormap = std::ptr::null_mut();
+    } else if fixedcolormap != std::ptr::null_mut() {
+        // fixed color
+        (*vis).colormap = fixedcolormap;
+    } else if (((*(*psp).state).frame as u32) & FF_FULLBRIGHT) != 0 {
+        // full bright
+        (*vis).colormap = colormaps;
+    } else {
+        // local light
+        (*vis).colormap = *spritelights.offset((MAXLIGHTSCALE - 1) as isize);
+    }
+    
+    R_DrawVisSprite (vis, (*vis).x1, (*vis).x2);
+}
+
