@@ -267,8 +267,7 @@ pub unsafe extern "C" fn R_ClearSprites () {
 //
 // R_NewVisSprite
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_NewVisSprite () -> *mut vissprite_t {
+unsafe fn R_NewVisSprite () -> *mut vissprite_t {
     if vissprite_p == vissprites.as_mut_ptr().offset(MAXVISSPRITES as isize) {
         return &mut overflowsprite;
     }
@@ -347,8 +346,7 @@ extern {
 // R_DrawVisSprite
 //  mfloorclip and mceilingclip should also be set.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_DrawVisSprite (vis: *mut vissprite_t, _x1: i32, _x2: i32) {
+unsafe fn R_DrawVisSprite (vis: *mut vissprite_t) {
     let patch = W_CacheLumpNum ((*vis).patch + firstspritelump, PU_CACHE);
 
     dc_colormap = (*vis).colormap;
@@ -568,8 +566,7 @@ const BASEYCENTER: i32 = 100;
 // R_DrawPSprite
 //
 // e.g. current weapon
-#[no_mangle]
-pub unsafe extern "C" fn R_DrawPSprite (psp: *mut pspdef_t) {
+unsafe fn R_DrawPSprite (psp: *mut pspdef_t) {
     // decide which patch to use
     if ((*(*psp).state).sprite as u32) >= (numsprites as u32) {
         panic!("R_DrawPSprite: invalid sprite number {}",
@@ -644,7 +641,7 @@ pub unsafe extern "C" fn R_DrawPSprite (psp: *mut pspdef_t) {
         (*vis).colormap = *spritelights.offset((MAXLIGHTSCALE - 1) as isize);
     }
     
-    R_DrawVisSprite (vis, (*vis).x1, (*vis).x2);
+    R_DrawVisSprite (vis);
 }
 
 //
@@ -679,8 +676,7 @@ extern {
 //
 // R_DrawSprite
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_DrawSprite (spr: *mut vissprite_t) {
+unsafe fn R_DrawSprite (spr: *mut vissprite_t) {
     // Only (*spr).x1 ..= (*spr).x2 is actually used
     let mut clipbot: [i16; SCREENWIDTH as usize] = [-2; SCREENWIDTH as usize];
     let mut cliptop: [i16; SCREENWIDTH as usize] = [-2; SCREENWIDTH as usize];
@@ -780,7 +776,7 @@ pub unsafe extern "C" fn R_DrawSprite (spr: *mut vissprite_t) {
         
     mfloorclip = clipbot.as_mut_ptr();
     mceilingclip = cliptop.as_mut_ptr();
-    R_DrawVisSprite (spr, (*spr).x1, (*spr).x2);
+    R_DrawVisSprite (spr);
 }
 
 
