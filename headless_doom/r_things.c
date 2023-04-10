@@ -131,40 +131,6 @@ fixed_t		sprtopscreen;
 
 
 
-//
-// R_DrawPlayerSprites
-//
-void R_DrawPlayerSprites (void)
-{
-    int		i;
-    int		lightnum;
-    pspdef_t*	psp;
-    
-    // get light level
-    lightnum =
-	(viewplayer->mo->subsector->sector->lightlevel >> LIGHTSEGSHIFT) 
-	+extralight;
-
-    if (lightnum < 0)		
-	spritelights = scalelight[0];
-    else if (lightnum >= LIGHTLEVELS)
-	spritelights = scalelight[LIGHTLEVELS-1];
-    else
-	spritelights = scalelight[lightnum];
-    
-    // clip to screen bounds
-    mfloorclip = screenheightarray;
-    mceilingclip = negonearray;
-    
-    // add all active psprites
-    for (i=0, psp=viewplayer->psprites;
-	 i<NUMPSPRITES;
-	 i++,psp++)
-    {
-	if (psp->state)
-	    R_DrawPSprite (psp);
-    }
-}
 
 
 

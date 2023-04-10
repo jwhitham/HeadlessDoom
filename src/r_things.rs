@@ -26,6 +26,7 @@ use crate::defs::*;
 use crate::r_draw::R_DrawTranslatedColumn;
 use crate::defs::mobjflag_t::*;
 use crate::defs::powertype_t::*;
+use crate::defs::psprnum_t::*;
 
 const MINZ: fixed_t = (FRACUNIT*4) as fixed_t;
 extern {
@@ -228,6 +229,9 @@ unsafe fn R_InitSpriteDefs (namelist: *mut *mut i8) {
 }
 
 extern {
+    // Constant arrays used for psprite clipping
+    //  and initializing clipping.
+    static mut screenheightarray: [i16; SCREENWIDTH as usize];
     static mut negonearray: [i16; SCREENWIDTH as usize];
 }
 
@@ -643,3 +647,28 @@ pub unsafe extern "C" fn R_DrawPSprite (psp: *mut pspdef_t) {
     R_DrawVisSprite (vis, (*vis).x1, (*vis).x2);
 }
 
+//
+// R_DrawPlayerSprites
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_DrawPlayerSprites () {
+    // get light level
+    let lightnum =
+    ((*(*(*(*viewplayer).mo).subsector).sector).lightlevel >> LIGHTSEGSHIFT) as i32
+    +extralight;
+
+    spritelights = scalelight[i32::max(0, i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
+    
+    // clip to screen bounds
+    mfloorclip = screenheightarray.as_mut_ptr();
+    mceilingclip = negonearray.as_mut_ptr();
+    
+    // add all active psprites
+    let mut psp = (*viewplayer).psprites.as_mut_ptr();
+    for _ in 0 .. NUMPSPRITES {
+        if (*psp).state != std::ptr::null_mut() {
+            R_DrawPSprite (psp);
+        }
+        psp = psp.offset(1);
+    }
+}
