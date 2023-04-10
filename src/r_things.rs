@@ -673,7 +673,120 @@ unsafe fn R_DrawPlayerSprites () {
 }
 
 extern {
-    fn R_DrawSprite (spr: *mut vissprite_t);
+    static viewheight: i32;
+    fn R_PointOnSegSide(x: fixed_t, y: fixed_t, line: *mut seg_t) -> i32;
+}
+//
+// R_DrawSprite
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_DrawSprite (spr: *mut vissprite_t) {
+    // Only (*spr).x1 ..= (*spr).x2 is actually used
+    let mut clipbot: [i16; SCREENWIDTH as usize] = [-2; SCREENWIDTH as usize];
+    let mut cliptop: [i16; SCREENWIDTH as usize] = [-2; SCREENWIDTH as usize];
+    
+    // Scan drawsegs from end to start for obscuring segs.
+    // The first drawseg that has a greater scale
+    //  is the clip seg.
+    let mut ds: *mut drawseg_t = ds_p;
+    loop {
+        ds = ds.offset(-1);
+        if ds < drawsegs.as_mut_ptr() {
+            break;
+        }
+
+        // determine if the drawseg obscures the sprite
+        if ((*ds).x1 > (*spr).x2)
+        || ((*ds).x2 < (*spr).x1)
+        || (((*ds).silhouette == 0) && ((*ds).maskedtexturecol == std::ptr::null_mut())) {
+            // does not cover sprite
+            continue;
+        }
+                
+        let r1 = i32::max((*ds).x1, (*spr).x1) as usize;
+        let r2 = i32::min((*ds).x2, (*spr).x2) as usize;
+        let scale: fixed_t;
+        let lowscale: fixed_t;
+
+        if (*ds).scale1 > (*ds).scale2 {
+            lowscale = (*ds).scale2;
+            scale = (*ds).scale1;
+        } else {
+            lowscale = (*ds).scale1;
+            scale = (*ds).scale2;
+        }
+            
+        if (scale < (*spr).scale)
+        || ((lowscale < (*spr).scale) && 0 == R_PointOnSegSide ((*spr).gx, (*spr).gy, (*ds).curline)) {
+            // masked mid texture?
+            if (*ds).maskedtexturecol != std::ptr::null_mut() {
+                R_RenderMaskedSegRange (ds, r1 as i32, r2 as i32);
+            }
+            // seg is behind sprite
+            continue;
+        }
+
+        
+        // clip this piece of the sprite
+        let mut silhouette = (*ds).silhouette;
+        
+        if (*spr).gz >= (*ds).bsilheight {
+            silhouette &= !SIL_BOTTOM as i32;
+        }
+
+        if (*spr).gzt <= (*ds).tsilheight {
+            silhouette &= !SIL_TOP as i32;
+        }
+                
+        if silhouette == 1 {
+            // bottom sil
+            for x in r1 ..= r2 {
+                if clipbot[x] == -2 {
+                    clipbot[x] = *(*ds).sprbottomclip.offset(x as isize);
+                }
+            }
+        } else if silhouette == 2 {
+            // top sil
+            for x in r1 ..= r2 {
+                if cliptop[x] == -2 {
+                    cliptop[x] = *(*ds).sprtopclip.offset(x as isize);
+                }
+            }
+        } else if silhouette == 3 {
+            // both
+            for x in r1 ..= r2 {
+                if clipbot[x] == -2 {
+                    clipbot[x] = *(*ds).sprbottomclip.offset(x as isize);
+                }
+                if cliptop[x] == -2 {
+                    cliptop[x] = *(*ds).sprtopclip.offset(x as isize);
+                }
+            }
+        }
+    }
+    
+    // all clipping has been performed, so draw the sprite
+
+    // check for unclipped columns
+    for x in (*spr).x1 as usize ..= (*spr).x2 as usize {
+        if clipbot[x] == -2 {
+            clipbot[x] = viewheight as i16;
+        }
+
+        if cliptop[x] == -2 {
+            cliptop[x] = -1;
+        }
+    }
+        
+    mfloorclip = clipbot.as_mut_ptr();
+    mceilingclip = cliptop.as_mut_ptr();
+    R_DrawVisSprite (spr, (*spr).x1, (*spr).x2);
+}
+
+
+
+
+extern {
     fn R_RenderMaskedSegRange(ds: *mut drawseg_t, x1: i32, x2: i32);
     static ds_p: *mut drawseg_t;
     static mut drawsegs: [drawseg_t; MAXDRAWSEGS as usize];
