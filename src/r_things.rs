@@ -28,11 +28,42 @@ use crate::defs::mobjflag_t::*;
 use crate::defs::powertype_t::*;
 use crate::defs::psprnum_t::*;
 
+
+const SPRTEMP_SIZE: usize = 29;
+type sprtemp_t = [spriteframe_t; SPRTEMP_SIZE];
+
+const BLANK_VISSPRITE: vissprite_t = vissprite_t {
+    prev: std::ptr::null_mut(),
+    next: std::ptr::null_mut(),
+    gx: 0,
+    gy: 0,
+    gz: 0,
+    gzt: 0,
+    patch: 0,
+    colormap: std::ptr::null_mut(),
+    mobjflags: 0,
+    texturemid: 0,
+    x1: 0,
+    x2: 0,
+    scale: 0,
+    xiscale: 0,
+    startfrac: 0,
+};
+const BLANK_SPRITEFRAME: spriteframe_t = spriteframe_t {
+    rotate: c_false,
+    lump: [0; 8],
+    flip: [0; 8],
+};
+static mut spritelights: *mut *mut lighttable_t = std::ptr::null_mut();
+static mut sprtemp: sprtemp_t = [BLANK_SPRITEFRAME; SPRTEMP_SIZE];
+static mut maxframe: i32 = 0;
+static mut spritename: *mut i8 = std::ptr::null_mut();
+static mut vissprites: [vissprite_t; MAXVISSPRITES as usize] = [BLANK_VISSPRITE; MAXVISSPRITES as usize];
+static mut vissprite_p: *mut vissprite_t = std::ptr::null_mut();
+static mut overflowsprite: vissprite_t = BLANK_VISSPRITE;
+
 const MINZ: fixed_t = (FRACUNIT*4) as fixed_t;
 extern {
-    static mut maxframe: i32;
-    static mut sprtemp: sprtemp_t;
-    static mut spritename: *mut i8;
     static mut firstspritelump: i32;
     static mut lastspritelump: i32;
 }
@@ -248,12 +279,6 @@ pub unsafe extern "C" fn R_InitSprites (namelist: *mut *mut i8) {
     R_InitSpriteDefs (namelist);
 }
 
-extern {
-    static mut vissprites: [vissprite_t; MAXVISSPRITES as usize];
-    static mut vissprite_p: *mut vissprite_t;
-    static mut overflowsprite: vissprite_t;
-}
-
 //
 // R_ClearSprites
 // Called at frame start.
@@ -393,7 +418,6 @@ extern {
     static spriteoffset: *mut fixed_t;
     static spritetopoffset: *mut fixed_t;
     static spritewidth: *mut fixed_t;
-    static mut spritelights: *mut *mut lighttable_t;
     static fixedcolormap: *mut lighttable_t;
     static colormaps: *mut u8;
 

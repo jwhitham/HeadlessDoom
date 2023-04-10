@@ -43,25 +43,6 @@ rcsid[] = "$Id: r_things.c,v 1.5 1997/02/03 16:47:56 b1 Exp $";
 
 
 
-#define BASEYCENTER			100
-
-//void R_DrawColumn (void);
-//void R_DrawFuzzColumn (void);
-
-
-
-typedef struct
-{
-    int		x1;
-    int		x2;
-	
-    int		column;
-    int		topclip;
-    int		bottomclip;
-
-} maskdraw_t;
-
-
 
 //
 // Sprite rotation 0 is facing the viewer,
@@ -70,15 +51,14 @@ typedef struct
 //  which increases counter clockwise (protractor).
 // There was a lot of stuff grabbed wrong, so I changed it...
 //
-fixed_t		pspritescale;
-fixed_t		pspriteiscale;
+fixed_t		pspritescale;       // shared with r_main
+fixed_t		pspriteiscale;      // shared with r_main, r_plane
 
-lighttable_t**	spritelights;
 
 // constant arrays
 //  used for psprite clipping and initializing clipping
-short		negonearray[SCREENWIDTH];
-short		screenheightarray[SCREENWIDTH];
+short		negonearray[SCREENWIDTH]; // shared with r_segs
+short		screenheightarray[SCREENWIDTH]; // shared with r_segs, r_main
 
 
 //
@@ -87,53 +67,18 @@ short		screenheightarray[SCREENWIDTH];
 
 // variables used to look up
 //  and range check thing_t sprites patches
-spritedef_t*	sprites;
-int		numsprites;
-
-spriteframe_t	sprtemp[29];
-int		maxframe;
-char*		spritename;
-
-
-
-
-
-
+spritedef_t*	sprites; // shared with r_bsp, r_data, r_state, d_player, r_defs, f_finale, p_mobj
+int		numsprites; // shared with r_state, r_data
 
 
 
 //
 // GAME FUNCTIONS
 //
-vissprite_t	vissprites[MAXVISSPRITES];
-vissprite_t*	vissprite_p;
-int		newvissprite;
-vissprite_t	overflowsprite;
 
-extern vissprite_t* R_NewVisSprite (void); // moved
+short*		mfloorclip; // shared with r_segs
+short*		mceilingclip;   // shared with r_segs
 
-short*		mfloorclip;
-short*		mceilingclip;
-
-fixed_t		spryscale;
-fixed_t		sprtopscreen;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+fixed_t		spryscale;  // shared with r_segs
+fixed_t		sprtopscreen;   // shared with r_segs
 
