@@ -650,8 +650,7 @@ pub unsafe extern "C" fn R_DrawPSprite (psp: *mut pspdef_t) {
 //
 // R_DrawPlayerSprites
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_DrawPlayerSprites () {
+unsafe fn R_DrawPlayerSprites () {
     // get light level
     let lightnum =
     ((*(*(*(*viewplayer).mo).subsector).sector).lightlevel >> LIGHTSEGSHIFT) as i32
@@ -672,3 +671,50 @@ pub unsafe extern "C" fn R_DrawPlayerSprites () {
         psp = psp.offset(1);
     }
 }
+
+extern {
+    fn R_DrawSprite (spr: *mut vissprite_t);
+    fn R_RenderMaskedSegRange(ds: *mut drawseg_t, x1: i32, x2: i32);
+    static ds_p: *mut drawseg_t;
+    static mut drawsegs: [drawseg_t; MAXDRAWSEGS as usize];
+    static viewangleoffset: i32;
+}
+
+//
+// R_DrawMasked
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_DrawMasked () {
+    // Sort sprites according to scale
+    let mut sorted_sprites: Vec<*mut vissprite_t> = Vec::new();
+    let mut iter: *mut vissprite_t = vissprites.as_mut_ptr();
+
+    while iter != vissprite_p {
+        sorted_sprites.push(iter);
+        iter = iter.offset(1);
+    }
+    sorted_sprites.sort_by(|a, b| (*(*a)).scale.cmp(&(*(*b)).scale));
+
+    // draw all vissprites back to front
+    for spr in sorted_sprites {
+	    R_DrawSprite (spr);
+    }
+    
+    // render any remaining masked mid textures
+    let mut ds: *mut drawseg_t = ds_p.offset(-1);
+    while ds >= drawsegs.as_mut_ptr() {
+        if (*ds).maskedtexturecol != std::ptr::null_mut() {
+            R_RenderMaskedSegRange (ds, (*ds).x1, (*ds).x2);
+        }
+        ds = ds.offset(-1);
+    }
+
+    // draw the psprites on top of everything
+    //  but does not draw on side views
+    if viewangleoffset == 0 {
+        R_DrawPlayerSprites ();
+    }
+}
+
+
+
