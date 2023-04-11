@@ -322,8 +322,7 @@ extern {
 // Masked means: partly transparent, i.e. stored
 //  in posts/runs of opaque pixels.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_DrawMaskedColumn (column: *mut column_t) {
+pub unsafe fn R_DrawMaskedColumn (column: *mut column_t) {
     let basetexturemid = dc_texturemid;
     let mut column_tmp = column;
 

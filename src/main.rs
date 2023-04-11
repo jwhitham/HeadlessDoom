@@ -5,6 +5,7 @@ use std::ffi::CString;
 mod defs;
 mod r_draw;
 mod r_things;
+mod r_segs;
 
 extern {
     fn D_DoomMain();
