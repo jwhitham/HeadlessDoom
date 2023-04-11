@@ -343,16 +343,15 @@ unsafe fn R_DrawVisSprite (vis: *mut vissprite_t) {
     let mut frac = (*vis).startfrac;
     spryscale = (*vis).scale;
     sprtopscreen = centeryfrac.wrapping_sub(FixedMul(dc_texturemid, spryscale));
-  
-    dc_x=(*vis).x1;
-    while dc_x<=(*vis).x2 {
+ 
+    for x in (*vis).x1 ..= (*vis).x2 {
+        dc_x = x;
         let texturecolumn = frac>>FRACBITS;
         let column = (patch as *mut u8).offset(
                        i32::from_le(
                            *(*patch).columnofs.as_ptr().offset(texturecolumn as isize))
                        as isize) as *mut column_t;
         R_DrawMaskedColumn (column);
-        dc_x += 1;
         frac = frac.wrapping_add((*vis).xiscale);
     }
 
@@ -442,8 +441,8 @@ unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
     (*vis).gz = (*thing).z;
     (*vis).gzt = (*thing).z + *spritetopoffset.offset(lump as isize);
     (*vis).texturemid = (*vis).gzt - viewz;
-    (*vis).x1 = if x1 < 0 { 0 } else { x1 };
-    (*vis).x2 = if x2 >= viewwidth { viewwidth-1 } else { x2 }; 
+    (*vis).x1 = i32::max(0, x1);
+    (*vis).x2 = i32::min(viewwidth - 1, x2);
     let iscale = FixedDiv (FRACUNIT as fixed_t, xscale);
 
     if flip != c_false {
@@ -471,11 +470,8 @@ unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
         (*vis).colormap = colormaps;
     } else {
         // diminished light
-        let mut index = xscale>>(LIGHTSCALESHIFT-(detailshift as u32));
-
-        if index >= (MAXLIGHTSCALE as i32){
-            index = (MAXLIGHTSCALE-1) as i32;
-        }
+        let index = i32::min((MAXLIGHTSCALE - 1) as i32,
+                             xscale>>(LIGHTSCALESHIFT-(detailshift as u32)));
 
         (*vis).colormap = *spritelights.offset(index as isize);
     }
