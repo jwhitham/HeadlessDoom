@@ -31,27 +31,6 @@ use crate::funcs::*;
 
 
 
-// static const char
-// rcsid[] = "$Id: r_draw.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
-
-
-// #include "doomdef.h"
-
-// #include "i_system.h"
-// #include "z_zone.h"
-// #include "w_wad.h"
-// 
-// #include "r_local.h"
-
-// Needs access to LFB (guess what).
-// #include "v_video.h"
-
-// State.
-// #include "doomstat.h"
-
-
-// ?
-
 // status bar height at bottom of screen
 const SBARHEIGHT: i32 = 32;
 
@@ -75,13 +54,8 @@ const SBARHEIGHT: i32 = 32;
 //
 #[no_mangle]
 pub extern "C" fn R_DrawColumn () { 
-    /* int   count; 
-    byte*  dest; 
-    fixed_t  frac;
-    fixed_t  fracstep;   */
- 
     unsafe {
-        let mut count = dc_yh - dc_yl; 
+        let count = dc_yh - dc_yl; 
 
         // Zero length, column does not exceed a pixel.
         if count < 0 {
@@ -103,7 +77,7 @@ pub extern "C" fn R_DrawColumn () {
         // Inner loop that does the actual texture mapping,
         //  e.g. a DDA-lile scaling.
         // This is as fast as it gets.
-        loop {
+        for _ in 0 ..= count {
             // Re-map color indices from wall texture column
             //  using a lighting/special effects LUT.
             //*dest = dc_colormap[dc_source[((frac>>FRACBITS)&127) as usize] as usize];
@@ -113,10 +87,6 @@ pub extern "C" fn R_DrawColumn () {
 
             dest = dest.offset(SCREENWIDTH as isize); 
             frac = frac.wrapping_add(fracstep);
-            if count == 0 {
-                break;
-            }
-            count -= 1;
         }
     }
 } 
@@ -166,7 +136,7 @@ pub extern "C" fn R_DrawFuzzColumn () {
             dc_yh = viewheight - 2; 
         }
              
-        let mut count = dc_yh - dc_yl; 
+        let count = dc_yh - dc_yl; 
 
         // Zero length.
         if count < 0 {
@@ -185,7 +155,7 @@ pub extern "C" fn R_DrawFuzzColumn () {
         // Looks like an attempt at dithering,
         //  using the colormap #6 (of 0-31, a bit
         //  brighter than average).
-        loop {
+        for _ in 0 ..= count {
             // Lookup framebuffer, and retrieve
             //  a pixel that is either one column
             //  left or right of the current one.
@@ -201,10 +171,6 @@ pub extern "C" fn R_DrawFuzzColumn () {
             
             dest = dest.offset(SCREENWIDTH as isize); 
             frac = frac.wrapping_add(fracstep);
-            if count == 0 {
-                break;
-            }
-            count -= 1;
         }
     }
 } 
@@ -227,7 +193,7 @@ const PU_STATIC: i32 = 1;
 #[no_mangle]
 pub extern "C" fn R_DrawTranslatedColumn () {
     unsafe {
-        let mut count = dc_yh - dc_yl; 
+        let count = dc_yh - dc_yl; 
 
         // Zero length.
         if count < 0 {
@@ -244,7 +210,7 @@ pub extern "C" fn R_DrawTranslatedColumn () {
                     fracstep.wrapping_mul((dc_yl - centery) as fixed_t));
 
         // Here we do an additional index re-mapping.
-        loop {
+        for _ in 0 ..= count {
             // Translation tables are used
             //  to map certain colorramps to other ones,
             //  used with PLAY sprites.
@@ -257,10 +223,6 @@ pub extern "C" fn R_DrawTranslatedColumn () {
                             as isize);
             dest = dest.offset(SCREENWIDTH as isize); 
             frac = frac.wrapping_add(fracstep);
-            if count == 0 {
-                break;
-            }
-            count -= 1;
         }
     }
 } 
@@ -325,9 +287,9 @@ pub extern "C" fn R_DrawSpan () {
         let mut dest: *mut u8 = ylookup[ds_y as usize].offset(columnofs[ds_x1 as usize] as isize);
 
         // We do not check for zero spans here?
-        let mut count = ds_x2 - ds_x1; 
+        let count = ds_x2 - ds_x1; 
 
-        loop {
+        for _ in 0 ..= count {
             // Current texture index in u,v.
             let spot = ((yfrac>>(16-6))&(63*64)) + ((xfrac>>16)&63);
 
@@ -339,10 +301,6 @@ pub extern "C" fn R_DrawSpan () {
             // Next step in u,v.
             xfrac = xfrac.wrapping_add(ds_xstep);
             yfrac = yfrac.wrapping_add(ds_ystep);
-            if count == 0 {
-                break;
-            }
-            count -= 1;
         }
     }
 } 
