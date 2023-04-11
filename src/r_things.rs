@@ -27,6 +27,8 @@ use crate::r_draw::R_DrawTranslatedColumn;
 use crate::defs::mobjflag_t::*;
 use crate::defs::powertype_t::*;
 use crate::defs::psprnum_t::*;
+use crate::globals::*;
+use crate::funcs::*;
 
 
 const SPRTEMP_SIZE: usize = 29;
@@ -63,10 +65,6 @@ static mut vissprite_p: *mut vissprite_t = std::ptr::null_mut();
 static mut overflowsprite: vissprite_t = BLANK_VISSPRITE;
 
 const MINZ: fixed_t = (FRACUNIT*4) as fixed_t;
-extern {
-    static mut firstspritelump: i32;
-    static mut lastspritelump: i32;
-}
 //
 // R_InstallSpriteLump
 // Local function for R_InitSprites.
@@ -128,16 +126,6 @@ unsafe fn R_InstallSpriteLump(
     sprtemp[frame as usize].flip[rotation_tmp] = flipped as u8;
 }
 
-extern {
-    static mut numsprites: i32;
-    static mut sprites: *mut spritedef_t;
-    static mut lumpinfo: *mut lumpinfo_t;
-    static modifiedgame: boolean;
-    fn Z_Malloc(size: i32, tag: i32, user: *const u8) -> *mut u8;
-    fn memset(s: *mut u8, c: i32, n: usize) -> *mut u8;
-    fn memcpy(d: *mut u8, s: *const u8, n: usize) -> *mut u8;
-    fn W_GetNumForName (name: *const i8) -> i32;
-}
 const PU_STATIC: i32 = 1;
 
 //
@@ -259,12 +247,6 @@ unsafe fn R_InitSpriteDefs (namelist: *mut *mut i8) {
     }
 }
 
-extern {
-    // Constant arrays used for psprite clipping
-    //  and initializing clipping.
-    static mut screenheightarray: [i16; SCREENWIDTH as usize];
-    static mut negonearray: [i16; SCREENWIDTH as usize];
-}
 
 //
 // R_InitSprites
@@ -301,21 +283,6 @@ unsafe fn R_NewVisSprite () -> *mut vissprite_t {
     return vissprite_p.offset(-1);
 }
 
-extern {
-    static mut dc_x: i32; 
-    static mut dc_yl: i32; 
-    static mut dc_yh: i32; 
-    static mut dc_texturemid: fixed_t;
-
-    static mut dc_source: *const u8;
-
-    static mut mfloorclip: *mut i16;
-    static mut mceilingclip: *mut i16;
-
-    static mut spryscale: fixed_t;
-    static mut sprtopscreen: fixed_t;
-    static mut colfunc: extern "C" fn ();
-}
 //
 // R_DrawMaskedColumn
 // Used for sprites and masked mid textures.
@@ -352,20 +319,6 @@ pub unsafe fn R_DrawMaskedColumn (column: *mut column_t) {
     dc_texturemid = basetexturemid;
 }
 
-extern {
-    static mut dc_colormap: *const u8;
-    static fuzzcolfunc: extern "C" fn ();
-    static basecolfunc: extern "C" fn ();
-    static mut dc_translation: *const u8;
-    static translationtables: *mut u8;
-    static mut dc_iscale: fixed_t; 
-    static detailshift: i32; 
-    static centerxfrac: fixed_t; 
-    static centeryfrac: fixed_t; 
-    fn W_CacheLumpNum (lump: i32, tag: u32) -> *mut patch_t;
-    fn FixedMul (a: fixed_t, b: fixed_t) -> fixed_t;
-    fn FixedDiv (a: fixed_t, b: fixed_t) -> fixed_t;
-}
 //
 // R_DrawVisSprite
 //  mfloorclip and mceilingclip should also be set.
@@ -406,22 +359,6 @@ unsafe fn R_DrawVisSprite (vis: *mut vissprite_t) {
     colfunc = basecolfunc;
 }
 
-extern {
-    static viewx: fixed_t;
-    static viewy: fixed_t;
-    static viewz: fixed_t;
-    static viewcos: fixed_t;
-    static viewsin: fixed_t;
-    static viewwidth: i32;
-    static projection: fixed_t;
-    static spriteoffset: *mut fixed_t;
-    static spritetopoffset: *mut fixed_t;
-    static spritewidth: *mut fixed_t;
-    static fixedcolormap: *mut lighttable_t;
-    static colormaps: *mut u8;
-
-    fn R_PointToAngle(x: fixed_t, y: fixed_t) -> angle_t;
-}
 //
 // R_ProjectSprite
 // Generates a vissprite for a thing
@@ -544,11 +481,6 @@ unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
     }
 } 
 
-extern {
-    static validcount: i32;
-    static extralight: i32;
-    static mut scalelight: [[*mut lighttable_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
-}
 //
 // R_AddSprites
 // During BSP traversal, this adds sprites by sector.
@@ -579,11 +511,6 @@ pub unsafe extern "C" fn R_AddSprites (sec: *mut sector_t) {
     }
 }
 
-extern {
-    static pspritescale: fixed_t;
-    static pspriteiscale: fixed_t;
-    static viewplayer: *mut player_t;
-}
 const BASEYCENTER: i32 = 100;
 //
 // R_DrawPSprite
@@ -692,10 +619,6 @@ unsafe fn R_DrawPlayerSprites () {
     }
 }
 
-extern {
-    static viewheight: i32;
-    fn R_PointOnSegSide(x: fixed_t, y: fixed_t, line: *mut seg_t) -> i32;
-}
 //
 // R_DrawSprite
 //
@@ -804,13 +727,6 @@ unsafe fn R_DrawSprite (spr: *mut vissprite_t) {
 
 
 
-
-extern {
-    fn R_RenderMaskedSegRange(ds: *mut drawseg_t, x1: i32, x2: i32);
-    static ds_p: *mut drawseg_t;
-    static mut drawsegs: [drawseg_t; MAXDRAWSEGS as usize];
-    static viewangleoffset: i32;
-}
 
 //
 // R_DrawMasked

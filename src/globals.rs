@@ -1,4 +1,4 @@
-
+// Global variables used in Doom
 use crate::defs::*;
 extern {
     pub static mut curline: *mut seg_t;
@@ -14,21 +14,19 @@ extern {
     pub static mut mfloorclip: *mut i16;
     pub static mut mceilingclip: *mut i16;
     pub static mut dc_texturemid: fixed_t;
-    pub static mut viewz: fixed_t;
     pub static mut dc_x: i32; 
     pub static mut textureheight: *mut fixed_t;
     pub static mut fixedcolormap: *mut lighttable_t;
     pub static mut dc_colormap: *const u8;
     pub static mut sprtopscreen: fixed_t;
-    pub static mut centeryfrac: fixed_t; 
     pub static mut dc_iscale: fixed_t; 
     pub static mut ylookup: [*mut u8; SCREENWIDTH as usize];
     pub static mut columnofs: [i32; SCREENWIDTH as usize];
     pub static mut centery: i32; 
     pub static mut dc_yl: i32; 
     pub static mut dc_yh: i32; 
-    pub static mut dc_source: *const u8;
-    pub static mut colormaps: *const u8;
+    pub static mut dc_source: *mut u8;
+    pub static mut colormaps: *mut u8;
     pub static mut viewheight: i32;
     pub static mut dc_translation: *const u8;
     pub static mut translationtables: *mut u8;
@@ -44,4 +42,36 @@ extern {
     pub static mut viewwindowx: i32;
     pub static mut viewwindowy: i32;
     pub static mut screens: [*mut u8; 5];
+    pub static mut firstspritelump: i32;
+    pub static mut lastspritelump: i32;
+    pub static mut numsprites: i32;
+    pub static mut sprites: *mut spritedef_t;
+    pub static mut lumpinfo: *mut lumpinfo_t;
+    pub static mut modifiedgame: boolean;
+    pub static mut screenheightarray: [i16; SCREENWIDTH as usize];
+    pub static mut negonearray: [i16; SCREENWIDTH as usize];
+    pub static mut colfunc: extern "C" fn ();
+    pub static mut fuzzcolfunc: extern "C" fn ();
+    pub static mut basecolfunc: extern "C" fn ();
+    pub static mut detailshift: i32; 
+    pub static mut centerxfrac: fixed_t; 
+    pub static mut centeryfrac: fixed_t; 
+    pub static mut viewx: fixed_t;
+    pub static mut viewy: fixed_t;
+    pub static mut viewz: fixed_t;
+    pub static mut viewcos: fixed_t;
+    pub static mut viewsin: fixed_t;
+    pub static mut viewwidth: i32;
+    pub static mut projection: fixed_t;
+    pub static mut spriteoffset: *mut fixed_t;
+    pub static mut spritetopoffset: *mut fixed_t;
+    pub static mut spritewidth: *mut fixed_t;
+    pub static mut validcount: i32;
+    pub static mut pspritescale: fixed_t;
+    pub static mut pspriteiscale: fixed_t;
+    pub static mut viewplayer: *mut player_t;
+    pub static mut ds_p: *mut drawseg_t;
+    pub static mut drawsegs: [drawseg_t; MAXDRAWSEGS as usize];
+    pub static mut viewangleoffset: i32;
 }
+
