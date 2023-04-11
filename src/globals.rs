@@ -1,0 +1,47 @@
+
+use crate::defs::*;
+extern {
+    pub static mut curline: *mut seg_t;
+    pub static mut frontsector: *mut sector_t;
+    pub static mut backsector: *mut sector_t;
+    pub static mut texturetranslation: *mut i32;
+    pub static mut extralight: i32;
+    pub static mut walllights: *mut *mut lighttable_t;
+    pub static mut scalelight: [[*mut lighttable_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
+    pub static mut maskedtexturecol: *mut i16;
+    pub static mut rw_scalestep: fixed_t;
+    pub static mut spryscale: fixed_t;
+    pub static mut mfloorclip: *mut i16;
+    pub static mut mceilingclip: *mut i16;
+    pub static mut dc_texturemid: fixed_t;
+    pub static mut viewz: fixed_t;
+    pub static mut dc_x: i32; 
+    pub static mut textureheight: *mut fixed_t;
+    pub static mut fixedcolormap: *mut lighttable_t;
+    pub static mut dc_colormap: *const u8;
+    pub static mut sprtopscreen: fixed_t;
+    pub static mut centeryfrac: fixed_t; 
+    pub static mut dc_iscale: fixed_t; 
+    pub static mut ylookup: [*mut u8; SCREENWIDTH as usize];
+    pub static mut columnofs: [i32; SCREENWIDTH as usize];
+    pub static mut centery: i32; 
+    pub static mut dc_yl: i32; 
+    pub static mut dc_yh: i32; 
+    pub static mut dc_source: *const u8;
+    pub static mut colormaps: *const u8;
+    pub static mut viewheight: i32;
+    pub static mut dc_translation: *const u8;
+    pub static mut translationtables: *mut u8;
+    pub static mut ds_y: i32; 
+    pub static mut ds_x1: i32; 
+    pub static mut ds_x2: i32;
+    pub static mut ds_colormap: *const u8; 
+    pub static mut ds_xfrac: fixed_t; 
+    pub static mut ds_yfrac: fixed_t; 
+    pub static mut ds_xstep: fixed_t; 
+    pub static mut ds_ystep: fixed_t;
+    pub static mut ds_source: *const u8;
+    pub static mut viewwindowx: i32;
+    pub static mut viewwindowy: i32;
+    pub static mut screens: [*mut u8; 5];
+}

@@ -22,33 +22,10 @@
 //-----------------------------------------------------------------------------
 
 use crate::defs::*;
+use crate::globals::*;
+use crate::funcs::*;
 use crate::r_things;
 
-extern {
-    static mut curline: *mut seg_t;
-    static mut frontsector: *mut sector_t;
-    static mut backsector: *mut sector_t;
-    static mut texturetranslation: *mut i32;
-    static mut extralight: i32;
-    static mut walllights: *mut *mut lighttable_t;
-    static mut scalelight: [[*mut lighttable_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
-    static mut maskedtexturecol: *mut i16;
-    static mut rw_scalestep: fixed_t;
-    static mut spryscale: fixed_t;
-    static mut mfloorclip: *mut i16;
-    static mut mceilingclip: *mut i16;
-    static mut dc_texturemid: fixed_t;
-    static viewz: fixed_t;
-    static mut dc_x: i32; 
-    static textureheight: *mut fixed_t;
-    static fixedcolormap: *mut lighttable_t;
-    static mut dc_colormap: *const u8;
-    static mut sprtopscreen: fixed_t;
-    static centeryfrac: fixed_t; 
-    static mut dc_iscale: fixed_t; 
-    fn FixedMul (a: fixed_t, b: fixed_t) -> fixed_t;
-    fn R_GetColumn (tex: i32, col: i32) -> *mut u8;
-}
 //
 //
 // R_RenderMaskedSegRange

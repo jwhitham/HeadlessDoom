@@ -26,6 +26,8 @@
 
 // really these are elsewhere
 use crate::defs::*;
+use crate::globals::*;
+use crate::funcs::*;
 
 
 
@@ -62,23 +64,6 @@ const SBARHEIGHT: i32 = 32;
 //  and the total size == width*height*depth/8.,
 //
 
-extern {
-    static mut ylookup: [*mut u8; SCREENWIDTH as usize];
-    static mut columnofs: [i32; SCREENWIDTH as usize];
-
-    static centery: i32; 
-}
-
-extern {
-    static dc_colormap: *const u8;
-    static dc_x: i32; 
-    static mut dc_yl: i32; 
-    static mut dc_yh: i32; 
-    static dc_iscale: fixed_t; 
-    static dc_texturemid: fixed_t;
-
-    static dc_source: *const u8;
-}
 
 
 //
@@ -160,11 +145,6 @@ const fuzzoffset: [isize; FUZZTABLE] = [
 
 static mut fuzzpos: usize = 0; 
 
-extern {
-    static colormaps: *const u8;
-    static viewheight: i32;
-}
-
 //
 // Framebuffer postprocessing.
 // Creates a fuzzy image by copying pixels
@@ -242,11 +222,6 @@ pub extern "C" fn R_DrawFuzzColumn () {
 //  of the BaronOfHell, the HellKnight, uses
 //  identical sprites, kinda brightened up.
 //
-extern {
-    static dc_translation: *const u8;
-    static mut translationtables: *mut u8;
-    fn Z_Malloc(size: i32, tag: i32, user: *const u8) -> *mut u8;
-}
 const PU_STATIC: i32 = 1;
 
 #[no_mangle]
@@ -337,21 +312,6 @@ pub extern "C" fn R_InitTranslationTables () {
 // In consequence, flats are not stored by column (like walls),
 //  and the inner loop has to step in texture space u and v.
 //
-extern {
-    static ds_y: i32; 
-    static ds_x1: i32; 
-    static ds_x2: i32;
-
-    static ds_colormap: *const u8; 
-
-    static ds_xfrac: fixed_t; 
-    static ds_yfrac: fixed_t; 
-    static ds_xstep: fixed_t; 
-    static ds_ystep: fixed_t;
-
-    // start of a 64*64 tile image 
-    static ds_source: *const u8;
-}
 
 //
 // Draws the actual span.
@@ -391,12 +351,6 @@ pub extern "C" fn R_DrawSpan () {
 #[no_mangle]
 pub extern "C" fn R_DrawSpanLow () { 
     R_DrawSpan();
-}
-
-extern {
-    static mut viewwindowx: i32;
-    static mut viewwindowy: i32;
-    static screens: [*mut u8; 5];
 }
 //
 // R_InitBuffer 
