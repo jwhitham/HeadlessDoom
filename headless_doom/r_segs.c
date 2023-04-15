@@ -43,56 +43,32 @@ rcsid[] = "$Id: r_segs.c,v 1.3 1997/01/29 20:10:19 b1 Exp $";
 // OPTIMIZE: closed two sided lines as single sided
 
 // True if any of the segs textures might be visible.
-boolean		segtextured;	
+boolean		segtextured;	 // shared with r_bsp
 
 // False if the back side is the same plane.
-boolean		markfloor;	
-boolean		markceiling;
+boolean		markfloor;	 // shared with r_bsp
+boolean		markceiling; // shared with r_bsp
 
-boolean		maskedtexture;
-int		toptexture;
-int		bottomtexture;
-int		midtexture;
+int		toptexture;     // shared with r_defs, r_data, others
+int		bottomtexture;      // shared with r_defs, r_data, others
+int		midtexture;     // shared with r_defs, r_data, others
 
 
-angle_t		rw_normalangle;
+angle_t		rw_normalangle; // shared with r_main, r_state
 // angle to line origin
-int		rw_angle1;	
+int		rw_angle1;	// shared with r_bsp, r_state
 
 //
 // regular wall
 //
-int		rw_x;
-int		rw_stopx;
-angle_t		rw_centerangle;
-fixed_t		rw_offset;
-fixed_t		rw_distance;
-fixed_t		rw_scale;
-fixed_t		rw_scalestep;
-fixed_t		rw_midtexturemid;
-fixed_t		rw_toptexturemid;
-fixed_t		rw_bottomtexturemid;
-
-int		worldtop;
-int		worldbottom;
-int		worldhigh;
-int		worldlow;
-
-fixed_t		pixhigh;
-fixed_t		pixlow;
-fixed_t		pixhighstep;
-fixed_t		pixlowstep;
-
-fixed_t		topfrac;
-fixed_t		topstep;
-
-fixed_t		bottomfrac;
-fixed_t		bottomstep;
+int		rw_x;       // used in r_bsp
+int		rw_stopx;       // used in r_bsp
+fixed_t		rw_distance;    // shared with r_main, r_state
 
 
-lighttable_t**	walllights;
+lighttable_t**	walllights; // shared with r_main
 
-short*		maskedtexturecol;
+short*		maskedtexturecol; // shared with r_defs, r_things
 
 
 

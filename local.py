@@ -47,7 +47,7 @@ short*		maskedtexturecol;
     found = set()
     for side in ["headless_doom", "src"]:
         p = subprocess.Popen(["git", "grep", "-rlE", r"\<" + name + r"\>",
-                                "headless_doom", "src"], stdout=subprocess.PIPE,
+                                side], stdout=subprocess.PIPE,
                             text=True)
         (stdout, _) = p.communicate()
         p.wait()
