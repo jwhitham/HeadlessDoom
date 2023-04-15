@@ -41,6 +41,8 @@ struct R_RenderSegLoop_params_t {
     rw_scale: fixed_t,
     rw_scalestep: fixed_t,
     rw_toptexturemid: fixed_t,
+    rw_x: i32,
+    rw_stopx: i32,
     topfrac: fixed_t,
     topstep: fixed_t,
 }
@@ -145,8 +147,7 @@ const HEIGHTUNIT: i32 = 1<<HEIGHTBITS;
 
 unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
     let mut texturecolumn: fixed_t = 0;
-    for x in rw_x as usize .. rw_stopx as usize {
-        rw_x = x as i32;
+    for x in rsl.rw_x as usize .. rsl.rw_stopx as usize {
         // mark floor / ceiling areas
         let yl = i32::max((rsl.topfrac+HEIGHTUNIT-1)>>HEIGHTBITS,
                           (ceilingclip[x]+1) as i32);
@@ -188,7 +189,7 @@ unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
                                  (MAXLIGHTSCALE-1) as i32);
 
             dc_colormap = *walllights.offset(index as isize);
-            dc_x = rw_x;
+            dc_x = x as i32;
             dc_iscale = ((0xffffffff as u32) / (rsl.rw_scale as u32)) as i32;
         }
         
@@ -303,6 +304,8 @@ pub unsafe extern "C" fn R_StoreWallRange (start: i32, stop: i32) {
         rw_scale: 0,
         rw_scalestep: 0,
         rw_toptexturemid: 0,
+        rw_x: start,
+        rw_stopx: stop + 1,
     };
     sidedef = (*curline).sidedef;
     linedef = (*curline).linedef;
@@ -321,11 +324,9 @@ pub unsafe extern "C" fn R_StoreWallRange (start: i32, stop: i32) {
     rw_distance = FixedMul (hyp, sineval);
         
     
-    rw_x = start;
     (*ds_p).x1 = start;
     (*ds_p).x2 = stop;
     (*ds_p).curline = curline;
-    rw_stopx = stop+1;
     
     // calculate scale at both ends and step
     rsl.rw_scale = R_ScaleFromGlobalAngle (viewangle.wrapping_add(xtoviewangle[start as usize]));
@@ -494,9 +495,9 @@ pub unsafe extern "C" fn R_StoreWallRange (start: i32, stop: i32) {
         if (*sidedef).midtexture != 0 {
             // masked midtexture
             rsl.maskedtexture = c_true;
-            maskedtexturecol = lastopening.offset(-(rw_x as isize));
+            maskedtexturecol = lastopening.offset(-(rsl.rw_x as isize));
             (*ds_p).maskedtexturecol = maskedtexturecol;
-            lastopening = lastopening.offset((rw_stopx - rw_x) as isize);
+            lastopening = lastopening.offset((rsl.rw_stopx - rsl.rw_x) as isize);
         }
     }
     
@@ -585,11 +586,11 @@ pub unsafe extern "C" fn R_StoreWallRange (start: i32, stop: i32) {
     
     // render it
     if markceiling != c_false {
-        ceilingplane = R_CheckPlane (ceilingplane, rw_x, rw_stopx-1);
+        ceilingplane = R_CheckPlane (ceilingplane, rsl.rw_x, rsl.rw_stopx-1);
     }
     
     if markfloor != c_false {
-        floorplane = R_CheckPlane (floorplane, rw_x, rw_stopx-1);
+        floorplane = R_CheckPlane (floorplane, rsl.rw_x, rsl.rw_stopx-1);
     }
 
     R_RenderSegLoop (&mut rsl);
@@ -601,9 +602,9 @@ pub unsafe extern "C" fn R_StoreWallRange (start: i32, stop: i32) {
     && ((*ds_p).sprtopclip == std::ptr::null_mut()) {
         memcpy (lastopening as *mut u8,
                 ceilingclip.as_mut_ptr().offset(start as isize) as *const u8,
-                2*(rw_stopx-start) as usize);
+                2*(rsl.rw_stopx-start) as usize);
         (*ds_p).sprtopclip = lastopening.offset(-(start as isize));
-        lastopening = lastopening.offset((rw_stopx - start) as isize);
+        lastopening = lastopening.offset((rsl.rw_stopx - start) as isize);
     }
     
     if ((0 != ((*ds_p).silhouette & (SIL_BOTTOM as i32)))
@@ -611,9 +612,9 @@ pub unsafe extern "C" fn R_StoreWallRange (start: i32, stop: i32) {
     && ((*ds_p).sprbottomclip == std::ptr::null_mut()) {
         memcpy (lastopening as *mut u8,
                 floorclip.as_mut_ptr().offset(start as isize) as *const u8,
-                2*(rw_stopx-start) as usize);
+                2*(rsl.rw_stopx-start) as usize);
         (*ds_p).sprbottomclip = lastopening.offset(-(start as isize));
-        lastopening = lastopening.offset((rw_stopx - start) as isize);
+        lastopening = lastopening.offset((rsl.rw_stopx - start) as isize);
     }
 
     if (rsl.maskedtexture != c_false)

@@ -72,8 +72,6 @@ extern {
     pub static mut ds_p: *mut drawseg_t;
     pub static mut drawsegs: [drawseg_t; MAXDRAWSEGS as usize];
     pub static mut viewangleoffset: i32;
-    pub static mut rw_x: i32;
-    pub static mut rw_stopx: i32;
     pub static mut ceilingclip: [i16; SCREENWIDTH as usize];
     pub static mut markceiling: boolean;
     pub static mut ceilingplane: *mut visplane_t;
