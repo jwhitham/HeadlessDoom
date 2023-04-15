@@ -9,15 +9,11 @@ extern {
     pub static mut walllights: *mut *mut lighttable_t;
     pub static mut scalelight: [[*mut lighttable_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
     pub static mut maskedtexturecol: *mut i16;
-    pub static mut spryscale: fixed_t;
-    pub static mut mfloorclip: *mut i16;
-    pub static mut mceilingclip: *mut i16;
     pub static mut dc_texturemid: fixed_t;
     pub static mut dc_x: i32; 
     pub static mut textureheight: *mut fixed_t;
     pub static mut fixedcolormap: *mut lighttable_t;
     pub static mut dc_colormap: *const u8;
-    pub static mut sprtopscreen: fixed_t;
     pub static mut dc_iscale: fixed_t; 
     pub static mut ylookup: [*mut u8; SCREENWIDTH as usize];
     pub static mut columnofs: [i32; SCREENWIDTH as usize];

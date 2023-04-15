@@ -76,9 +76,3 @@ int		numsprites; // shared with r_state, r_data
 // GAME FUNCTIONS
 //
 
-short*		mfloorclip; // shared with r_segs
-short*		mceilingclip;   // shared with r_segs
-
-fixed_t		spryscale;  // shared with r_segs
-fixed_t		sprtopscreen;   // shared with r_segs
-

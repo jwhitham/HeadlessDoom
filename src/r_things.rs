@@ -30,6 +30,25 @@ use crate::defs::psprnum_t::*;
 use crate::globals::*;
 use crate::funcs::*;
 
+pub struct R_DrawMaskedColumn_params_t {
+    pub column: *mut column_t,
+    pub sprtopscreen: fixed_t,
+    pub spryscale: fixed_t,
+    pub mfloorclip: *mut i16,
+    pub mceilingclip: *mut i16,
+}
+
+struct R_DrawVisSprite_params_t {
+    vis: *mut vissprite_t,
+    mfloorclip: *mut i16,
+    mceilingclip: *mut i16,
+}
+
+struct R_DrawPSprite_params_t {
+    psp: *mut pspdef_t,
+    mfloorclip: *mut i16,
+    mceilingclip: *mut i16,
+}
 
 const SPRTEMP_SIZE: usize = 29;
 type sprtemp_t = [spriteframe_t; SPRTEMP_SIZE];
@@ -289,31 +308,30 @@ unsafe fn R_NewVisSprite () -> *mut vissprite_t {
 // Masked means: partly transparent, i.e. stored
 //  in posts/runs of opaque pixels.
 //
-pub unsafe fn R_DrawMaskedColumn (column: *mut column_t) {
+pub unsafe fn R_DrawMaskedColumn (dmc: &mut R_DrawMaskedColumn_params_t) {
     let basetexturemid = dc_texturemid;
-    let mut column_tmp = column;
 
-    while (*column_tmp).topdelta != 0xff {
+    while (*dmc.column).topdelta != 0xff {
         // calculate unclipped screen coordinates
         //  for post
-        let topscreen = sprtopscreen.wrapping_add(spryscale.wrapping_mul((*column_tmp).topdelta as fixed_t));
-        let bottomscreen = topscreen.wrapping_add(spryscale.wrapping_mul((*column_tmp).length as fixed_t));
+        let topscreen = dmc.sprtopscreen.wrapping_add(dmc.spryscale.wrapping_mul((*dmc.column).topdelta as fixed_t));
+        let bottomscreen = topscreen.wrapping_add(dmc.spryscale.wrapping_mul((*dmc.column).length as fixed_t));
 
         dc_yl = ((topscreen as i32) + (FRACUNIT as i32) - 1) >> FRACBITS;
         dc_yh = ((bottomscreen as i32) - 1) >> FRACBITS;
             
-        dc_yh = i32::min(dc_yh, (*mfloorclip.offset(dc_x as isize) as i32) - 1);
-        dc_yl = i32::max(dc_yl, (*mceilingclip.offset(dc_x as isize) as i32) + 1);
+        dc_yh = i32::min(dc_yh, (*dmc.mfloorclip.offset(dc_x as isize) as i32) - 1);
+        dc_yl = i32::max(dc_yl, (*dmc.mceilingclip.offset(dc_x as isize) as i32) + 1);
 
         if dc_yl <= dc_yh {
-            dc_source = (column_tmp as *mut u8).offset(3);
-            dc_texturemid = basetexturemid.wrapping_sub(((*column_tmp).topdelta as fixed_t) << FRACBITS);
+            dc_source = (dmc.column as *mut u8).offset(3);
+            dc_texturemid = basetexturemid.wrapping_sub(((*dmc.column).topdelta as fixed_t) << FRACBITS);
 
             // Drawn by either R_DrawColumn
             //  or (SHADOW) R_DrawFuzzColumn.
             colfunc ();
         }
-        column_tmp = (column_tmp as *mut u8).offset(((*column_tmp).length as isize) + 4) as *mut column_t;
+        dmc.column = (dmc.column as *mut u8).offset(((*dmc.column).length as isize) + 4) as *mut column_t;
     }
 
     dc_texturemid = basetexturemid;
@@ -323,7 +341,8 @@ pub unsafe fn R_DrawMaskedColumn (column: *mut column_t) {
 // R_DrawVisSprite
 //  mfloorclip and mceilingclip should also be set.
 //
-unsafe fn R_DrawVisSprite (vis: *mut vissprite_t) {
+unsafe fn R_DrawVisSprite (dvs: &mut R_DrawVisSprite_params_t) {
+    let vis = dvs.vis;
     let patch = W_CacheLumpNum ((*vis).patch + firstspritelump, PU_CACHE);
 
     dc_colormap = (*vis).colormap;
@@ -341,17 +360,23 @@ unsafe fn R_DrawVisSprite (vis: *mut vissprite_t) {
     dc_iscale = i32::abs((*vis).xiscale as i32) >> detailshift;
     dc_texturemid = (*vis).texturemid;
     let mut frac = (*vis).startfrac;
-    spryscale = (*vis).scale;
-    sprtopscreen = centeryfrac.wrapping_sub(FixedMul(dc_texturemid, spryscale));
+
+    let mut dmc = R_DrawMaskedColumn_params_t {
+        column: std::ptr::null_mut(),
+        spryscale: (*vis).scale,
+        sprtopscreen: centeryfrac.wrapping_sub(FixedMul(dc_texturemid, (*vis).scale)),
+        mfloorclip: dvs.mfloorclip,
+        mceilingclip: dvs.mceilingclip,
+    };
  
     for x in (*vis).x1 ..= (*vis).x2 {
         dc_x = x;
         let texturecolumn = frac>>FRACBITS;
-        let column = (patch as *mut u8).offset(
+        dmc.column = (patch as *mut u8).offset(
                        i32::from_le(
                            *(*patch).columnofs.as_ptr().offset(texturecolumn as isize))
                        as isize) as *mut column_t;
-        R_DrawMaskedColumn (column);
+        R_DrawMaskedColumn (&mut dmc);
         frac = frac.wrapping_add((*vis).xiscale);
     }
 
@@ -512,17 +537,17 @@ const BASEYCENTER: i32 = 100;
 // R_DrawPSprite
 //
 // e.g. current weapon
-unsafe fn R_DrawPSprite (psp: *mut pspdef_t) {
+unsafe fn R_DrawPSprite (dps: &mut R_DrawPSprite_params_t) {
     // decide which patch to use
-    if ((*(*psp).state).sprite as u32) >= (numsprites as u32) {
+    if ((*(*dps.psp).state).sprite as u32) >= (numsprites as u32) {
         panic!("R_DrawPSprite: invalid sprite number {}",
-             (*(*psp).state).sprite);
+             (*(*dps.psp).state).sprite);
     }
-    let sprdef = sprites.offset((*(*psp).state).sprite as isize);
-    let maskframe = (((*(*psp).state).frame as u32) & FF_FRAMEMASK) as u32;
+    let sprdef = sprites.offset((*(*dps.psp).state).sprite as isize);
+    let maskframe = (((*(*dps.psp).state).frame as u32) & FF_FRAMEMASK) as u32;
     if maskframe >= ((*sprdef).numframes as u32) {
         panic!("R_DrawPSprite: invalid sprite frame {} : {} ",
-             (*(*psp).state).sprite, (*(*psp).state).frame);
+             (*(*dps.psp).state).sprite, (*(*dps.psp).state).frame);
     }
     let sprframe = (*sprdef).spriteframes.offset(maskframe as isize);
 
@@ -530,7 +555,7 @@ unsafe fn R_DrawPSprite (psp: *mut pspdef_t) {
     let flip = (*sprframe).flip[0] as boolean;
     
     // calculate edges of the shape
-    let mut tx = (*psp).sx.wrapping_sub((160 * FRACUNIT) as i32);
+    let mut tx = (*dps.psp).sx.wrapping_sub((160 * FRACUNIT) as i32);
     
     tx -= *spriteoffset.offset(lump as isize); 
     let x1 = (centerxfrac + FixedMul (tx,pspritescale) ) >>FRACBITS;
@@ -560,7 +585,7 @@ unsafe fn R_DrawPSprite (psp: *mut pspdef_t) {
         colormap: std::ptr::null_mut(),
         mobjflags: 0,
         texturemid: ((BASEYCENTER<<FRACBITS) as i32 + (FRACUNIT/2) as i32).wrapping_sub(
-                        (*psp).sy.wrapping_sub(*spritetopoffset.offset(lump as isize))),
+                        (*dps.psp).sy.wrapping_sub(*spritetopoffset.offset(lump as isize))),
         x1: i32::max(x1, 0),
         x2: i32::min(x2, viewwidth - 1),
         scale: pspritescale<<detailshift,
@@ -579,7 +604,7 @@ unsafe fn R_DrawPSprite (psp: *mut pspdef_t) {
     } else if fixedcolormap != std::ptr::null_mut() {
         // fixed color
         (*vis).colormap = fixedcolormap;
-    } else if (((*(*psp).state).frame as u32) & FF_FULLBRIGHT) != 0 {
+    } else if (((*(*dps.psp).state).frame as u32) & FF_FULLBRIGHT) != 0 {
         // full bright
         (*vis).colormap = colormaps;
     } else {
@@ -587,7 +612,12 @@ unsafe fn R_DrawPSprite (psp: *mut pspdef_t) {
         (*vis).colormap = *spritelights.offset((MAXLIGHTSCALE - 1) as isize);
     }
     
-    R_DrawVisSprite (vis);
+    let mut dvs = R_DrawVisSprite_params_t {
+        vis: vis,
+        mfloorclip: dps.mfloorclip,
+        mceilingclip: dps.mceilingclip,
+    };
+    R_DrawVisSprite (&mut dvs);
 }
 
 //
@@ -601,17 +631,20 @@ unsafe fn R_DrawPlayerSprites () {
 
     spritelights = scalelight[i32::max(0, i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
     
-    // clip to screen bounds
-    mfloorclip = screenheightarray.as_mut_ptr();
-    mceilingclip = negonearray.as_mut_ptr();
+    let mut dps = R_DrawPSprite_params_t {
+        // clip to screen bounds
+        mfloorclip: screenheightarray.as_mut_ptr(),
+        mceilingclip: negonearray.as_mut_ptr(),
+        // add all active psprites
+        psp: (*viewplayer).psprites.as_mut_ptr(),
+    };
+ 
     
-    // add all active psprites
-    let mut psp = (*viewplayer).psprites.as_mut_ptr();
     for _ in 0 .. NUMPSPRITES {
-        if (*psp).state != std::ptr::null_mut() {
-            R_DrawPSprite (psp);
+        if (*dps.psp).state != std::ptr::null_mut() {
+            R_DrawPSprite (&mut dps);
         }
-        psp = psp.offset(1);
+        dps.psp = dps.psp.offset(1);
     }
 }
 
@@ -715,10 +748,13 @@ unsafe fn R_DrawSprite (spr: *mut vissprite_t) {
             cliptop[x] = -1;
         }
     }
-        
-    mfloorclip = clipbot.as_mut_ptr();
-    mceilingclip = cliptop.as_mut_ptr();
-    R_DrawVisSprite (spr);
+    
+    let mut dvs = R_DrawVisSprite_params_t {
+        vis: spr,
+        mfloorclip: clipbot.as_mut_ptr(),
+        mceilingclip: cliptop.as_mut_ptr(),
+    };
+    R_DrawVisSprite (&mut dvs);
 }
 
 

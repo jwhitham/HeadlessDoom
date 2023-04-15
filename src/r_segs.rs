@@ -79,9 +79,13 @@ pub unsafe extern "C" fn R_RenderMaskedSegRange
     maskedtexturecol = (*ds).maskedtexturecol;
 
     let rw_scalestep = (*ds).scalestep;
-    spryscale = (*ds).scale1 + (x1 - (*ds).x1)*rw_scalestep;
-    mfloorclip = (*ds).sprbottomclip;
-    mceilingclip = (*ds).sprtopclip;
+    let mut dmc = r_things::R_DrawMaskedColumn_params_t {
+        column: std::ptr::null_mut(),
+        sprtopscreen: 0,
+        spryscale: (*ds).scale1 + (x1 - (*ds).x1)*rw_scalestep,
+        mfloorclip: (*ds).sprbottomclip,
+        mceilingclip: (*ds).sprtopclip,
+    };
     
     // find positioning
     if (((*(*curline).linedef).flags as u32) & ML_DONTPEGBOTTOM) != 0 {
@@ -116,21 +120,21 @@ pub unsafe extern "C" fn R_RenderMaskedSegRange
         if colnum != MAXSHORT {
             if fixedcolormap == std::ptr::null_mut() {
                 let index = i32::min((MAXLIGHTSCALE - 1) as i32,
-                                    spryscale>>LIGHTSCALESHIFT);
+                                    dmc.spryscale>>LIGHTSCALESHIFT);
                 dc_colormap = *walllights.offset(index as isize);
             }
                 
-            sprtopscreen = centeryfrac - FixedMul(dc_texturemid, spryscale);
-            dc_iscale = ((0xffffffff as u32) / (spryscale as u32)) as i32;
+            dmc.sprtopscreen = centeryfrac - FixedMul(dc_texturemid, dmc.spryscale);
+            dc_iscale = ((0xffffffff as u32) / (dmc.spryscale as u32)) as i32;
             
             // draw the texture
-            let col = (R_GetColumn(texnum, colnum as i32)
+            dmc.column = (R_GetColumn(texnum, colnum as i32)
                             as *mut u8).offset(-3) as *mut column_t;
                 
-            r_things::R_DrawMaskedColumn (col);
+            r_things::R_DrawMaskedColumn (&mut dmc);
             *maskedtexturecol.offset(dc_x as isize) = MAXSHORT;
         }
-        spryscale += rw_scalestep;
+        dmc.spryscale += rw_scalestep;
     }
 }
 
