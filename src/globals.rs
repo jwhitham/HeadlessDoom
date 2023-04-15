@@ -102,5 +102,12 @@ extern {
     pub static mut bottomstep: fixed_t;
     pub static mut topstep: fixed_t;
     pub static mut maskedtexture: boolean;
+    pub static mut sidedef: *mut side_t;
+    pub static mut linedef: *mut line_t;
+    pub static mut rw_normalangle: angle_t;
+    pub static mut rw_angle1: i32;
+    pub static mut viewangle: angle_t;
+    pub static mut skyflatnum: i32;
+    pub static mut lastopening: *mut i16;
 }
 
