@@ -112,3 +112,136 @@ pub unsafe extern "C" fn R_RenderMaskedSegRange
         spryscale += rw_scalestep;
     }
 }
+
+//
+// R_RenderSegLoop
+// Draws zero, one, or two textures (and possibly a masked
+//  texture) for walls.
+// Can draw or mark the starting pixel of floor and ceiling
+//  textures.
+// CALLED: CORE LOOPING ROUTINE.
+//
+const HEIGHTBITS: i32 =	12;
+const HEIGHTUNIT: i32 = 1<<HEIGHTBITS;
+
+#[no_mangle]
+pub unsafe extern "C" fn R_RenderSegLoop () {
+    let mut texturecolumn: fixed_t = 0;
+    for x in rw_x as usize .. rw_stopx as usize {
+        rw_x = x as i32;
+        // mark floor / ceiling areas
+        let yl = i32::max((topfrac+HEIGHTUNIT-1)>>HEIGHTBITS,
+                          (ceilingclip[x]+1) as i32);
+        
+        if markceiling != c_false {
+            let top = (ceilingclip[x]+1) as i32;
+            let bottom = i32::min(yl-1, (floorclip[x]-1) as i32);
+
+            if top <= bottom {
+                (*ceilingplane).top[x] = top as u8;
+                (*ceilingplane).bottom[x] = bottom as u8;
+            }
+        }
+            
+        let yh = i32::min(bottomfrac>>HEIGHTBITS, (floorclip[x]-1) as i32);
+
+        if markfloor != c_false {
+            let top = i32::max(yh+1, (ceilingclip[x]+1) as i32);
+            let bottom = (floorclip[x]-1) as i32;
+            if top <= bottom {
+                (*floorplane).top[x] = top as u8;
+                (*floorplane).bottom[x] = bottom as u8;
+            }
+        }
+        
+        // texturecolumn and lighting are independent of wall tiers
+        if segtextured != c_false {
+            // calculate texture offset
+            let mut angle = rw_centerangle.wrapping_add(xtoviewangle[x])>>ANGLETOFINESHIFT;
+
+            if angle >= (FINEANGLES / 2) { // DSB-23
+                angle = 0;
+            }
+
+            texturecolumn = rw_offset-FixedMul(finetangent[angle as usize],rw_distance);
+            texturecolumn >>= FRACBITS;
+            // calculate lighting
+            let index = i32::min(rw_scale>>LIGHTSCALESHIFT,
+                                 (MAXLIGHTSCALE-1) as i32);
+
+            dc_colormap = *walllights.offset(index as isize);
+            dc_x = rw_x;
+            dc_iscale = ((0xffffffff as u32) / (rw_scale as u32)) as i32;
+        }
+        
+        // draw the wall tiers
+        if midtexture != 0 {
+            // single sided line
+            dc_yl = yl;
+            dc_yh = yh;
+            dc_texturemid = rw_midtexturemid;
+            dc_source = R_GetColumn(midtexture,texturecolumn);
+            colfunc ();
+            ceilingclip[x] = viewheight as i16;
+            floorclip[x] = -1;
+        } else {
+            // two sided line
+            if toptexture != 0 {
+                // top wall
+                let mid = i32::min(pixhigh>>HEIGHTBITS,
+                                   (floorclip[x]-1) as i32);
+                pixhigh += pixhighstep;
+
+                if mid >= yl {
+                    dc_yl = yl;
+                    dc_yh = mid;
+                    dc_texturemid = rw_toptexturemid;
+                    dc_source = R_GetColumn(toptexture,texturecolumn);
+                    colfunc ();
+                    ceilingclip[x] = mid as i16;
+                } else {
+                    ceilingclip[x] = (yl-1) as i16;
+                }
+            } else {
+                // no top wall
+                if markceiling != c_false {
+                    ceilingclip[x] = (yl-1) as i16;
+                }
+            }
+                    
+            if bottomtexture != 0 {
+                // bottom wall
+                let mid = i32::max((pixlow+HEIGHTUNIT-1)>>HEIGHTBITS,
+                                   (ceilingclip[x]+1) as i32);
+                pixlow += pixlowstep;
+
+                if mid <= yh {
+                    dc_yl = mid;
+                    dc_yh = yh;
+                    dc_texturemid = rw_bottomtexturemid;
+                    dc_source = R_GetColumn(bottomtexture,
+                                texturecolumn);
+                    colfunc ();
+                    floorclip[x] = mid as i16;
+                } else {
+                    floorclip[x] = (yh+1) as i16;
+                }
+            } else {
+                // no bottom wall
+                if markfloor != c_false {
+                    floorclip[x] = (yh+1) as i16;
+                }
+            }
+                    
+            if maskedtexture != 0 {
+                // save texturecol
+                //  for backdrawing of masked mid texture
+                *maskedtexturecol.offset(x as isize) = texturecolumn as i16;
+            }
+        }
+            
+        rw_scale += rw_scalestep;
+        topfrac += topstep;
+        bottomfrac += bottomstep;
+    }
+}
