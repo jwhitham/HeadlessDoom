@@ -9,7 +9,6 @@ extern {
     pub static mut walllights: *mut *mut lighttable_t;
     pub static mut scalelight: [[*mut lighttable_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
     pub static mut maskedtexturecol: *mut i16;
-    pub static mut rw_scalestep: fixed_t;
     pub static mut spryscale: fixed_t;
     pub static mut mfloorclip: *mut i16;
     pub static mut mceilingclip: *mut i16;
@@ -75,33 +74,18 @@ extern {
     pub static mut viewangleoffset: i32;
     pub static mut rw_x: i32;
     pub static mut rw_stopx: i32;
-    pub static mut topfrac: fixed_t;
     pub static mut ceilingclip: [i16; SCREENWIDTH as usize];
     pub static mut markceiling: boolean;
     pub static mut ceilingplane: *mut visplane_t;
-    pub static mut bottomfrac: fixed_t;
     pub static mut floorclip: [i16; SCREENWIDTH as usize];
     pub static mut markfloor: boolean;
     pub static mut floorplane: *mut visplane_t;
     pub static mut segtextured: boolean;
-    pub static mut rw_centerangle: angle_t;
     pub static mut xtoviewangle: [angle_t; (SCREENWIDTH + 1) as usize];
-    pub static mut rw_offset: fixed_t;
     pub static mut rw_distance: fixed_t;
-    pub static mut rw_scale: fixed_t;
     pub static mut midtexture: i32;
     pub static mut toptexture: i32;
     pub static mut bottomtexture: i32;
-    pub static mut rw_midtexturemid: fixed_t;
-    pub static mut pixhigh: fixed_t;
-    pub static mut pixhighstep: fixed_t;
-    pub static mut pixlow: fixed_t;
-    pub static mut pixlowstep: fixed_t;
-    pub static mut rw_toptexturemid: fixed_t;
-    pub static mut rw_bottomtexturemid: fixed_t;
-    pub static mut bottomstep: fixed_t;
-    pub static mut topstep: fixed_t;
-    pub static mut maskedtexture: boolean;
     pub static mut sidedef: *mut side_t;
     pub static mut linedef: *mut line_t;
     pub static mut rw_normalangle: angle_t;
@@ -110,4 +94,3 @@ extern {
     pub static mut skyflatnum: i32;
     pub static mut lastopening: *mut i16;
 }
-
