@@ -91,4 +91,8 @@ extern {
     pub static mut solidsegs: [cliprange_t; MAXSEGS as usize];
     pub static mut clipangle: angle_t;
     pub static mut viewangletox: [i32; (FINEANGLES / 2) as usize];
+    pub static mut segs: *mut seg_t;
+    pub static mut numsubsectors: i32;
+    pub static mut subsectors: *mut subsector_t;
+    pub static mut sscount: i32;
 }

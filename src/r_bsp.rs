@@ -27,6 +27,7 @@ use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
 use crate::r_segs::R_StoreWallRange;
+use crate::r_things::R_AddSprites;
 use crate::defs::bbox_t::*;
 
 
@@ -233,8 +234,7 @@ unsafe fn R_ClipAngles(angle1_param: angle_t, angle2_param: angle_t) -> Option<R
 // Clips the given segment
 // and adds any visible pieces to the line list.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_AddLine (line: *mut seg_t) {
+unsafe fn R_AddLine (line: *mut seg_t) {
     curline = line;
 
     // OPTIMIZE: quickly reject orthogonal back sides.
@@ -377,3 +377,49 @@ pub unsafe extern "C" fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
 
     return c_true;
 }
+
+//
+// R_Subsector
+// Determine floor/ceiling planes.
+// Add sprites of things in sector.
+// Draw one or more line segments.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_Subsector (num: i32) {
+    if num>=numsubsectors {
+        panic!("R_Subsector: ss {} with numss = {}",
+             num,
+             numsubsectors);
+    }
+
+    sscount += 1;
+    let sub: *mut subsector_t = subsectors.offset(num as isize);
+    frontsector = (*sub).sector;
+    let count = (*sub).numlines;
+    let mut line: *mut seg_t = segs.offset((*sub).firstline as isize);
+
+    if (*frontsector).floorheight < viewz {
+        floorplane = R_FindPlane ((*frontsector).floorheight,
+                      (*frontsector).floorpic as i32,
+                      (*frontsector).lightlevel as i32);
+    } else {
+        floorplane = std::ptr::null_mut();
+    }
+        
+    if ((*frontsector).ceilingheight > viewz)
+    || (((*frontsector).ceilingpic as i32) == skyflatnum) {
+        ceilingplane = R_FindPlane ((*frontsector).ceilingheight,
+                        (*frontsector).ceilingpic as i32,
+                        (*frontsector).lightlevel as i32);
+    } else {
+        ceilingplane = std::ptr::null_mut();
+    }
+        
+    R_AddSprites (frontsector);	
+
+    for _ in 0 .. count {
+        R_AddLine (line);
+        line = line.offset(1);
+    }
+}
+

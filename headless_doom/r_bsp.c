@@ -84,59 +84,6 @@ cliprange_t	solidsegs[MAXSEGS];
 
 
 
-//
-// R_Subsector
-// Determine floor/ceiling planes.
-// Add sprites of things in sector.
-// Draw one or more line segments.
-//
-void R_Subsector (int num)
-{
-    int			count;
-    seg_t*		line;
-    subsector_t*	sub;
-	
-#ifdef RANGECHECK
-    if (num>=numsubsectors)
-	I_Error ("R_Subsector: ss %i with numss = %i",
-		 num,
-		 numsubsectors);
-#endif
-
-    sscount++;
-    sub = &subsectors[num];
-    frontsector = sub->sector;
-    count = sub->numlines;
-    line = &segs[sub->firstline];
-
-    if (frontsector->floorheight < viewz)
-    {
-	floorplane = R_FindPlane (frontsector->floorheight,
-				  frontsector->floorpic,
-				  frontsector->lightlevel);
-    }
-    else
-	floorplane = NULL;
-    
-    if (frontsector->ceilingheight > viewz 
-	|| frontsector->ceilingpic == skyflatnum)
-    {
-	ceilingplane = R_FindPlane (frontsector->ceilingheight,
-				    frontsector->ceilingpic,
-				    frontsector->lightlevel);
-    }
-    else
-	ceilingplane = NULL;
-		
-    R_AddSprites (frontsector);	
-
-    while (count--)
-    {
-	R_AddLine (line);
-	line++;
-    }
-}
-
 
 
 

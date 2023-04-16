@@ -506,8 +506,7 @@ unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
 // R_AddSprites
 // During BSP traversal, this adds sprites by sector.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_AddSprites (sec: *mut sector_t) {
+pub unsafe fn R_AddSprites (sec: *mut sector_t) {
 
     // BSP is traversed by subsector.
     // A sector might have been split into several
