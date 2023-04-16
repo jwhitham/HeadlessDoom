@@ -2872,3 +2872,11 @@ typedef	struct
 } cliprange_t;
 
 #define MAXSEGS 32
+
+typedef enum
+{
+    BOXTOP,
+    BOXBOTTOM,
+    BOXLEFT,
+    BOXRIGHT
+} bbox_t;	// bbox coordinates

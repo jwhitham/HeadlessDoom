@@ -27,6 +27,7 @@ use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
 use crate::r_segs::R_StoreWallRange;
+use crate::defs::bbox_t::*;
 
 
 //
@@ -181,6 +182,52 @@ pub unsafe extern "C" fn R_ClearClipSegs () {
     newend = solidsegs.as_mut_ptr().offset(2);
 }
 
+// R_ClipAngles has common code from R_AddLine and R_CheckBBox
+// Determine the view X range occupied by two angles
+struct R_ClipAngles_return_t {
+    x1: i32,
+    x2: i32,
+}
+
+unsafe fn R_ClipAngles(angle1_param: angle_t, angle2_param: angle_t) -> Option<R_ClipAngles_return_t> {
+    let mut angle1 = angle1_param;
+    let mut angle2 = angle2_param;
+    let span = angle1.wrapping_sub(angle2);
+    let mut tspan = angle1.wrapping_add(clipangle);
+    if tspan > (2 * clipangle) {
+        tspan -= 2 * clipangle;
+
+        // Totally off the left edge?
+        if tspan >= span {
+            return None;
+        }
+        
+        angle1 = clipangle;
+    }
+    tspan = clipangle.wrapping_sub(angle2);
+    if tspan > (2 * clipangle) {
+        tspan -= 2 * clipangle;
+
+        // Totally off the left edge?
+        if tspan >= span {
+            return None;
+        }
+        angle2 = (0 as angle_t).wrapping_sub(clipangle);
+    }
+    
+    // The seg is in the view range,
+    // but not necessarily visible.
+    angle1 = (angle1.wrapping_add(ANG90))>>ANGLETOFINESHIFT;
+    angle2 = (angle2.wrapping_add(ANG90))>>ANGLETOFINESHIFT;
+    let x1 = viewangletox[angle1 as usize];
+    let x2 = viewangletox[angle2 as usize];
+
+    // Does not cross a pixel?
+    if x1 == x2 {
+        return None;
+    }
+    return Some(R_ClipAngles_return_t { x1: x1, x2: x2 });
+}
 //
 // R_AddLine
 // Clips the given segment
@@ -207,40 +254,12 @@ pub unsafe extern "C" fn R_AddLine (line: *mut seg_t) {
     rw_angle1 = angle1 as i32;
     angle1 = angle1.wrapping_sub(viewangle);
     angle2 = angle2.wrapping_sub(viewangle);
-    
-    let mut tspan = angle1.wrapping_add(clipangle);
-    if tspan > (2 * clipangle) {
-        tspan -= 2 * clipangle;
 
-        // Totally off the left edge?
-        if tspan >= span {
-            return;
-        }
-        
-        angle1 = clipangle;
-    }
-    tspan = clipangle.wrapping_sub(angle2);
-    if tspan > (2 * clipangle) {
-        tspan -= 2 * clipangle;
-
-        // Totally off the left edge?
-        if tspan >= span {
-            return;
-        }
-        angle2 = (0 as angle_t).wrapping_sub(clipangle);
-    }
-    
-    // The seg is in the view range,
-    // but not necessarily visible.
-    angle1 = (angle1.wrapping_add(ANG90))>>ANGLETOFINESHIFT;
-    angle2 = (angle2.wrapping_add(ANG90))>>ANGLETOFINESHIFT;
-    let x1 = viewangletox[angle1 as usize];
-    let x2 = viewangletox[angle2 as usize];
-
-    // Does not cross a pixel?
-    if x1 == x2 {
+    let car = R_ClipAngles(angle1, angle2);
+    if car.is_none() {
         return;
     }
+    let ca = car.unwrap();
     
     backsector = (*line).backsector;
     let mut clipsolid = false;
@@ -272,9 +291,89 @@ pub unsafe extern "C" fn R_AddLine (line: *mut seg_t) {
     }
 
     if !clipsolid {
-        R_ClipPassWallSegment (x1, x2-1);	
+        R_ClipPassWallSegment (ca.x1, ca.x2-1);	
     } else {
-        R_ClipSolidWallSegment (x1, x2-1);
+        R_ClipSolidWallSegment (ca.x1, ca.x2-1);
     }
 }
 
+//
+// R_CheckBBox
+// Checks BSP node/subtree bounding box.
+// Returns true
+//  if some part of the bbox might be visible.
+//
+const checkcoord: [[i32; 4]; 12] =
+[
+    [3,0,2,1],
+    [3,0,2,0],
+    [3,1,2,0],
+    [0,0,0,0],
+    [2,0,2,1],
+    [0,0,0,0],
+    [3,1,3,0],
+    [0,0,0,0],
+    [2,0,3,1],
+    [2,1,3,1],
+    [2,1,3,0],
+    [0,0,0,0],
+];
+
+
+#[no_mangle]
+pub unsafe extern "C" fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
+    // Find the corners of the box
+    // that define the edges from current viewpoint.
+    let boxx =
+        if viewx <= *bspcoord.offset(BOXLEFT as isize) { 0 }
+        else if viewx < *bspcoord.offset(BOXRIGHT as isize) { 1 }
+        else { 2 };
+    
+    let boxy =
+        if viewy >= *bspcoord.offset(BOXTOP as isize) { 0 }
+        else if viewy > *bspcoord.offset(BOXBOTTOM as isize) { 1 }
+        else { 2 };
+        
+    let boxpos = (boxy<<2)+boxx;
+    if boxpos == 5 {
+        return c_true;
+    }
+    
+    let x1 = *bspcoord.offset(checkcoord[boxpos][0] as isize);
+    let y1 = *bspcoord.offset(checkcoord[boxpos][1] as isize);
+    let x2 = *bspcoord.offset(checkcoord[boxpos][2] as isize);
+    let y2 = *bspcoord.offset(checkcoord[boxpos][3] as isize);
+    
+    // check clip list for an open space
+    let angle1 = R_PointToAngle (x1, y1).wrapping_sub(viewangle);
+    let angle2 = R_PointToAngle (x2, y2).wrapping_sub(viewangle);
+	
+    let span = angle1.wrapping_sub(angle2);
+
+    // Sitting on a line?
+    if span >= ANG180 {
+        return c_true;
+    }
+    
+    let car = R_ClipAngles(angle1, angle2);
+    if car.is_none() {
+        return c_false;
+    }
+    let ca = car.unwrap();
+    let sx1 = ca.x1;
+    let mut sx2 = ca.x2;
+    sx2 -= 1;
+    
+    let mut start = solidsegs.as_mut_ptr();
+    while (*start).last < sx2 {
+        start = start.offset(1);
+    }
+    
+    if (sx1 >= (*start).first)
+    && (sx2 <= (*start).last) {
+        // The clippost contains the new span.
+        return c_false;
+    }
+
+    return c_true;
+}
