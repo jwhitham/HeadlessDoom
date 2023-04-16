@@ -122,3 +122,64 @@ pub unsafe extern "C" fn R_ClipSolidWallSegment(first: i32, last: i32) {
     newend = start.offset(1);
 }
 
+//
+// R_ClipPassWallSegment
+// Clips the given range of columns,
+//  but does not includes it in the clip list.
+// Does handle windows,
+//  e.g. LineDefs with upper and lower texture.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_ClipPassWallSegment(first: i32, last: i32) {
+    // Find the first range that touches the range
+    //  (adjacent pixels are touching).
+    let mut start: *mut cliprange_t = solidsegs.as_mut_ptr();
+    while (*start).last < (first - 1) {
+        start = start.offset(1);
+    }
+
+    if first < (*start).first {
+        if last < ((*start).first - 1) {
+            // Post is entirely visible (above start).
+            R_StoreWallRange (first, last);
+            return;
+        }
+        
+        // There is a fragment above *start.
+        R_StoreWallRange (first, (*start).first - 1);
+    }
+
+    // Bottom contained in start?
+    if last <= (*start).last {
+        return;
+    }
+        
+    while last >= ((*start.offset(1)).first - 1) {
+        // There is a fragment between two posts.
+        R_StoreWallRange ((*start).last + 1, (*start.offset(1)).first - 1);
+        start = start.offset(1);
+        
+        if last <= (*start).last {
+            return;
+        }
+    }
+    
+    // There is a fragment after *next.
+    R_StoreWallRange ((*start).last + 1, last);
+}
+
+
+
+
+//
+// R_ClearClipSegs
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_ClearClipSegs () {
+    solidsegs[0].first = -0x7fffffff;
+    solidsegs[0].last = -1;
+    solidsegs[1].first = viewwidth;
+    solidsegs[1].last = 0x7fffffff;
+    newend = solidsegs.as_mut_ptr().offset(2);
+}
+
