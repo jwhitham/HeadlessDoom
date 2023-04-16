@@ -2859,3 +2859,16 @@ typedef struct
 
 } wbstartstruct_t;
 
+//
+// ClipWallSegment
+// Clips the given range of columns
+// and includes it in the new clip list.
+//
+typedef	struct
+{
+    int	first;
+    int last;
+    
+} cliprange_t;
+
+#define MAXSEGS 32

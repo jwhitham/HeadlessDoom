@@ -1,49 +1,31 @@
 
 import subprocess, os
 
-MODULE = "r_segs"
+MODULE = "r_bsp"
 local_only = set()
 rust_only = set()
 print("Shared:")
 for name in """
-boolean		segtextured;	
-boolean		markfloor;	
-boolean		markceiling;
-boolean		maskedtexture;
-int		toptexture;
-int		bottomtexture;
-int		midtexture;
-angle_t		rw_normalangle;
-int		rw_angle1;	
-int		rw_x;
-int		rw_stopx;
-angle_t		rw_centerangle;
-fixed_t		rw_offset;
-fixed_t		rw_distance;
-fixed_t		rw_scale;
-fixed_t		rw_scalestep;
-fixed_t		rw_midtexturemid;
-fixed_t		rw_toptexturemid;
-fixed_t		rw_bottomtexturemid;
-int		worldtop;
-int		worldbottom;
-int		worldhigh;
-int		worldlow;
-fixed_t		pixhigh;
-fixed_t		pixlow;
-fixed_t		pixhighstep;
-fixed_t		pixlowstep;
-fixed_t		topfrac;
-fixed_t		topstep;
-fixed_t		bottomfrac;
-fixed_t		bottomstep;
-lighttable_t**	walllights;
-short*		maskedtexturecol;
+seg_t*		curline;
+side_t*		sidedef;
+line_t*		linedef;
+sector_t*	frontsector;
+sector_t*	backsector;
+
+drawseg_t	drawsegs[MAXDRAWSEGS];
+drawseg_t*	ds_p;
+
+cliprange_t*	newend;
+cliprange_t	solidsegs[MAXSEGS];
 
 """.split():
     if not name.endswith(";"):
         continue
     name = name.strip(";")
+    if name.endswith("]"):
+        i = name.find("[")
+        if i > 0:
+            name = name[:i]
     found = set()
     for side in ["headless_doom", "src"]:
         p = subprocess.Popen(["git", "grep", "-rlE", r"\<" + name + r"\>",
@@ -58,6 +40,7 @@ short*		maskedtexturecol;
             modules.add(module)
         modules.discard(MODULE)
         modules.discard("globals")
+        modules.discard("bindings")
 
         if modules:
             found.add(side)

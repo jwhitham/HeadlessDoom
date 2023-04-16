@@ -87,4 +87,6 @@ extern {
     pub static mut viewangle: angle_t;
     pub static mut skyflatnum: i32;
     pub static mut lastopening: *mut i16;
+    pub static mut newend: *mut cliprange_t;
+    pub static mut solidsegs: [cliprange_t; MAXSEGS as usize];
 }

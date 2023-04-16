@@ -63,16 +63,6 @@ R_StoreWallRange
 
 
 //
-// R_ClearDrawSegs
-//
-void R_ClearDrawSegs (void)
-{
-    ds_p = drawsegs;
-}
-
-
-
-//
 // ClipWallSegment
 // Clips the given range of columns
 // and includes it in the new clip list.
@@ -91,98 +81,6 @@ typedef	struct
 cliprange_t*	newend;
 cliprange_t	solidsegs[MAXSEGS];
 
-
-
-
-//
-// R_ClipSolidWallSegment
-// Does handle solid walls,
-//  e.g. single sided LineDefs (middle texture)
-//  that entirely block the view.
-// 
-void
-R_ClipSolidWallSegment
-( int			first,
-  int			last )
-{
-    cliprange_t*	next;
-    cliprange_t*	start;
-
-    // Find the first range that touches the range
-    //  (adjacent pixels are touching).
-    start = solidsegs;
-    while (start->last < first-1)
-	start++;
-
-    if (first < start->first)
-    {
-	if (last < start->first-1)
-	{
-	    // Post is entirely visible (above start),
-	    //  so insert a new clippost.
-	    R_StoreWallRange (first, last);
-	    next = newend;
-	    newend++;
-	    
-	    while (next != start)
-	    {
-		*next = *(next-1);
-		next--;
-	    }
-	    next->first = first;
-	    next->last = last;
-	    return;
-	}
-		
-	// There is a fragment above *start.
-	R_StoreWallRange (first, start->first - 1);
-	// Now adjust the clip size.
-	start->first = first;	
-    }
-
-    // Bottom contained in start?
-    if (last <= start->last)
-	return;			
-		
-    next = start;
-    while (last >= (next+1)->first-1)
-    {
-	// There is a fragment between two posts.
-	R_StoreWallRange (next->last + 1, (next+1)->first - 1);
-	next++;
-	
-	if (last <= next->last)
-	{
-	    // Bottom is contained in next.
-	    // Adjust the clip size.
-	    start->last = next->last;	
-	    goto crunch;
-	}
-    }
-	
-    // There is a fragment after *next.
-    R_StoreWallRange (next->last + 1, last);
-    // Adjust the clip size.
-    start->last = last;
-	
-    // Remove start+1 to next from the clip list,
-    // because start now covers their area.
-  crunch:
-    if (next == start)
-    {
-	// Post just extended past the bottom of one post.
-	return;
-    }
-    
-
-    while (next++ != newend)
-    {
-	// Remove a post.
-	*++start = *next;
-    }
-
-    newend = start+1;
-}
 
 
 
