@@ -75,7 +75,7 @@ unsafe fn R_ClipSolidWallSegment(first: i32, last: i32) {
         // There is a fragment above *start.
         R_StoreWallRange (first, (*start).first - 1);
         // Now adjust the clip size.
-        (*start).first = first;	
+        (*start).first = first;
     }
 
     // Bottom contained in start?
@@ -93,7 +93,7 @@ unsafe fn R_ClipSolidWallSegment(first: i32, last: i32) {
         if last <= (*next).last {
             // Bottom is contained in next.
             // Adjust the clip size.
-            (*start).last = (*next).last;	
+            (*start).last = (*next).last;
             crunch = true;
             break;
         }
@@ -291,7 +291,7 @@ unsafe fn R_AddLine (line: *mut seg_t) {
     }
 
     if !clipsolid {
-        R_ClipPassWallSegment (ca.x1, ca.x2-1);	
+        R_ClipPassWallSegment (ca.x1, ca.x2-1);
     } else {
         R_ClipSolidWallSegment (ca.x1, ca.x2-1);
     }
@@ -320,8 +320,7 @@ const checkcoord: [[i32; 4]; 12] =
 ];
 
 
-#[no_mangle]
-pub unsafe extern "C" fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
+unsafe fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
     // Find the corners of the box
     // that define the edges from current viewpoint.
     let boxx =
@@ -347,7 +346,7 @@ pub unsafe extern "C" fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
     // check clip list for an open space
     let angle1 = R_PointToAngle (x1, y1).wrapping_sub(viewangle);
     let angle2 = R_PointToAngle (x2, y2).wrapping_sub(viewangle);
-	
+
     let span = angle1.wrapping_sub(angle2);
 
     // Sitting on a line?
@@ -384,8 +383,7 @@ pub unsafe extern "C" fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
 // Add sprites of things in sector.
 // Draw one or more line segments.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_Subsector (num: i32) {
+unsafe fn R_Subsector (num: i32) {
     if num>=numsubsectors {
         panic!("R_Subsector: ss {} with numss = {}",
              num,
@@ -415,11 +413,43 @@ pub unsafe extern "C" fn R_Subsector (num: i32) {
         ceilingplane = std::ptr::null_mut();
     }
         
-    R_AddSprites (frontsector);	
+    R_AddSprites (frontsector);
 
     for _ in 0 .. count {
         R_AddLine (line);
         line = line.offset(1);
     }
 }
+
+//
+// RenderBSPNode
+// Renders all subsectors below a given node,
+//  traversing subtree recursively.
+// Just call with BSP root.
+#[no_mangle]
+pub unsafe extern "C" fn R_RenderBSPNode (bspnum: i32) {
+    // Found a subsector?
+    if (bspnum & NF_SUBSECTOR as i32) != 0 {
+        if bspnum == -1 {
+            R_Subsector (0);
+        } else {
+            R_Subsector (bspnum & (!NF_SUBSECTOR as i32));
+        }
+        return;
+    }
+        
+    let bsp: *mut node_t = nodes.offset(bspnum as isize);
+    
+    // Decide which side the view point is on.
+    let side: i32 = R_PointOnSide (viewx, viewy, bsp);
+
+    // Recursively divide front space.
+    R_RenderBSPNode ((*bsp).children[side as usize] as i32); 
+
+    // Possibly divide back space.
+    if R_CheckBBox ((*bsp).bbox[(side^1) as usize].as_mut_ptr()) != 0 {
+        R_RenderBSPNode ((*bsp).children[(side^1) as usize] as i32);
+    }
+}
+
 

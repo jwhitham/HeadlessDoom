@@ -95,4 +95,5 @@ extern {
     pub static mut numsubsectors: i32;
     pub static mut subsectors: *mut subsector_t;
     pub static mut sscount: i32;
+    pub static mut nodes: *mut node_t;
 }
