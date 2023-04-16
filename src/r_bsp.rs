@@ -25,7 +25,7 @@
 
 use crate::defs::*;
 use crate::globals::*;
-//use crate::funcs::*;
+use crate::funcs::*;
 use crate::r_segs::R_StoreWallRange;
 
 
@@ -45,8 +45,7 @@ pub unsafe extern "C" fn R_ClearDrawSegs () {
 //  e.g. single sided LineDefs (middle texture)
 //  that entirely block the view.
 // 
-#[no_mangle]
-pub unsafe extern "C" fn R_ClipSolidWallSegment(first: i32, last: i32) {
+unsafe fn R_ClipSolidWallSegment(first: i32, last: i32) {
     // Find the first range that touches the range
     //  (adjacent pixels are touching).
     let mut start: *mut cliprange_t = solidsegs.as_mut_ptr();
@@ -129,8 +128,7 @@ pub unsafe extern "C" fn R_ClipSolidWallSegment(first: i32, last: i32) {
 // Does handle windows,
 //  e.g. LineDefs with upper and lower texture.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_ClipPassWallSegment(first: i32, last: i32) {
+unsafe fn R_ClipPassWallSegment(first: i32, last: i32) {
     // Find the first range that touches the range
     //  (adjacent pixels are touching).
     let mut start: *mut cliprange_t = solidsegs.as_mut_ptr();
@@ -181,5 +179,102 @@ pub unsafe extern "C" fn R_ClearClipSegs () {
     solidsegs[1].first = viewwidth;
     solidsegs[1].last = 0x7fffffff;
     newend = solidsegs.as_mut_ptr().offset(2);
+}
+
+//
+// R_AddLine
+// Clips the given segment
+// and adds any visible pieces to the line list.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_AddLine (line: *mut seg_t) {
+    curline = line;
+
+    // OPTIMIZE: quickly reject orthogonal back sides.
+    let mut angle1 = R_PointToAngle ((*(*line).v1).x, (*(*line).v1).y);
+    let mut angle2 = R_PointToAngle ((*(*line).v2).x, (*(*line).v2).y);
+    
+    // Clip to view edges.
+    // OPTIMIZE: make constant out of 2*clipangle (FIELDOFVIEW).
+    let span = angle1.wrapping_sub(angle2);
+    
+    // Back side? I.e. backface culling?
+    if span >= ANG180 {
+        return;
+    }
+
+    // Global angle needed by segcalc.
+    rw_angle1 = angle1 as i32;
+    angle1 = angle1.wrapping_sub(viewangle);
+    angle2 = angle2.wrapping_sub(viewangle);
+    
+    let mut tspan = angle1.wrapping_add(clipangle);
+    if tspan > (2 * clipangle) {
+        tspan -= 2 * clipangle;
+
+        // Totally off the left edge?
+        if tspan >= span {
+            return;
+        }
+        
+        angle1 = clipangle;
+    }
+    tspan = clipangle.wrapping_sub(angle2);
+    if tspan > (2 * clipangle) {
+        tspan -= 2 * clipangle;
+
+        // Totally off the left edge?
+        if tspan >= span {
+            return;
+        }
+        angle2 = (0 as angle_t).wrapping_sub(clipangle);
+    }
+    
+    // The seg is in the view range,
+    // but not necessarily visible.
+    angle1 = (angle1.wrapping_add(ANG90))>>ANGLETOFINESHIFT;
+    angle2 = (angle2.wrapping_add(ANG90))>>ANGLETOFINESHIFT;
+    let x1 = viewangletox[angle1 as usize];
+    let x2 = viewangletox[angle2 as usize];
+
+    // Does not cross a pixel?
+    if x1 == x2 {
+        return;
+    }
+    
+    backsector = (*line).backsector;
+    let mut clipsolid = false;
+
+    // Single sided line?
+    if backsector == std::ptr::null_mut() {
+        clipsolid = true;
+
+    // Closed door.
+    } else if ((*backsector).ceilingheight <= (*frontsector).floorheight)
+    || ((*backsector).floorheight >= (*frontsector).ceilingheight) {
+        clipsolid = true;
+
+    // Window.
+    } else if ((*backsector).ceilingheight != (*frontsector).ceilingheight)
+    || ((*backsector).floorheight != (*frontsector).floorheight) {
+        clipsolid = false;
+        
+    // Reject empty lines used for triggers
+    //  and special events.
+    // Identical floor and ceiling on both sides,
+    // identical light levels on both sides,
+    // and no middle texture.
+    } else if ((*backsector).ceilingpic == (*frontsector).ceilingpic)
+    && ((*backsector).floorpic == (*frontsector).floorpic)
+    && ((*backsector).lightlevel == (*frontsector).lightlevel)
+    && ((*(*curline).sidedef).midtexture == 0) {
+        return;
+    }
+
+    if !clipsolid {
+        R_ClipPassWallSegment (x1, x2-1);	
+    } else {
+        R_ClipSolidWallSegment (x1, x2-1);
+    }
 }
 

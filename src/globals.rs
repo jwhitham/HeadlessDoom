@@ -89,4 +89,6 @@ extern {
     pub static mut lastopening: *mut i16;
     pub static mut newend: *mut cliprange_t;
     pub static mut solidsegs: [cliprange_t; MAXSEGS as usize];
+    pub static mut clipangle: angle_t;
+    pub static mut viewangletox: [i32; (FINEANGLES / 2) as usize];
 }

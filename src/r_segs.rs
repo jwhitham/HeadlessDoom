@@ -274,14 +274,7 @@ unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
 // A wall segment will be drawn
 //  between start and stop pixels (inclusive).
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_StoreWallRange (start: i32, stop: i32) {
-    //fixed_t		hyp;
-    //fixed_t		sineval;
-    //angle_t		distangle, offsetangle;
-    //fixed_t		vtop;
-    //int			lightnum;
-
+pub unsafe fn R_StoreWallRange (start: i32, stop: i32) {
     // don't overflow and crash
     if ds_p == drawsegs.as_mut_ptr().offset(MAXDRAWSEGS as isize) {
         return;
