@@ -10,6 +10,7 @@ mod r_things;
 mod r_segs;
 mod r_bsp;
 mod r_main;
+mod m_fixed;
 
 extern {
     fn D_DoomMain();

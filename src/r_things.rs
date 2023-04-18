@@ -29,6 +29,7 @@ use crate::defs::powertype_t::*;
 use crate::defs::psprnum_t::*;
 use crate::globals::*;
 use crate::funcs::*;
+use crate::m_fixed::FixedMul;
 
 pub struct R_DrawMaskedColumn_params_t {
     pub column: *mut column_t,

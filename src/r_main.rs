@@ -27,6 +27,7 @@
 use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
+use crate::m_fixed::FixedMul;
 
 
 // Fineangles in the SCREENWIDTH wide window.
@@ -38,9 +39,9 @@ use crate::funcs::*;
 //  check point against partition plane.
 // Returns side 0 (front) or 1 (back).
 //
-unsafe fn R_PointOnSide_common(x: fixed_t, y: fixed_t,
-                               lx: fixed_t, ly: fixed_t,
-                               ldx: fixed_t, ldy: fixed_t) -> i32 {
+fn R_PointOnSide_common(x: fixed_t, y: fixed_t,
+                        lx: fixed_t, ly: fixed_t,
+                        ldx: fixed_t, ldy: fixed_t) -> i32 {
     if ldx == 0 {
         if x <= lx {
             return if ldy > 0 { 1 } else { 0 };
