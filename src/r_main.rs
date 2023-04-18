@@ -97,3 +97,89 @@ pub unsafe extern "C" fn R_PointOnSegSide(x: fixed_t, y: fixed_t,
     return R_PointOnSide_common(x, y, lx, ly, ldx, ldy);
 }
 
+//
+// R_PointToAngle
+// To get a global angle from cartesian coordinates,
+//  the coordinates are flipped until they are in
+//  the first octant of the coordinate system, then
+//  the y (<=x) is scaled and divided by x to get a
+//  tangent (slope) value which is looked up in the
+//  tantoangle[] table.
+
+//
+
+unsafe fn R_PointToAngle_common(px: fixed_t, py: fixed_t) -> angle_t {
+    let mut x = px;
+    let mut y = py;
+    
+    if (x == 0) && (y == 0) {
+        return 0;
+    }
+
+    if x >= 0 {
+        // x >=0
+        if y >= 0 {
+            // y>= 0
+
+            if x>y {
+                // octant 0
+                return tantoangle[SlopeDiv(y as u32, x as u32) as usize];
+            } else {
+                // octant 1
+                return (ANG90-1).wrapping_sub(
+                        tantoangle[SlopeDiv(x as u32, y as u32) as usize]);
+            }
+        } else {
+            // y<0
+            y = -y;
+
+            if x>y {
+                // octant 8
+                return (0 as angle_t).wrapping_sub(tantoangle[SlopeDiv(y as u32, x as u32) as usize]);
+            } else {
+                // octant 7
+                return ANG270.wrapping_add(tantoangle[SlopeDiv(x as u32, y as u32) as usize]);
+            }
+        }
+    } else {
+        // x<0
+        x = -x;
+
+        if y >= 0 {
+            // y>= 0
+            if x > y {
+                // octant 3
+                return (ANG180-1).wrapping_sub(tantoangle[SlopeDiv(y as u32, x as u32) as usize]);
+            } else {
+                // octant 2
+                return ANG90.wrapping_add(tantoangle[ SlopeDiv(x as u32, y as u32) as usize]);
+            }
+        } else {
+            // y<0
+            y = -y;
+
+            if x > y {
+                // octant 4
+                return ANG180.wrapping_add(tantoangle[SlopeDiv(y as u32, x as u32) as usize]);
+            } else {
+                 // octant 5
+                return (ANG270-1).wrapping_sub(tantoangle[SlopeDiv(x as u32, y as u32) as usize]);
+            }
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn R_PointToAngle (x: fixed_t, y: fixed_t) -> angle_t {
+    return R_PointToAngle_common(x - viewx, y - viewy);
+}
+
+
+#[no_mangle]
+pub unsafe extern "C" fn R_PointToAngle2
+        (x1: fixed_t, y1: fixed_t,
+         x2: fixed_t, y2: fixed_t) -> angle_t {
+    viewx = x1;
+    viewy = y1;
+    return R_PointToAngle_common(x2 - x1, y2 - y1);
+}
