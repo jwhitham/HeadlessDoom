@@ -27,6 +27,7 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
 
 #include "stdlib.h"
 
+#include <stdint.h> // DSB-32 for int64_t
 #include "doomtype.h"
 #include "i_system.h"
 
@@ -71,12 +72,11 @@ FixedDiv2
 ( fixed_t	a,
   fixed_t	b )
 {
-#if 0
-    long long c;
-    c = ((long long)a<<16) / ((long long)b);
+    // DSB-32 use integer division
+    int64_t c;
+    c = ((int64_t)a<<16) / ((int64_t)b);
     return (fixed_t) c;
-#endif
-
+#if 0
     double c;
 
     c = ((double)a) / ((double)b) * FRACUNIT;
@@ -84,4 +84,5 @@ FixedDiv2
     if (c >= 2147483648.0 || c < -2147483648.0)
 	I_Error("FixedDiv: divide by zero");
     return (fixed_t) c;
+#endif
 }
