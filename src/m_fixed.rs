@@ -49,10 +49,14 @@ fn FixedDiv2(a: fixed_t, b: fixed_t) -> fixed_t {
     //return (fixed_t) c;
 //#endif
 
-    let c: f64 = (a as f64) / (b as f64) * (FRACUNIT as f64);
+    if b == 0 {
+        panic!("FixedDiv: divide by zero (exactly)");
+    }
 
-    if (c >= 2147483648.0) || (c < -2147483648.0) {
-        panic!("FixedDiv: divide by zero");
+    let c: i64 = ((a as i64) << FRACBITS) / (b as i64);
+
+    if (c >= 2147483648) || (c < -2147483648) {
+        panic!("FixedDiv: divide by zero (approximately)");
     }
     return c as fixed_t;
 }
