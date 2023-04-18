@@ -9,6 +9,7 @@ mod r_draw;
 mod r_things;
 mod r_segs;
 mod r_bsp;
+mod r_main;
 
 extern {
     fn D_DoomMain();
