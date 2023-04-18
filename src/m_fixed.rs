@@ -29,3 +29,30 @@ pub extern "C" fn FixedMul(a: fixed_t, b: fixed_t) -> fixed_t {
     return (((a as i64) * (b as i64)) >> FRACBITS) as fixed_t;
 }
 
+
+//
+// FixedDiv, C version.
+//
+#[no_mangle]
+pub extern "C" fn FixedDiv(a: fixed_t, b: fixed_t) -> fixed_t {
+    if (fixed_t::abs(a) >> 14) >= fixed_t::abs(b) {
+        return if (a ^ b) < 0 { MININT } else { MAXINT };
+    }
+    return FixedDiv2 (a,b);
+}
+
+
+fn FixedDiv2(a: fixed_t, b: fixed_t) -> fixed_t {
+//#if 0
+    //long long c;
+    //c = ((long long)a<<16) / ((long long)b);
+    //return (fixed_t) c;
+//#endif
+
+    let c: f64 = (a as f64) / (b as f64) * (FRACUNIT as f64);
+
+    if (c >= 2147483648.0) || (c < -2147483648.0) {
+        panic!("FixedDiv: divide by zero");
+    }
+    return c as fixed_t;
+}

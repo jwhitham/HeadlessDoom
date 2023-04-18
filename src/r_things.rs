@@ -30,6 +30,7 @@ use crate::defs::psprnum_t::*;
 use crate::globals::*;
 use crate::funcs::*;
 use crate::m_fixed::FixedMul;
+use crate::m_fixed::FixedDiv;
 
 pub struct R_DrawMaskedColumn_params_t {
     pub column: *mut column_t,
