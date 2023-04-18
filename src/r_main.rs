@@ -38,36 +38,36 @@ use crate::funcs::*;
 //  check point against partition plane.
 // Returns side 0 (front) or 1 (back).
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_PointOnSide(x: fixed_t, y: fixed_t,
-                                       node: *mut node_t) -> i32 {
-    if (*node).dx == 0 {
-        if x <= (*node).x {
-            return if (*node).dy > 0 { 1 } else { 0 };
+unsafe fn R_PointOnSide_common(x: fixed_t, y: fixed_t,
+                               lx: fixed_t, ly: fixed_t,
+                               ldx: fixed_t, ldy: fixed_t) -> i32 {
+    if ldx == 0 {
+        if x <= lx {
+            return if ldy > 0 { 1 } else { 0 };
         }
-        return if (*node).dy < 0 { 1 } else { 0 };
+        return if ldy < 0 { 1 } else { 0 };
     }
-    if (*node).dy == 0 {
-        if y <= (*node).y {
-            return if (*node).dx < 0 { 1 } else { 0 };
+    if ldy == 0 {
+        if y <= ly {
+            return if ldx < 0 { 1 } else { 0 };
         }
-        return if (*node).dx > 0 { 1 } else { 0 };
+        return if ldx > 0 { 1 } else { 0 };
     }
 
-    let dx = x.wrapping_sub((*node).x);
-    let dy = y.wrapping_sub((*node).y);
+    let dx = x.wrapping_sub(lx);
+    let dy = y.wrapping_sub(ly);
 
     // Try to quickly decide by looking at sign bits.
-    if ((((*node).dy ^ (*node).dx ^ dx ^ dy) as u32) & 0x80000000) != 0 {
-        if ((((*node).dy ^ dx) as u32) & 0x80000000) != 0 {
+    if (((ldy ^ ldx ^ dx ^ dy) as u32) & 0x80000000) != 0 {
+        if (((ldy ^ dx) as u32) & 0x80000000) != 0 {
             // (left is negative)
             return 1;
         }
         return 0;
     }
 
-    let left = FixedMul((*node).dy>>FRACBITS, dx);
-    let right = FixedMul(dy, (*node).dx>>FRACBITS);
+    let left = FixedMul(ldy>>FRACBITS, dx);
+    let right = FixedMul(dy, ldx>>FRACBITS);
 
     if right < left {
         // front side
@@ -77,4 +77,22 @@ pub unsafe extern "C" fn R_PointOnSide(x: fixed_t, y: fixed_t,
     return 1;
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn R_PointOnSide(x: fixed_t, y: fixed_t,
+                                       node: *mut node_t) -> i32 {
+    return R_PointOnSide_common(x, y,
+                                (*node).x, (*node).y,
+                                (*node).dx, (*node).dy);
+}
+
+
+#[no_mangle]
+pub unsafe extern "C" fn R_PointOnSegSide(x: fixed_t, y: fixed_t,
+                                          line: *mut seg_t) -> i32 {
+    let lx = (*(*line).v1).x;
+    let ly = (*(*line).v1).y;
+    let ldx = (*(*line).v2).x - lx;
+    let ldy = (*(*line).v2).y - ly;
+    return R_PointOnSide_common(x, y, lx, ly, ldx, ldy);
+}
 
