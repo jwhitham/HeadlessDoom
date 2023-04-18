@@ -17,5 +17,4 @@ extern {
     pub fn W_GetNumForName (name: *const i8) -> i32;
     pub fn W_CacheLumpNum (lump: i32, tag: u32) -> *mut patch_t;
     pub fn FixedDiv(a: fixed_t, b: fixed_t) -> fixed_t;
-    pub fn SlopeDiv(num: u32, dem: u32) -> i32;
 }

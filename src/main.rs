@@ -11,6 +11,7 @@ mod r_segs;
 mod r_bsp;
 mod r_main;
 mod m_fixed;
+mod tables;
 
 extern {
     fn D_DoomMain();

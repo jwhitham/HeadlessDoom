@@ -28,6 +28,8 @@ use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
 use crate::m_fixed::FixedMul;
+use crate::tables::tantoangle;
+use crate::tables::SlopeDiv;
 
 
 // Fineangles in the SCREENWIDTH wide window.
@@ -108,7 +110,7 @@ pub unsafe extern "C" fn R_PointOnSegSide(x: fixed_t, y: fixed_t,
 
 //
 
-unsafe fn R_PointToAngle_common(px: fixed_t, py: fixed_t) -> angle_t {
+fn R_PointToAngle_common(px: fixed_t, py: fixed_t) -> angle_t {
     let mut x = px;
     let mut y = py;
     
@@ -123,11 +125,11 @@ unsafe fn R_PointToAngle_common(px: fixed_t, py: fixed_t) -> angle_t {
 
             if x>y {
                 // octant 0
-                return tantoangle[SlopeDiv(y as u32, x as u32) as usize];
+                return tantoangle[SlopeDiv(y, x)];
             } else {
                 // octant 1
                 return (ANG90-1).wrapping_sub(
-                        tantoangle[SlopeDiv(x as u32, y as u32) as usize]);
+                        tantoangle[SlopeDiv(x, y)]);
             }
         } else {
             // y<0
@@ -135,10 +137,10 @@ unsafe fn R_PointToAngle_common(px: fixed_t, py: fixed_t) -> angle_t {
 
             if x>y {
                 // octant 8
-                return (0 as angle_t).wrapping_sub(tantoangle[SlopeDiv(y as u32, x as u32) as usize]);
+                return (0 as angle_t).wrapping_sub(tantoangle[SlopeDiv(y, x)]);
             } else {
                 // octant 7
-                return ANG270.wrapping_add(tantoangle[SlopeDiv(x as u32, y as u32) as usize]);
+                return ANG270.wrapping_add(tantoangle[SlopeDiv(x, y)]);
             }
         }
     } else {
@@ -149,10 +151,10 @@ unsafe fn R_PointToAngle_common(px: fixed_t, py: fixed_t) -> angle_t {
             // y>= 0
             if x > y {
                 // octant 3
-                return (ANG180-1).wrapping_sub(tantoangle[SlopeDiv(y as u32, x as u32) as usize]);
+                return (ANG180-1).wrapping_sub(tantoangle[SlopeDiv(y, x)]);
             } else {
                 // octant 2
-                return ANG90.wrapping_add(tantoangle[ SlopeDiv(x as u32, y as u32) as usize]);
+                return ANG90.wrapping_add(tantoangle[SlopeDiv(x, y)]);
             }
         } else {
             // y<0
@@ -160,10 +162,10 @@ unsafe fn R_PointToAngle_common(px: fixed_t, py: fixed_t) -> angle_t {
 
             if x > y {
                 // octant 4
-                return ANG180.wrapping_add(tantoangle[SlopeDiv(y as u32, x as u32) as usize]);
+                return ANG180.wrapping_add(tantoangle[SlopeDiv(y, x)]);
             } else {
                  // octant 5
-                return (ANG270-1).wrapping_sub(tantoangle[SlopeDiv(x as u32, y as u32) as usize]);
+                return (ANG270-1).wrapping_sub(tantoangle[SlopeDiv(x, y)]);
             }
         }
     }
