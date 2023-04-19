@@ -67,9 +67,9 @@ for maintenance and debugging (see `headless.c` for details).
 
     Platform                     Compiler        Typical time   Version
 
-    RPi 2 (ARMv7 1GHz)           GCC 4.6.3       77.3s          1.11
+    RPi 2 (ARMv7 1GHz)           GCC 4.6.3       77.3s          1.10
     RPi (ARMv6 700MHz)           GCC 4.6.3       217.1s         1.10
-    RPi 3 (Cortex-A53 1.2GHz)    GCC 10.2.1      47.5s          1.11
+    RPi 3 (Cortex-A53 1.2GHz)    GCC 10.2.1      48.7s          1.12
     Windows x64 (Core i3 5005U)  GCC 4.7.2       10.9s          1.11
     Linux x64 (Core2 E8600)      GCC 4.7.2       9.4s           1.10
     Windows x86 (Core i5 2500)   GCC 4.7.4       6.8s           1.10
@@ -77,8 +77,8 @@ for maintenance and debugging (see `headless.c` for details).
     Windows x64 (Core i3 8350)   MSVC 2019       4.4s           1.12
     Linux x64 (Core i3 3220)     GCC 4.7.2       6.9s           1.10
     Linux x86 (Core i3 3220)     GCC 4.1.2       7.5s           1.10
-    Android 11.0 (SDMMAGPIE)     Clang 10.0.1    8.9s           1.11
-    MS-DOS (Core i3 8350)        OpenWatcom 1.9  7.8s           1.11
+    Android 11.0 (SDMMAGPIE)     Clang 10.0.1    8.8s           1.12
+    MS-DOS (Core i3 8350)        OpenWatcom 1.9  7.8s           1.12
     Linux PowerPC (E500)         GCC 4.9.2       81.4s          1.10
     Android 6.0 (Snapdragon 410) Clang 3.9.0     69.3s          1.10
     W10 Linux x64 (AMD A6-6310)  GCC 4.8.4       17.1s          1.10
