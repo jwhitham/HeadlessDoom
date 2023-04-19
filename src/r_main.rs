@@ -346,3 +346,29 @@ pub unsafe extern "C" fn R_InitTextureMapping () {
     clipangle = xtoviewangle[0];
 }
 
+//
+// R_InitLightTables
+// Only inits the zlight table,
+//  because the scalelight table changes with view size.
+//
+const DISTMAP: i32 = 2;
+
+#[no_mangle]
+pub unsafe extern "C" fn R_InitLightTables () {
+    // Calculate the light levels to use
+    //  for each level / distance combination.
+    for i in 0 .. LIGHTLEVELS as u32 {
+        let startmap: i32 = (((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS) as i32;
+        for j in 0 .. MAXLIGHTZ as u32 {
+            let mut scale: i32 = FixedDiv ((SCREENWIDTH/2*FRACUNIT) as i32, ((j+1)<<LIGHTZSHIFT) as i32);
+            scale >>= LIGHTSCALESHIFT;
+            let mut level: i32 = startmap - scale/DISTMAP;
+            
+            level = i32::max(0, i32::min((NUMCOLORMAPS - 1) as i32, level));
+
+            zlight[i as usize][j as usize] = colormaps.offset((level*256) as isize);
+        }
+    }
+}
+
+

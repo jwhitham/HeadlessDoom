@@ -158,44 +158,6 @@ R_AddPointToBox
 
 
 
-//
-// R_InitLightTables
-// Only inits the zlight table,
-//  because the scalelight table changes with view size.
-//
-#define DISTMAP		2
-
-void R_InitLightTables (void)
-{
-    int		i;
-    int		j;
-    int		level;
-    int		startmap; 	
-    int		scale;
-    
-    // Calculate the light levels to use
-    //  for each level / distance combination.
-    for (i=0 ; i< LIGHTLEVELS ; i++)
-    {
-	startmap = ((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS;
-	for (j=0 ; j<MAXLIGHTZ ; j++)
-	{
-	    scale = FixedDiv ((SCREENWIDTH/2*FRACUNIT), (j+1)<<LIGHTZSHIFT);
-	    scale >>= LIGHTSCALESHIFT;
-	    level = startmap - scale/DISTMAP;
-	    
-	    if (level < 0)
-		level = 0;
-
-	    if (level >= NUMCOLORMAPS)
-		level = NUMCOLORMAPS-1;
-
-	    zlight[i][j] = colormaps + level*256;
-	}
-    }
-}
-
-
 
 //
 // R_SetViewSize
@@ -219,6 +181,7 @@ R_SetViewSize
 }
 
 
+#define DISTMAP 2
 //
 // R_ExecuteSetViewSize
 //

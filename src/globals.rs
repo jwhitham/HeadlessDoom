@@ -97,4 +97,5 @@ extern {
     pub static mut sscount: i32;
     pub static mut nodes: *mut node_t;
     pub static mut centerx: i32;
+    pub static mut zlight: [[*mut lighttable_t; MAXLIGHTZ as usize]; LIGHTLEVELS as usize];
 }
