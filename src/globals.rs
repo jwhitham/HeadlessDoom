@@ -96,4 +96,5 @@ extern {
     pub static mut subsectors: *mut subsector_t;
     pub static mut sscount: i32;
     pub static mut nodes: *mut node_t;
+    pub static mut centerx: i32;
 }

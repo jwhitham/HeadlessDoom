@@ -25,6 +25,8 @@ use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
 use crate::r_things;
+use crate::tables::finetangent;
+use crate::tables::finesine;
 use crate::m_fixed::FixedMul;
 
 struct R_RenderSegLoop_params_t {

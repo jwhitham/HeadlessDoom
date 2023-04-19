@@ -37,7 +37,6 @@
 
 
 use crate::defs::*;
-use crate::globals::*;
 
 
 pub fn SlopeDiv(num: i32, den: i32) -> usize {

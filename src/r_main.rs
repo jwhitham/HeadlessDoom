@@ -26,14 +26,16 @@
 
 use crate::defs::*;
 use crate::globals::*;
-use crate::funcs::*;
 use crate::m_fixed::FixedMul;
+use crate::m_fixed::FixedDiv;
 use crate::tables::tantoangle;
 use crate::tables::SlopeDiv;
+use crate::tables::finesine;
+use crate::tables::finetangent;
 
 
 // Fineangles in the SCREENWIDTH wide window.
-// const FIELDOFVIEW: usize = 2048;
+const FIELDOFVIEW: u32 = 2048;
 
 //
 // R_PointOnSide
@@ -185,3 +187,162 @@ pub unsafe extern "C" fn R_PointToAngle2
     viewy = y1;
     return R_PointToAngle_common(x2 - x1, y2 - y1);
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn R_PointToDist(x: fixed_t, y: fixed_t) -> fixed_t {
+    let mut dx = i32::abs(x - viewx);
+    let mut dy = i32::abs(y - viewy);
+
+    if dy > dx {
+        let temp = dx;
+        dx = dy;
+        dy = temp;
+    }
+        
+    let angle = (tantoangle[(FixedDiv(dy,dx) >> DBITS) as usize]+ANG90) >> ANGLETOFINESHIFT;
+
+    // use as cosine
+    let dist = FixedDiv (dx, finesine[angle as usize]);	
+        
+    return dist;
+}
+
+//
+// R_InitPointToAngle
+//
+#[no_mangle]
+pub extern "C" fn R_InitPointToAngle () {
+    // UNUSED - now getting from tables.c
+    // #if 0
+    //     int i;
+    //     long t;
+    //     float f;
+    // //
+    // // slope (tangent) to angle lookup
+    // //
+    //     for (i=0 ; i<=SLOPERANGE ; i++)
+    //     {
+    //         f = atan( (float)i/SLOPERANGE )/(3.141592657*2);
+    //         t = 0xffffffff*f;
+    //         tantoangle[i] = t;
+    //     }
+    // #endif
+}
+
+//
+// R_ScaleFromGlobalAngle
+// Returns the texture mapping scale
+//  for the current line (horizontal span)
+//  at the given angle.
+// rw_distance must be calculated first.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_ScaleFromGlobalAngle (visangle: angle_t) -> fixed_t {
+    let anglea: u32 = ANG90.wrapping_add(visangle.wrapping_sub(viewangle)) as u32;
+    let angleb: u32 = ANG90.wrapping_add(visangle.wrapping_sub(rw_normalangle)) as u32;
+
+    // both sines are allways positive
+    let sinea: i32 = finesine[(anglea>>ANGLETOFINESHIFT) as usize];
+    let sineb: i32 = finesine[(angleb>>ANGLETOFINESHIFT) as usize];
+    let num: fixed_t = FixedMul(projection,sineb)<<detailshift;
+    let den: i32 = FixedMul(rw_distance,sinea);
+    let mut scale: fixed_t;
+
+    if den > (num>>16) {
+        scale = FixedDiv (num, den);
+
+        scale = fixed_t::max(256, fixed_t::min(64 * FRACUNIT as fixed_t, scale));
+    } else {
+        scale = 64*FRACUNIT as fixed_t;
+    }
+    
+    return scale;
+}
+
+//
+// R_InitTables
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_InitTables () {
+    // UNUSED: now getting from tables.c
+    // #if 0
+    //     int  i;
+    //     float a;
+    //     float fv;
+    //     int  t;
+    //     
+    //     // viewangle tangent table
+    //     for (i=0 ; i<FINEANGLES/2 ; i++)
+    //     {
+    //     a = (i-FINEANGLES/4+0.5)*PI*2/FINEANGLES;
+    //     fv = FRACUNIT*tan (a);
+    //     t = fv;
+    //     finetangent[i] = t;
+    //     }
+    //     
+    //     // finesine table
+    //     for (i=0 ; i<5*FINEANGLES/4 ; i++)
+    //     {
+    //     // OPTIMIZE: mirror...
+    //     a = (i+0.5)*PI*2/FINEANGLES;
+    //     t = FRACUNIT*sin (a);
+    //     finesine[i] = t;
+    //     }
+    // #endif
+}
+
+//
+// R_InitTextureMapping
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_InitTextureMapping () {
+    let mut t: i32;
+    
+    // Use tangent table to generate viewangletox:
+    //  viewangletox will give the next greatest x
+    //  after the view angle.
+    //
+    // Calc focallength
+    //  so FIELDOFVIEW angles covers SCREENWIDTH.
+    let focallength = FixedDiv (centerxfrac,
+                finetangent[(FINEANGLES/4+FIELDOFVIEW/2) as usize] );
+    
+    for i in 0 .. (FINEANGLES / 2) as usize {
+        if finetangent[i] > (FRACUNIT*2) as i32 {
+            t = -1;
+        } else if finetangent[i] < -((FRACUNIT*2) as i32) {
+            t = viewwidth+1;
+        } else {
+            t = FixedMul (finetangent[i], focallength);
+            t = (centerxfrac - t + (FRACUNIT - 1) as i32) >> FRACBITS;
+            t = i32::max(-1, i32::min(viewwidth + 1, t));
+        }
+        viewangletox[i] = t;
+    }
+    
+    // Scan viewangletox[] to generate xtoviewangle[]:
+    //  xtoviewangle will give the smallest view angle
+    //  that maps to x.	
+    for x in 0 ..= viewwidth {
+        let mut i: usize = 0;
+        while viewangletox[i] > x {
+            i += 1;
+        }
+        xtoviewangle[x as usize] = ((i as u32) << ANGLETOFINESHIFT).wrapping_sub(ANG90);
+    }
+    
+    // Take out the fencepost cases from viewangletox.
+    for i in 0 .. (FINEANGLES / 2) as usize {
+        //t = FixedMul (finetangent[i], focallength);
+        //t = centerx - t;
+        
+        if viewangletox[i] == -1 {
+            viewangletox[i] = 0;
+        } else if viewangletox[i] == (viewwidth+1) {
+            viewangletox[i]  = viewwidth;
+        }
+    }
+    
+    clipangle = xtoviewangle[0];
+}
+
