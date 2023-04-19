@@ -16,4 +16,6 @@ extern {
     pub fn memcpy(d: *mut u8, s: *const u8, n: usize) -> *mut u8;
     pub fn W_GetNumForName (name: *const i8) -> i32;
     pub fn W_CacheLumpNum (lump: i32, tag: u32) -> *mut patch_t;
+    pub fn R_DrawColumnLow();
+    pub fn R_DrawSpanLow();
 }

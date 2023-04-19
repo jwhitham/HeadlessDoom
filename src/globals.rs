@@ -45,9 +45,9 @@ extern {
     pub static mut modifiedgame: boolean;
     pub static mut screenheightarray: [i16; SCREENWIDTH as usize];
     pub static mut negonearray: [i16; SCREENWIDTH as usize];
-    pub static mut colfunc: extern "C" fn ();
-    pub static mut fuzzcolfunc: extern "C" fn ();
-    pub static mut basecolfunc: extern "C" fn ();
+    pub static mut colfunc: unsafe extern "C" fn ();
+    pub static mut fuzzcolfunc: unsafe extern "C" fn ();
+    pub static mut basecolfunc: unsafe extern "C" fn ();
     pub static mut detailshift: i32; 
     pub static mut centerxfrac: fixed_t; 
     pub static mut centeryfrac: fixed_t; 
@@ -98,4 +98,13 @@ extern {
     pub static mut nodes: *mut node_t;
     pub static mut centerx: i32;
     pub static mut zlight: [[*mut lighttable_t; MAXLIGHTZ as usize]; LIGHTLEVELS as usize];
+    pub static mut setsizeneeded: boolean;
+    pub static mut setblocks: i32;
+    pub static mut setdetail: i32;
+    pub static mut finecosine: *mut fixed_t;
+    pub static mut scaledviewwidth: i32;
+    pub static mut transcolfunc: unsafe extern "C" fn ();
+    pub static mut spanfunc: unsafe extern "C" fn ();
+    pub static mut yslope: [fixed_t; SCREENHEIGHT as usize];
+    pub static mut distscale: [fixed_t; SCREENWIDTH as usize];
 }

@@ -25,9 +25,16 @@
 
 
 use crate::defs::*;
+use crate::funcs::R_DrawColumnLow;
+use crate::funcs::R_DrawSpanLow;
 use crate::globals::*;
 use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
+use crate::r_draw::R_DrawColumn;
+use crate::r_draw::R_DrawFuzzColumn;
+use crate::r_draw::R_DrawTranslatedColumn;
+use crate::r_draw::R_DrawSpan;
+use crate::r_draw::R_InitBuffer;
 use crate::tables::tantoangle;
 use crate::tables::SlopeDiv;
 use crate::tables::finesine;
@@ -367,6 +374,99 @@ pub unsafe extern "C" fn R_InitLightTables () {
             level = i32::max(0, i32::min((NUMCOLORMAPS - 1) as i32, level));
 
             zlight[i as usize][j as usize] = colormaps.offset((level*256) as isize);
+        }
+    }
+}
+
+
+//
+// R_SetViewSize
+// Do not really change anything here,
+//  because it might be in the middle of a refresh.
+// The change will take effect next refresh.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_SetViewSize(blocks: i32, detail: i32) {
+    setsizeneeded = c_true;
+    setblocks = blocks;
+    setdetail = detail;
+}
+
+//
+// R_ExecuteSetViewSize
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_ExecuteSetViewSize () {
+
+    setsizeneeded = c_false;
+
+    if setblocks == 11 {
+        scaledviewwidth = SCREENWIDTH as i32;
+        viewheight = SCREENHEIGHT as i32;
+    } else {
+        scaledviewwidth = setblocks*32;
+        viewheight = (setblocks*168/10)&!7;
+    }
+    
+    detailshift = setdetail;
+    viewwidth = scaledviewwidth>>detailshift;
+    
+    centery = viewheight/2;
+    centerx = viewwidth/2;
+    centerxfrac = centerx<<FRACBITS;
+    centeryfrac = centery<<FRACBITS;
+    projection = centerxfrac;
+
+    if detailshift == c_false {
+        basecolfunc = R_DrawColumn;
+        colfunc = R_DrawColumn;
+        fuzzcolfunc = R_DrawFuzzColumn;
+        transcolfunc = R_DrawTranslatedColumn;
+        spanfunc = R_DrawSpan;
+    } else {
+        basecolfunc = R_DrawColumnLow;
+        colfunc = R_DrawColumnLow;
+        fuzzcolfunc = R_DrawFuzzColumn;
+        transcolfunc = R_DrawTranslatedColumn;
+        spanfunc = R_DrawSpanLow;
+    }
+
+    R_InitBuffer (scaledviewwidth, viewheight);
+    
+    R_InitTextureMapping ();
+    
+    // psprite scales
+    pspritescale = ((FRACUNIT as i32) * viewwidth) / (SCREENWIDTH as i32);
+    pspriteiscale = ((FRACUNIT as i32) * (SCREENWIDTH as i32)) / (viewwidth as i32);
+    
+    // thing clipping
+    for i in 0 .. viewwidth {
+        screenheightarray[i as usize] = viewheight as i16;
+    }
+    
+    // planes
+    for i in 0 .. viewheight {
+        let mut dy: fixed_t = ((i-(viewheight/2))<<FRACBITS) + ((FRACUNIT as fixed_t) / 2);
+        dy = fixed_t::abs(dy);
+        yslope[i as usize] = FixedDiv(((viewwidth<<detailshift)/2)*(FRACUNIT as i32), dy);
+    }
+    
+    for i in 0 .. viewwidth {
+        let cosadj: fixed_t = fixed_t::abs(*finecosine.offset((xtoviewangle[i as usize]>>ANGLETOFINESHIFT) as isize));
+        distscale[i as usize] = FixedDiv (FRACUNIT as i32, cosadj);
+    }
+    
+    // Calculate the light levels to use
+    //  for each level / scale combination.
+    for i in 0 .. LIGHTLEVELS as u32 {
+        let startmap: i32 = (((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS) as i32;
+        for j in 0 .. MAXLIGHTSCALE as u32 {
+            let mut level: i32 = startmap -
+                ((((j * SCREENWIDTH) as i32) / (viewwidth << detailshift)) / DISTMAP);
+            
+            level = i32::max(0, i32::min((NUMCOLORMAPS - 1) as i32, level));
+
+            scalelight[i as usize][j as usize] = colormaps.offset((level*256) as isize);
         }
     }
 }

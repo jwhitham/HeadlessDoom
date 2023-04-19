@@ -159,123 +159,12 @@ R_AddPointToBox
 
 
 
-//
-// R_SetViewSize
-// Do not really change anything here,
-//  because it might be in the middle of a refresh.
-// The change will take effect next refresh.
-//
 boolean		setsizeneeded;
 int		setblocks;
 int		setdetail;
 
 
-void
-R_SetViewSize
-( int		blocks,
-  int		detail )
-{
-    setsizeneeded = true;
-    setblocks = blocks;
-    setdetail = detail;
-}
-
-
 #define DISTMAP 2
-//
-// R_ExecuteSetViewSize
-//
-void R_ExecuteSetViewSize (void)
-{
-    fixed_t	cosadj;
-    fixed_t	dy;
-    int		i;
-    int		j;
-    int		level;
-    int		startmap; 	
-
-    setsizeneeded = false;
-
-    if (setblocks == 11)
-    {
-	scaledviewwidth = SCREENWIDTH;
-	viewheight = SCREENHEIGHT;
-    }
-    else
-    {
-	scaledviewwidth = setblocks*32;
-	viewheight = (setblocks*168/10)&~7;
-    }
-    
-    detailshift = setdetail;
-    viewwidth = scaledviewwidth>>detailshift;
-	
-    centery = viewheight/2;
-    centerx = viewwidth/2;
-    centerxfrac = centerx<<FRACBITS;
-    centeryfrac = centery<<FRACBITS;
-    projection = centerxfrac;
-
-    if (!detailshift)
-    {
-	colfunc = basecolfunc = R_DrawColumn;
-	fuzzcolfunc = R_DrawFuzzColumn;
-	transcolfunc = R_DrawTranslatedColumn;
-	spanfunc = R_DrawSpan;
-    }
-    else
-    {
-	colfunc = basecolfunc = R_DrawColumnLow;
-	fuzzcolfunc = R_DrawFuzzColumn;
-	transcolfunc = R_DrawTranslatedColumn;
-	spanfunc = R_DrawSpanLow;
-    }
-
-    R_InitBuffer (scaledviewwidth, viewheight);
-	
-    R_InitTextureMapping ();
-    
-    // psprite scales
-    pspritescale = FRACUNIT*viewwidth/SCREENWIDTH;
-    pspriteiscale = FRACUNIT*SCREENWIDTH/viewwidth;
-    
-    // thing clipping
-    for (i=0 ; i<viewwidth ; i++)
-	screenheightarray[i] = viewheight;
-    
-    // planes
-    for (i=0 ; i<viewheight ; i++)
-    {
-	dy = ((i-viewheight/2)<<FRACBITS)+FRACUNIT/2;
-	dy = abs(dy);
-	yslope[i] = FixedDiv ( (viewwidth<<detailshift)/2*FRACUNIT, dy);
-    }
-	
-    for (i=0 ; i<viewwidth ; i++)
-    {
-	cosadj = abs(finecosine[xtoviewangle[i]>>ANGLETOFINESHIFT]);
-	distscale[i] = FixedDiv (FRACUNIT,cosadj);
-    }
-    
-    // Calculate the light levels to use
-    //  for each level / scale combination.
-    for (i=0 ; i< LIGHTLEVELS ; i++)
-    {
-	startmap = ((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS;
-	for (j=0 ; j<MAXLIGHTSCALE ; j++)
-	{
-	    level = startmap - j*SCREENWIDTH/(viewwidth<<detailshift)/DISTMAP;
-	    
-	    if (level < 0)
-		level = 0;
-
-	    if (level >= NUMCOLORMAPS)
-		level = NUMCOLORMAPS-1;
-
-	    scalelight[i][j] = colormaps + level*256;
-	}
-    }
-}
 
 
 
