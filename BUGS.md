@@ -513,3 +513,25 @@ allocated when `patch_t` is loaded from the
 WAD file, so there is no overflow here, but the value 8 is misleading,
 and it is preferable to use `[]` to signify that the array size is unknown.
 
+# DSB-32 - use of floating point division
+
+The Linux Doom source code released in 1997 contains a fixed-point division
+function (`FixedDiv2`) which is implemented using floating-point division.
+This has an impact on performance. In MS-DOS the same
+function was implemented in assembly code and used the `idivl` instruction
+for 64-bit/32-bit integer division.
+
+The Linux Doom source code provided
+an alternative C implementation with 64-bit/64-bit integer division, and I
+have used this, as it is closer to the original MS-DOS code.
+
+On platforms without an FPU, floating point division is likely to be slower
+than integer division, as it is emulated in software. However, not all 32-bit
+platforms can do 64-bit division in hardware, and so the 64-bit/64-bit integer
+division may also be emulated in software (e.g. with a function such as
+`__aeabi_ldivmod`). In these cases, conversion to floating point may be faster.
+
+Note that Headless Doom 1.10 also used 64-bit/64-bit integer division.
+This change was lost in version 1.11 after the original Linux Doom
+source code was reintegrated, but then restored in 1.12.
+

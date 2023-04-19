@@ -20,7 +20,7 @@ and portable code.
 
 # Requirements
 
-Latest Version: 1.11
+Latest Version: 1.12
 
 To run the benchmark or the test, you will need Ultimate Doom. You can
 [buy a copy of the game from Steam](https://store.steampowered.com/app/2280/DOOM_1993/).
@@ -67,22 +67,22 @@ for maintenance and debugging (see `headless.c` for details).
 
     Platform                     Compiler        Typical time   Version
 
-    RPi 2 (ARMv7 1GHz)           GCC 4.6.3       77.3s          1.11
+    RPi 2 (ARMv7 1GHz)           GCC 4.6.3       77.3s          1.10
     RPi (ARMv6 700MHz)           GCC 4.6.3       217.1s         1.10
-    RPi 3 (Cortex-A53 1.2GHz)    GCC 10.2.1      47.5s          1.11
+    RPi 3 (Cortex-A53 1.2GHz)    GCC 10.2.1      48.7s          1.12
     Windows x64 (Core i3 5005U)  GCC 4.7.2       10.9s          1.11
     Linux x64 (Core2 E8600)      GCC 4.7.2       9.4s           1.10
     Windows x86 (Core i5 2500)   GCC 4.7.4       6.8s           1.10
-    Windows x64 (Core i3 8350)   GCC 8.3.1       5.3s           1.11
-    Windows x64 (Core i3 8350)   MSVC 2019       4.7s           1.11
+    Windows x64 (Core i3 8350)   GCC 8.3.1       4.9s           1.12
+    Windows x64 (Core i3 8350)   MSVC 2019       4.4s           1.12
     Linux x64 (Core i3 3220)     GCC 4.7.2       6.9s           1.10
     Linux x86 (Core i3 3220)     GCC 4.1.2       7.5s           1.10
-    Android 11.0 (SDMMAGPIE)     Clang 10.0.1    8.9s           1.11
-    MS-DOS (Core i3 8350)        OpenWatcom 1.9  7.8s           1.11
+    Android 11.0 (SDMMAGPIE)     Clang 10.0.1    8.8s           1.12
+    MS-DOS (Core i3 8350)        OpenWatcom 1.9  7.8s           1.12
     Linux PowerPC (E500)         GCC 4.9.2       81.4s          1.10
     Android 6.0 (Snapdragon 410) Clang 3.9.0     69.3s          1.10
     W10 Linux x64 (AMD A6-6310)  GCC 4.8.4       17.1s          1.10
-    Microblaze (100MHz sim)      GCC 4.1.1       1397s          1.11
+    Microblaze (100MHz sim)      GCC 4.1.1       1189s          1.12
 
 The CRC test typically requires 25% more time.
 
@@ -99,6 +99,10 @@ run Headless Doom at around 10,000 frames per second.
 
 The MS-DOS version was built with the Watcom C compiler 
 and runs within DOS/4GW, just like Doom.
+
+A C99-compatible compiler is required for definitions of `int64_t`
+and others from `stdint.h`.  Older C compilers can be used if
+suitable definitions in `stdint.h` are provided.
 
 The Microblaze version ran on a simple simulator which assumed that each
 instruction took exactly 1 clock cycle (no cache, pipeline or bus simulation)
