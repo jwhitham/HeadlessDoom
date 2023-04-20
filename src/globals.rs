@@ -110,4 +110,5 @@ extern {
     pub static mut detailLevel: i32;
     pub static mut screenblocks: i32;
     pub static mut framecount: i32;
+    pub static mut numnodes: i32;
 }

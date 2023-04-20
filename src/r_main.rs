@@ -494,3 +494,24 @@ pub unsafe extern "C" fn R_Init () {
     
     framecount = 0;
 }
+
+//
+// R_PointInSubsector
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_PointInSubsector(x: fixed_t, y: fixed_t) -> *mut subsector_t {
+    // single subsector is a special case
+    if numnodes == 0 {
+        return subsectors;
+    }
+        
+    let mut nodenum = numnodes-1;
+
+    while 0 == (nodenum & (NF_SUBSECTOR as i32)) {
+        let node = nodes.offset(nodenum as isize);
+        let side = R_PointOnSide(x, y, node);
+        nodenum = (*node).children[side as usize] as i32;
+    }
+    
+    return subsectors.offset((nodenum & !(NF_SUBSECTOR as i32)) as isize);
+}
