@@ -286,8 +286,7 @@ pub unsafe extern "C" fn R_InitSprites (namelist: *mut *mut i8) {
 // R_ClearSprites
 // Called at frame start.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_ClearSprites () {
+pub unsafe fn R_ClearSprites () {
     vissprite_p = vissprites.as_mut_ptr();
 }
 
@@ -764,8 +763,7 @@ unsafe fn R_DrawSprite (spr: *mut vissprite_t) {
 //
 // R_DrawMasked
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_DrawMasked () {
+pub unsafe fn R_DrawMasked () {
     // Sort sprites according to scale
     let mut sorted_sprites: Vec<*mut vissprite_t> = Vec::new();
     let mut iter: *mut vissprite_t = vissprites.as_mut_ptr();

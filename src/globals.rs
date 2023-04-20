@@ -111,4 +111,5 @@ extern {
     pub static mut screenblocks: i32;
     pub static mut framecount: i32;
     pub static mut numnodes: i32;
+    pub static mut scalelightfixed: [*mut lighttable_t; MAXLIGHTSCALE as usize];
 }

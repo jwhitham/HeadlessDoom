@@ -36,6 +36,11 @@ use crate::r_draw::R_DrawFuzzColumn;
 use crate::r_draw::R_DrawTranslatedColumn;
 use crate::r_draw::R_DrawSpan;
 use crate::r_draw::R_InitBuffer;
+use crate::r_bsp::R_RenderBSPNode;
+use crate::r_bsp::R_ClearClipSegs;
+use crate::r_bsp::R_ClearDrawSegs;
+use crate::r_things::R_ClearSprites;
+use crate::r_things::R_DrawMasked;
 use crate::tables::tantoangle;
 use crate::tables::SlopeDiv;
 use crate::tables::finesine;
@@ -514,4 +519,75 @@ pub unsafe extern "C" fn R_PointInSubsector(x: fixed_t, y: fixed_t) -> *mut subs
     }
     
     return subsectors.offset((nodenum & !(NF_SUBSECTOR as i32)) as isize);
+}
+
+//
+// R_SetupFrame
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_SetupFrame (player: *mut player_t) {
+    viewplayer = player;
+    viewx = (*(*player).mo).x;
+    viewy = (*(*player).mo).y;
+    viewangle = (*(*player).mo).angle.wrapping_add(viewangleoffset as u32);
+    extralight = (*player).extralight;
+
+    viewz = (*player).viewz;
+    
+    viewsin = finesine[(viewangle>>ANGLETOFINESHIFT) as usize];
+    viewcos = *finecosine.offset((viewangle>>ANGLETOFINESHIFT) as isize);
+    
+    sscount = 0;
+    
+    if (*player).fixedcolormap != 0 {
+        fixedcolormap =
+            colormaps.offset(
+                ((*player).fixedcolormap as isize) * 256); // sizeof(lighttable_t) == sizeof(u8) == 1
+    
+        walllights = scalelightfixed.as_mut_ptr();
+
+        for i in 0 .. MAXLIGHTSCALE as usize {
+            scalelightfixed[i] = fixedcolormap;
+        }
+    } else {
+        fixedcolormap = std::ptr::null_mut();
+    }
+        
+    framecount += 1;
+    validcount += 1;
+}
+
+
+
+//
+// R_RenderView
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_RenderPlayerView (player: *mut player_t) {
+    R_SetupFrame (player);
+
+    // Clear buffers.
+    R_ClearClipSegs ();
+    R_ClearDrawSegs ();
+    R_ClearPlanes ();
+    R_ClearSprites ();
+    
+    // check for new console commands.
+    NetUpdate ();
+
+    // The head node is the last node output.
+    R_RenderBSPNode (numnodes-1);
+    
+    // Check for new console commands.
+    NetUpdate ();
+    
+    R_DrawPlanes ();
+    
+    // Check for new console commands.
+    NetUpdate ();
+    
+    R_DrawMasked ();
+
+    // Check for new console commands.
+    NetUpdate ();				
 }

@@ -18,8 +18,11 @@ extern {
     pub fn W_CacheLumpNum (lump: i32, tag: u32) -> *mut patch_t;
     pub fn R_DrawColumnLow();
     pub fn R_DrawSpanLow();
-    pub fn R_InitData ();
-    pub fn R_InitPlanes ();
-    pub fn R_InitSkyMap ();
-    pub fn R_InitTranslationTables ();
+    pub fn R_InitData();
+    pub fn R_InitPlanes();
+    pub fn R_InitSkyMap();
+    pub fn R_InitTranslationTables();
+    pub fn R_ClearPlanes();
+    pub fn R_DrawPlanes();
+    pub fn NetUpdate();
 }

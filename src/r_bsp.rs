@@ -34,8 +34,7 @@ use crate::defs::bbox_t::*;
 //
 // R_ClearDrawSegs
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_ClearDrawSegs () {
+pub unsafe fn R_ClearDrawSegs () {
     ds_p = drawsegs.as_mut_ptr();
 }
 
@@ -174,8 +173,7 @@ unsafe fn R_ClipPassWallSegment(first: i32, last: i32) {
 //
 // R_ClearClipSegs
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_ClearClipSegs () {
+pub unsafe fn R_ClearClipSegs () {
     solidsegs[0].first = -0x7fffffff;
     solidsegs[0].last = -1;
     solidsegs[1].first = viewwidth;
@@ -426,8 +424,7 @@ unsafe fn R_Subsector (num: i32) {
 // Renders all subsectors below a given node,
 //  traversing subtree recursively.
 // Just call with BSP root.
-#[no_mangle]
-pub unsafe extern "C" fn R_RenderBSPNode (bspnum: i32) {
+pub unsafe fn R_RenderBSPNode (bspnum: i32) {
     // Found a subsector?
     if (bspnum & NF_SUBSECTOR as i32) != 0 {
         if bspnum == -1 {
