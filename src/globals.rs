@@ -107,4 +107,7 @@ extern {
     pub static mut spanfunc: unsafe extern "C" fn ();
     pub static mut yslope: [fixed_t; SCREENHEIGHT as usize];
     pub static mut distscale: [fixed_t; SCREENWIDTH as usize];
+    pub static mut detailLevel: i32;
+    pub static mut screenblocks: i32;
+    pub static mut framecount: i32;
 }

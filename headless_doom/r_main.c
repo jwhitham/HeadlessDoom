@@ -168,36 +168,9 @@ int		setdetail;
 
 
 
-//
-// R_Init
-//
 extern int	detailLevel;
 extern int	screenblocks;
 
-
-
-void R_Init (void)
-{
-    R_InitData ();
-    printf ("\nR_InitData");
-    R_InitPointToAngle ();
-    printf ("\nR_InitPointToAngle");
-    R_InitTables ();
-    // viewwidth / viewheight / detailLevel are set by the defaults
-    printf ("\nR_InitTables");
-
-    R_SetViewSize (screenblocks, detailLevel);
-    R_InitPlanes ();
-    printf ("\nR_InitPlanes");
-    R_InitLightTables ();
-    printf ("\nR_InitLightTables");
-    R_InitSkyMap ();
-    printf ("\nR_InitSkyMap");
-    R_InitTranslationTables ();
-    printf ("\nR_InitTranslationsTables");
-	
-    framecount = 0;
-}
 
 
 //

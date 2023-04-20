@@ -28,6 +28,7 @@ use crate::defs::*;
 use crate::funcs::R_DrawColumnLow;
 use crate::funcs::R_DrawSpanLow;
 use crate::globals::*;
+use crate::funcs::*;
 use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
 use crate::r_draw::R_DrawColumn;
@@ -217,8 +218,7 @@ pub unsafe extern "C" fn R_PointToDist(x: fixed_t, y: fixed_t) -> fixed_t {
 //
 // R_InitPointToAngle
 //
-#[no_mangle]
-pub extern "C" fn R_InitPointToAngle () {
+fn R_InitPointToAngle () {
     // UNUSED - now getting from tables.c
     // #if 0
     //     int i;
@@ -269,8 +269,7 @@ pub unsafe extern "C" fn R_ScaleFromGlobalAngle (visangle: angle_t) -> fixed_t {
 //
 // R_InitTables
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_InitTables () {
+fn R_InitTables () {
     // UNUSED: now getting from tables.c
     // #if 0
     //     int  i;
@@ -360,8 +359,7 @@ pub unsafe extern "C" fn R_InitTextureMapping () {
 //
 const DISTMAP: i32 = 2;
 
-#[no_mangle]
-pub unsafe extern "C" fn R_InitLightTables () {
+unsafe fn R_InitLightTables () {
     // Calculate the light levels to use
     //  for each level / distance combination.
     for i in 0 .. LIGHTLEVELS as u32 {
@@ -471,4 +469,28 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
     }
 }
 
+//
+// R_Init
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_Init () {
+    R_InitData ();
+    print!("\nR_InitData");
+    R_InitPointToAngle ();
+    print!("\nR_InitPointToAngle");
+    R_InitTables ();
+    // viewwidth / viewheight / detailLevel are set by the defaults
+    print!("\nR_InitTables");
 
+    R_SetViewSize (screenblocks, detailLevel);
+    R_InitPlanes ();
+    print!("\nR_InitPlanes");
+    R_InitLightTables ();
+    print!("\nR_InitLightTables");
+    R_InitSkyMap ();
+    print!("\nR_InitSkyMap");
+    R_InitTranslationTables ();
+    print!("\nR_InitTranslationsTables");
+    
+    framecount = 0;
+}
