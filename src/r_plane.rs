@@ -54,8 +54,7 @@ pub extern "C" fn R_InitPlanes () {
 //
 // BASIC PRIMITIVE
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_MapPlane(y: i32, x1: i32, x2: i32) {
+unsafe fn R_MapPlane(y: i32, x1: i32, x2: i32) {
     if (x2 < x1)
     || (x1 < 0)
     || (x2 >= viewwidth)
@@ -230,4 +229,34 @@ pub unsafe extern "C" fn R_CheckPlane (ppl: *mut visplane_t, start: i32, stop: i
     (*pl).top = [0xff; SCREENWIDTH as usize];
         
     return pl;
+}
+
+
+//
+// R_MakeSpans
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_MakeSpans(x: i32, pt1: i32, pb1: i32, pt2: i32, pb2: i32) {
+    let mut t1 = pt1;
+    let mut t2 = pt2;
+    let mut b1 = pb1;
+    let mut b2 = pb2;
+
+    while (t1 < t2) && (t1<=b1) {
+        R_MapPlane (t1,spanstart[t1 as usize],x-1);
+        t1 += 1;
+    }
+    while (b1 > b2) && (b1>=t1) {
+        R_MapPlane (b1,spanstart[b1 as usize],x-1);
+        b1 -= 1;
+    }
+	
+    while (t2 < t1) && (t2<=b2) {
+        spanstart[t2 as usize] = x;
+        t2 += 1;
+    }
+    while (b2 > b1) && (b2>=t2) {
+        spanstart[b2 as usize] = x;
+        b2 -= 1;
+    }
 }

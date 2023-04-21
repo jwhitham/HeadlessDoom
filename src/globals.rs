@@ -123,4 +123,5 @@ extern {
     pub static mut visplanes: [visplane_t; MAXVISPLANES as usize];
     pub static mut lastvisplane: *mut visplane_t;
     pub static mut openings: [i16; MAXOPENINGS as usize];
+    pub static mut spanstart: [i32; SCREENHEIGHT as usize];
 }
