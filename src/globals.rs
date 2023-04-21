@@ -112,4 +112,12 @@ extern {
     pub static mut framecount: i32;
     pub static mut numnodes: i32;
     pub static mut scalelightfixed: [*mut lighttable_t; MAXLIGHTSCALE as usize];
+    pub static mut planeheight: fixed_t;
+    pub static mut cachedheight: [fixed_t; SCREENHEIGHT as usize];
+    pub static mut cacheddistance: [fixed_t; SCREENHEIGHT as usize];
+    pub static mut cachedystep: [fixed_t; SCREENHEIGHT as usize];
+    pub static mut cachedxstep: [fixed_t; SCREENHEIGHT as usize];
+    pub static mut basexscale: fixed_t;
+    pub static mut baseyscale: fixed_t;
+    pub static mut planezlight: *mut *mut lighttable_t;
 }

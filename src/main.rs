@@ -12,6 +12,7 @@ mod r_bsp;
 mod r_main;
 mod m_fixed;
 mod tables;
+mod r_plane;
 
 extern {
     fn D_DoomMain();
