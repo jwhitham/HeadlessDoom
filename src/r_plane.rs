@@ -27,6 +27,7 @@ use crate::defs::*;
 use crate::globals::*;
 // use crate::funcs::*;
 use crate::m_fixed::FixedMul;
+use crate::m_fixed::FixedDiv;
 use crate::tables::finesine;
 
 
@@ -96,5 +97,31 @@ pub unsafe extern "C" fn R_MapPlane(y: i32, x1: i32, x2: i32) {
 
     // high or low detail
     spanfunc ();	
+}
+
+//
+// R_ClearPlanes
+// At begining of frame.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_ClearPlanes () {
+    // opening / clipping determination
+    for i in 0 .. viewwidth as usize {
+        floorclip[i] = viewheight as i16;
+        ceilingclip[i] = -1;
+    }
+
+    lastvisplane = visplanes.as_mut_ptr();
+    lastopening = openings.as_mut_ptr();
+    
+    // texture calculation
+    cachedheight = [0; SCREENHEIGHT as usize];
+
+    // left to right mapping
+    let angle: angle_t = viewangle.wrapping_sub(ANG90)>>ANGLETOFINESHIFT;
+    
+    // scale will be unit scale at SCREENWIDTH/2 distance
+    basexscale = FixedDiv (*finecosine.offset(angle as isize),centerxfrac);
+    baseyscale = -FixedDiv (finesine[angle as usize],centerxfrac);
 }
 

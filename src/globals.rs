@@ -120,4 +120,7 @@ extern {
     pub static mut basexscale: fixed_t;
     pub static mut baseyscale: fixed_t;
     pub static mut planezlight: *mut *mut lighttable_t;
+    pub static mut visplanes: [visplane_t; MAXVISPLANES as usize];
+    pub static mut lastvisplane: *mut visplane_t;
+    pub static mut openings: [i16; MAXOPENINGS as usize];
 }

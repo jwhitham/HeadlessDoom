@@ -2865,3 +2865,6 @@ typedef enum
     BOXLEFT,
     BOXRIGHT
 } bbox_t;	// bbox coordinates
+
+#define MAXVISPLANES	128
+#define MAXOPENINGS	SCREENWIDTH*64
