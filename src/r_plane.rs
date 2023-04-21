@@ -168,3 +168,66 @@ pub unsafe extern "C" fn R_FindPlane(pheight: fixed_t, picnum: i32, plightlevel:
     return check;
 }
 
+
+//
+// R_CheckPlane
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_CheckPlane (ppl: *mut visplane_t, start: i32, stop: i32) -> *mut visplane_t {
+    
+    let intrl: i32;
+    let unionl: i32;
+    let mut pl = ppl;
+
+    if start < (*pl).minx {
+        intrl = (*pl).minx;
+        unionl = start;
+    } else {
+        unionl = (*pl).minx;
+        intrl = start;
+    }
+
+    let intrh: i32;
+    let unionh: i32;
+    
+    if stop > (*pl).maxx {
+        intrh = (*pl).maxx;
+        unionh = stop;
+    } else {
+        unionh = (*pl).maxx;
+        intrh = stop;
+    }
+
+    let mut use_same_one = true;
+    for x in intrl ..= intrh {
+        if (*pl).top[x as usize] != 0xff {
+            use_same_one = false;
+            break;
+        }
+    }
+
+    if use_same_one {
+        (*pl).minx = unionl;
+        (*pl).maxx = unionh;
+
+        // use the same one
+        return pl;		
+    }
+    
+    if lastvisplane == visplanes.as_mut_ptr().offset(MAXVISPLANES as isize) {
+        panic!("R_CheckPlane: no more visplanes");
+    }
+    // make a new visplane
+    (*lastvisplane).height = (*pl).height;
+    (*lastvisplane).picnum = (*pl).picnum;
+    (*lastvisplane).lightlevel = (*pl).lightlevel;
+   
+    pl = lastvisplane;
+    lastvisplane = lastvisplane.offset(1);
+    (*pl).minx = start;
+    (*pl).maxx = stop;
+
+    (*pl).top = [0xff; SCREENWIDTH as usize];
+        
+    return pl;
+}
