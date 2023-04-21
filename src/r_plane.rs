@@ -125,3 +125,46 @@ pub unsafe extern "C" fn R_ClearPlanes () {
     baseyscale = -FixedDiv (finesine[angle as usize],centerxfrac);
 }
 
+//
+// R_FindPlane
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_FindPlane(pheight: fixed_t, picnum: i32, plightlevel: i32) -> *mut visplane_t {
+    
+    let mut height = pheight;
+    let mut lightlevel = plightlevel;
+
+    if picnum == skyflatnum {
+        height = 0;			// all skys map together
+        lightlevel = 0;
+    }
+    
+    let mut check: *mut visplane_t = visplanes.as_mut_ptr();
+    while check < lastvisplane {
+        if (height == (*check).height)
+        && (picnum == (*check).picnum)
+        && (lightlevel == (*check).lightlevel) {
+            break;
+        }
+        check = check.offset(1);
+    }
+
+    if check < lastvisplane {
+        return check;
+    }
+        
+    if lastvisplane == visplanes.as_mut_ptr().offset(MAXVISPLANES as isize) {
+        panic!("R_FindPlane: no more visplanes");
+    }
+        
+    lastvisplane = lastvisplane.offset(1);
+
+    (*check).height = height;
+    (*check).picnum = picnum;
+    (*check).lightlevel = lightlevel;
+    (*check).minx = SCREENWIDTH as i32;
+    (*check).maxx = -1;
+    (*check).top = [0xff; SCREENWIDTH as usize];
+    return check;
+}
+
