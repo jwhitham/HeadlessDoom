@@ -166,62 +166,6 @@ fixed_t*	spritetopoffset;
 lighttable_t	*colormaps;
 
 
-//
-// MAPTEXTURE_T CACHING
-// When a texture is first needed,
-//  it counts the number of composite columns
-//  required in the texture and allocates space
-//  for a column directory and any new columns.
-// The directory will simply point inside other patches
-//  if there is only one patch in a given column,
-//  but any columns with multiple patches
-//  will have new column_ts generated.
-//
-
-
-
-//
-// R_DrawColumnInCache
-// Clip and draw a column
-//  from a patch into a cached post.
-//
-void
-R_DrawColumnInCache
-( column_t*	patch,
-  byte*		cache,
-  int		originy,
-  int		cacheheight )
-{
-    int		count;
-    int		position;
-    byte*	source;
-    byte*	dest;
-	
-    dest = (byte *)cache + 3;
-	
-    while (patch->topdelta != 0xff)
-    {
-	source = (byte *)patch + 3;
-	count = patch->length;
-	position = originy + patch->topdelta;
-
-	if (position < 0)
-	{
-	    count += position;
-	    position = 0;
-	}
-
-	if (position + count > cacheheight)
-	    count = cacheheight - position;
-
-	if (count > 0)
-	    memcpy (cache + position, source, count);
-		
-	patch = (column_t *)(  (byte *)patch + patch->length + 4); 
-    }
-}
-
-
 
 //
 // R_GenerateComposite

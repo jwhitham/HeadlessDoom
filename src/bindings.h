@@ -2866,6 +2866,80 @@ typedef enum
     BOXRIGHT
 } bbox_t;	// bbox coordinates
 
+///////// r_plane.c
+
 #define MAXVISPLANES	128
 #define MAXOPENINGS	SCREENWIDTH*64
+
+///////// r_sky.c
+
 #define ANGLETOSKYSHIFT 22
+
+///////// r_data.c
+
+
+//
+// Texture definition.
+// Each texture is composed of one or more patches,
+// with patches being lumps stored in the WAD.
+// The lumps are referenced by number, and patched
+// into the rectangular texture space using origin
+// and possibly other attributes.
+//
+typedef struct
+{
+    short	originx;
+    short	originy;
+    short	patch;
+    short	stepdir;
+    short	colormap;
+} mappatch_t;
+
+
+//
+// Texture definition.
+// A DOOM wall texture is a list of patches
+// which are to be combined in a predefined order.
+//
+typedef struct
+{
+    char		name[8];
+    c_boolean		masked;	
+    short		width;
+    short		height;
+    int		columndirectory;	// OBSOLETE // DSB-3 - 64-bit compat, use 4 bytes
+    short		patchcount;
+    mappatch_t	patches[1];
+} maptexture_t;
+
+
+// A single patch from a texture definition,
+//  basically a rectangular area within
+//  the texture rectangle.
+typedef struct
+{
+    // Block origin (allways UL),
+    // which has allready accounted
+    // for the internal origin of the patch.
+    int		originx;	
+    int		originy;
+    int		patch;
+} texpatch_t;
+
+
+// A maptexturedef_t describes a rectangular texture,
+//  which is composed of one or more mappatch_t structures
+//  that arrange graphic patches.
+typedef struct
+{
+    // Keep name for switch changing, etc.
+    char	name[8];		
+    short	width;
+    short	height;
+    
+    // All the patches[patchcount]
+    //  are drawn back to front into the cached texture.
+    short	patchcount;
+    texpatch_t	patches[1];		
+    
+} texture_t;

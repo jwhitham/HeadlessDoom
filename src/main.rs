@@ -14,6 +14,7 @@ mod m_fixed;
 mod tables;
 mod r_plane;
 mod r_sky;
+mod r_data;
 
 extern {
     fn D_DoomMain();
