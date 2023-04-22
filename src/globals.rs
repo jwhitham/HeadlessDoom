@@ -128,7 +128,7 @@ extern {
     pub static mut skytexture: i32;
     pub static mut firstflat: i32;
     pub static mut flattranslation: *mut i32;
-    pub static mut texturecolumnofs: *mut u16;
+    pub static mut texturecolumnofs: *mut *mut u16;
     //pub static mut lastflat: i32;
     //pub static mut numflats: i32;
     //pub static mut firstpatch: i32;

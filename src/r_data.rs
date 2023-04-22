@@ -60,8 +60,7 @@ use crate::funcs::*;
 // Clip and draw a column
 //  from a patch into a cached post.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_DrawColumnInCache(
+unsafe fn R_DrawColumnInCache(
         ppatch: *mut column_t,
         cache: *mut u8,
         originy: i32,
@@ -112,7 +111,7 @@ pub unsafe extern "C" fn R_GenerateComposite (texnum: i32) {
     memset (block.offset(unpadded_size as isize), 0, pad_size as usize);
     assert!(*texturecomposite.offset(texnum as isize) == block);
     let collump: *mut i16 = *texturecolumnlump.offset(texnum as isize);
-    let colofs: *mut u16 = texturecolumnofs.offset(texnum as isize);
+    let colofs: *mut u16 = *texturecolumnofs.offset(texnum as isize);
 
     // Composite the columns together.
     let mut patch: *mut texpatch_t = (*texture).patches.as_mut_ptr();
