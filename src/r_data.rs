@@ -68,7 +68,7 @@ pub unsafe extern "C" fn R_DrawColumnInCache(
         cacheheight: i32) {
 
     let mut patch = ppatch;
-    
+
     while (*patch).topdelta != 0xff {
         let source: *mut u8 = (patch as *mut u8).offset(3);
         let mut count: i32 = (*patch).length as i32;
@@ -86,10 +86,63 @@ pub unsafe extern "C" fn R_DrawColumnInCache(
         if count > 0 {
             memcpy (cache.offset(position as isize), source, count as usize);
         }
-            
+
         patch = (patch as *mut u8).offset(((*patch).length + 4) as isize)
                     as *mut column_t;
     }
 }
 
 
+//
+// R_GenerateComposite
+// Using the texture definition,
+//  the composite texture is created from the patches,
+//  and each column is cached.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_GenerateComposite (texnum: i32) {
+    let texture: *mut texture_t = *textures.offset(texnum as isize);
+
+    const pad_size: i32 = 128;
+    let unpadded_size: i32 = *texturecompositesize.offset(texnum as isize);
+    let block: *mut u8 = Z_Malloc
+        (unpadded_size + pad_size, // DSB-21
+          PU_STATIC as i32,
+          texturecomposite.offset(texnum as isize).as_mut().unwrap());
+    memset (block.offset(unpadded_size as isize), 0, pad_size as usize);
+    assert!(*texturecomposite.offset(texnum as isize) == block);
+    let collump: *mut i16 = *texturecolumnlump.offset(texnum as isize);
+    let colofs: *mut u16 = texturecolumnofs.offset(texnum as isize);
+
+    // Composite the columns together.
+    let mut patch: *mut texpatch_t = (*texture).patches.as_mut_ptr();
+
+    for _ in 0 .. (*texture).patchcount {
+        let realpatch: *mut patch_t = W_CacheLumpNum ((*patch).patch, PU_CACHE);
+        let x1: i32 = (*patch).originx;
+        let x2: i32 = i32::min(x1 + i16::from_le((*realpatch).width) as i32,
+                               (*texture).width as i32);
+
+        for x in i32::max(0, x1) .. x2 {
+            // Column does not have multiple patches?
+            if *collump.offset(x as isize) >= 0 {
+                continue;
+            }
+
+            let patchcol: *mut column_t =
+                (realpatch as *mut u8).offset(
+                    i32::from_le(*(*realpatch).columnofs.as_ptr().
+                                    offset((x - x1) as isize)) as isize)
+                        as *mut column_t;
+            R_DrawColumnInCache (patchcol,
+                     block.offset(*colofs.offset(x as isize) as isize),
+                     (*patch).originy,
+                     (*texture).height as i32);
+        }
+        patch = patch.offset(1);
+    }
+
+    // Now that the texture has been built in column cache,
+    //  it is purgable from zone memory.
+    Z_ChangeTag2 (block, PU_CACHE as i32);
+}

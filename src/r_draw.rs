@@ -238,25 +238,24 @@ pub extern "C" fn R_DrawTranslatedColumn () {
 // Could be read from a lump instead.
 //
 #[no_mangle]
-pub extern "C" fn R_InitTranslationTables () {
-    unsafe {
-        translationtables = Z_Malloc (256*3+255, PU_STATIC, std::ptr::null());
-        //translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // DSB-3
-        
-        // translate just the 16 green colors
-        for i in 0 as u8 ..= 255 {
-            let j: isize = i as isize;
-            if i >= 0x70 && i<= 0x7f {
-                // map green ramp to gray, brown, red
-                *translationtables.offset(j) = 0x60 + (i&0xf);
-                *translationtables.offset(j+256) = 0x40 + (i&0xf);
-                *translationtables.offset(j+512) = 0x20 + (i&0xf);
-            } else {
-                // Keep all other colors as is.
-                *translationtables.offset(j) = i;
-                *translationtables.offset(j+256) = i;
-                *translationtables.offset(j+512) = i;
-            }
+pub unsafe extern "C" fn R_InitTranslationTables () {
+    translationtables = Z_Malloc (256*3+255, PU_STATIC,
+                                        std::ptr::null_mut());
+    //translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // DSB-3
+    
+    // translate just the 16 green colors
+    for i in 0 as u8 ..= 255 {
+        let j: isize = i as isize;
+        if i >= 0x70 && i<= 0x7f {
+            // map green ramp to gray, brown, red
+            *translationtables.offset(j) = 0x60 + (i&0xf);
+            *translationtables.offset(j+256) = 0x40 + (i&0xf);
+            *translationtables.offset(j+512) = 0x20 + (i&0xf);
+        } else {
+            // Keep all other colors as is.
+            *translationtables.offset(j) = i;
+            *translationtables.offset(j+256) = i;
+            *translationtables.offset(j+512) = i;
         }
     }
 }

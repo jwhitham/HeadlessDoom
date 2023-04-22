@@ -3,7 +3,7 @@
 use crate::defs::*;
 extern {
     pub fn R_GetColumn (tex: i32, col: i32) -> *mut u8;
-    pub fn Z_Malloc(size: i32, tag: i32, user: *const u8) -> *mut u8;
+    pub fn Z_Malloc(size: i32, tag: i32, user: *mut *mut u8) -> *mut u8;
     pub fn R_PointOnSegSide(x: fixed_t, y: fixed_t, line: *mut seg_t) -> i32;
     pub fn R_RenderMaskedSegRange(ds: *mut drawseg_t, x1: i32, x2: i32);
     pub fn R_PointToAngle(x: fixed_t, y: fixed_t) -> angle_t;

@@ -179,7 +179,7 @@ unsafe fn R_InitSpriteDefs (namelist: *mut *mut i8) {
     }
 
     sprites = Z_Malloc(numsprites * std::mem::size_of::<spritedef_t>() as i32,
-                PU_STATIC, std::ptr::null()) as *mut spritedef_t;
+                PU_STATIC, std::ptr::null_mut()) as *mut spritedef_t;
     
     let start = firstspritelump-1;
     let end = lastspritelump+1;
@@ -262,7 +262,7 @@ unsafe fn R_InitSpriteDefs (namelist: *mut *mut i8) {
         (*sprite).numframes = maxframe;
         (*sprite).spriteframes = 
             Z_Malloc ((maxframe as i32) * (std::mem::size_of::<spriteframe_t>() as i32),
-                      PU_STATIC, std::ptr::null()) as *mut spriteframe_t;
+                      PU_STATIC, std::ptr::null_mut()) as *mut spriteframe_t;
         memcpy ((*sprite).spriteframes as *mut u8, sprtemp.as_ptr() as *const u8,
                         (maxframe as usize) * (std::mem::size_of::<spriteframe_t>() as usize));
     }
