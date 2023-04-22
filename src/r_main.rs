@@ -45,6 +45,9 @@ use crate::tables::tantoangle;
 use crate::tables::SlopeDiv;
 use crate::tables::finesine;
 use crate::tables::finetangent;
+use crate::r_plane::R_DrawPlanes;
+use crate::r_plane::R_ClearPlanes;
+use crate::r_plane::R_InitPlanes;
 
 
 // Fineangles in the SCREENWIDTH wide window.

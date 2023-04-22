@@ -33,7 +33,7 @@ extern {
     pub static mut ds_yfrac: fixed_t; 
     pub static mut ds_xstep: fixed_t; 
     pub static mut ds_ystep: fixed_t;
-    pub static mut ds_source: *const u8;
+    pub static mut ds_source: *mut u8;
     pub static mut viewwindowx: i32;
     pub static mut viewwindowy: i32;
     pub static mut screens: [*mut u8; 5];
@@ -124,4 +124,8 @@ extern {
     pub static mut lastvisplane: *mut visplane_t;
     pub static mut openings: [i16; MAXOPENINGS as usize];
     pub static mut spanstart: [i32; SCREENHEIGHT as usize];
+    pub static mut skytexturemid: i32;
+    pub static mut skytexture: i32;
+    pub static mut firstflat: i32;
+    pub static mut flattranslation: *mut i32;
 }

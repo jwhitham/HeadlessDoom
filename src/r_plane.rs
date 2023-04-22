@@ -25,7 +25,7 @@
 
 use crate::defs::*;
 use crate::globals::*;
-// use crate::funcs::*;
+use crate::funcs::*;
 use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
 use crate::tables::finesine;
@@ -35,8 +35,7 @@ use crate::tables::finesine;
 // R_InitPlanes
 // Only at game startup.
 //
-#[no_mangle]
-pub extern "C" fn R_InitPlanes () {
+pub fn R_InitPlanes () {
     // Doh!
 }
 
@@ -102,8 +101,7 @@ unsafe fn R_MapPlane(y: i32, x1: i32, x2: i32) {
 // R_ClearPlanes
 // At begining of frame.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_ClearPlanes () {
+pub unsafe fn R_ClearPlanes () {
     // opening / clipping determination
     for i in 0 .. viewwidth as usize {
         floorclip[i] = viewheight as i16;
@@ -235,8 +233,7 @@ pub unsafe extern "C" fn R_CheckPlane (ppl: *mut visplane_t, start: i32, stop: i
 //
 // R_MakeSpans
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_MakeSpans(x: i32, pt1: i32, pb1: i32, pt2: i32, pb2: i32) {
+unsafe fn R_MakeSpans(x: i32, pt1: i32, pb1: i32, pt2: i32, pb2: i32) {
     let mut t1 = pt1;
     let mut t2 = pt2;
     let mut b1 = pb1;
@@ -258,5 +255,84 @@ pub unsafe extern "C" fn R_MakeSpans(x: i32, pt1: i32, pb1: i32, pt2: i32, pb2: 
     while (b2 > b1) && (b2>=t2) {
         spanstart[b2 as usize] = x;
         b2 -= 1;
+    }
+}
+
+//
+// R_DrawPlanes
+// At the end of each frame.
+//
+pub unsafe fn R_DrawPlanes () {
+    if ds_p > drawsegs.as_mut_ptr().offset(MAXDRAWSEGS as isize) {
+        panic!("R_DrawPlanes: drawsegs overflow");
+    }
+    
+    if lastvisplane > visplanes.as_mut_ptr().offset(MAXVISPLANES as isize) {
+        panic!("R_DrawPlanes: visplane overflow");
+    }
+    
+    if lastopening > openings.as_mut_ptr().offset(MAXOPENINGS as isize) {
+        panic!("R_DrawPlanes: opening overflow");
+    }
+
+    let mut pl = visplanes.as_mut_ptr().offset(-1);
+    loop {
+        pl = pl.offset(1);
+        if pl >= lastvisplane {
+            break;
+        }
+        if (*pl).minx > (*pl).maxx {
+            continue;
+        }
+    
+        // sky flat
+        if (*pl).picnum == skyflatnum {
+            dc_iscale = pspriteiscale>>detailshift;
+            
+            // Sky is allways drawn full bright,
+            //  i.e. colormaps[0] is used.
+            // Because of this hack, sky is not affected
+            //  by INVUL inverse mapping.
+            dc_colormap = colormaps;
+            dc_texturemid = skytexturemid;
+            for x in (*pl).minx ..= (*pl).maxx {
+                dc_yl = (*pl).top[x as usize] as i32;
+                dc_yh = (*pl).bottom[x as usize] as i32;
+
+                if dc_yl <= dc_yh {
+                    let angle = viewangle.wrapping_add(xtoviewangle[x as usize])>>ANGLETOSKYSHIFT;
+                    dc_x = x;
+                    dc_source = R_GetColumn(skytexture, angle as i32);
+                    colfunc ();
+                }
+            }
+            continue;
+        }
+    
+        // regular flat
+        ds_source = W_CacheLumpNum(firstflat +
+                       *flattranslation.offset((*pl).picnum as isize),
+                       PU_STATIC) as *mut u8;
+        
+        planeheight = i32::abs((*pl).height-viewz);
+        let light = i32::max(0, i32::min((LIGHTLEVELS - 1) as i32,
+                                 ((*pl).lightlevel >> LIGHTSEGSHIFT)+extralight));
+
+
+        planezlight = zlight[light as usize].as_mut_ptr();
+
+        // top and bottom are arrays but indexes of -1 and SCREENWIDTH need to be valid
+        *(*pl).top.as_mut_ptr().offset(((*pl).maxx as isize) + 1) = 0xff;
+        *(*pl).top.as_mut_ptr().offset(((*pl).minx as isize) - 1) = 0xff;
+            
+        for x in (*pl).minx ..= (*pl).maxx + 1 {
+            R_MakeSpans(x,
+                *(*pl).top.as_ptr().offset((x as isize) - 1) as i32,
+                *(*pl).bottom.as_ptr().offset((x as isize) - 1) as i32,
+                *(*pl).top.as_ptr().offset(x as isize) as i32,
+                *(*pl).bottom.as_ptr().offset(x as isize) as i32);
+        }
+        
+        Z_ChangeTag2(ds_source, PU_CACHE as i32);
     }
 }

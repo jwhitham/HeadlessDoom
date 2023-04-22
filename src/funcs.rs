@@ -19,10 +19,8 @@ extern {
     pub fn R_DrawColumnLow();
     pub fn R_DrawSpanLow();
     pub fn R_InitData();
-    pub fn R_InitPlanes();
     pub fn R_InitSkyMap();
     pub fn R_InitTranslationTables();
-    pub fn R_ClearPlanes();
-    pub fn R_DrawPlanes();
     pub fn NetUpdate();
+    pub fn Z_ChangeTag2(ptr: *mut u8, tag: i32);
 }
