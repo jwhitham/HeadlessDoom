@@ -100,6 +100,7 @@ unsafe fn R_DrawColumnInCache(
 //
 #[no_mangle]
 pub unsafe extern "C" fn R_GenerateComposite (texnum: i32) {
+
     let texture: *mut texture_t = *textures.offset(texnum as isize);
 
     const pad_size: i32 = 128;
@@ -145,3 +146,62 @@ pub unsafe extern "C" fn R_GenerateComposite (texnum: i32) {
     //  it is purgable from zone memory.
     Z_ChangeTag2 (block, PU_CACHE as i32);
 }
+
+//
+// R_GenerateLookup
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_GenerateLookup (texnum: i32) {
+    
+    let texture: *mut texture_t = *textures.offset(texnum as isize);
+
+    // Composited texture not created yet.
+    *texturecomposite.offset(texnum as isize) = std::ptr::null_mut();
+    
+    let mut size: i32 = 0;
+    let collump: *mut i16 = *texturecolumnlump.offset(texnum as isize);
+    let colofs: *mut u16 = *texturecolumnofs.offset(texnum as isize);
+    
+    // Now count the number of columns
+    //  that are covered by more than one patch.
+    // Fill in the lump / offset, so columns
+    //  with only a single patch are all done.
+    let mut patchcount = [0 as u8; 256];
+    assert!((*texture).width <= 256);
+    let mut patch: *mut texpatch_t = (*texture).patches.as_mut_ptr();
+
+    for _ in 0 .. (*texture).patchcount {
+        let realpatch: *mut patch_t = W_CacheLumpNum ((*patch).patch, PU_CACHE);
+        let x1: i32 = (*patch).originx;
+        let x2: i32 = i32::min(x1 + i16::from_le((*realpatch).width) as i32,
+                               (*texture).width as i32);
+
+        for x in i32::max(0, x1) .. x2 {
+            patchcount[x as usize] += 1;
+            *collump.offset(x as isize) = (*patch).patch as i16;
+            *colofs.offset(x as isize) = i32::from_le(*(*realpatch).columnofs.as_ptr().
+                                    offset((x - x1) as isize)) as u16 + 3;
+        }
+        patch = patch.offset(1);
+    }
+    for x in 0 .. (*texture).width {
+        if patchcount[x as usize] == 0 {
+            panic!("R_GenerateLookup: column without a patch ({})\n",
+                    std::ffi::CStr::from_ptr((*texture).name.as_ptr()).to_str().unwrap());
+        }
+        // I_Error ("R_GenerateLookup: column without a patch");
+
+        if patchcount[x as usize] > 1 {
+            // Use the cached block.
+            *collump.offset(x as isize) = -1;
+            *colofs.offset(x as isize) = size as u16;
+            size += (*texture).height as i32;
+
+            if size > 0x10000 {
+                panic!("R_GenerateLookup: texture {} is >64k", texnum);
+            }
+        }
+    }	
+    *texturecompositesize.offset(texnum as isize) = size;
+}
+
