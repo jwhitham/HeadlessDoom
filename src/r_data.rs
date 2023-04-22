@@ -98,8 +98,7 @@ unsafe fn R_DrawColumnInCache(
 //  the composite texture is created from the patches,
 //  and each column is cached.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_GenerateComposite (texnum: i32) {
+unsafe fn R_GenerateComposite (texnum: i32) {
 
     let texture: *mut texture_t = *textures.offset(texnum as isize);
 
@@ -203,5 +202,27 @@ pub unsafe extern "C" fn R_GenerateLookup (texnum: i32) {
         }
     }	
     *texturecompositesize.offset(texnum as isize) = size;
+}
+
+//
+// R_GetColumn
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_GetColumn(tex: i32, pcol: i32) -> *mut u8 {
+    let col: i32 = pcol & (*texturewidthmask.offset(tex as isize) as i32);
+    let collump: *mut i16 = *texturecolumnlump.offset(tex as isize);
+    let colofs: *mut u16 = *texturecolumnofs.offset(tex as isize);
+    let lump: i16 = *collump.offset(col as isize);
+    let ofs: u16 = *colofs.offset(col as isize);
+
+    if lump > 0 {
+        return (W_CacheLumpNum(lump as i32, PU_CACHE) as *mut u8).offset(ofs as isize);
+    }
+
+    if *texturecomposite.offset(tex as isize) == std::ptr::null_mut() {
+        R_GenerateComposite (tex);
+    }
+
+    return (*texturecomposite.offset(tex as isize)).offset(ofs as isize);
 }
 
