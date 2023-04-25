@@ -240,8 +240,8 @@ pub unsafe extern "C" fn R_InitTextures () {
     let name_p: *mut u8 = names.offset(4);
     let mut patchlookup: Vec<i32> = Vec::new();
     
-    for _ in 0 .. nummappatches {
-        memcpy (name.as_mut_ptr(), name_p, 8);
+    for i in 0 .. nummappatches {
+        memcpy (name.as_mut_ptr(), name_p.offset((i as isize) * 8), 8);
         patchlookup.push(W_CheckNumForName (name.as_ptr()));
     }
     Z_Free (names);
@@ -368,3 +368,22 @@ pub unsafe extern "C" fn R_InitTextures () {
         *texturetranslation.offset(i as isize) = i;
     }
 }
+
+/*
+R_Init: Init DOOM refresh daemon - [.....texture AASTINKY patchcount 2
+  x1 0 x2 16 rpw 16 w 24
+  x1 12 x2 24 rpw 16 w 24
+texture BIGDOOR1 patchcount 5
+  x1 0 x2 64 rpw 64 w 128
+  x1 0 x2 64 rpw 64 w 128
+  x1 17 x2 113 rpw 96 w 128
+  x1 113 x2 128 rpw 64 w 128
+  x1 113 x2 128 rpw 64 w 128
+texture BIGDOOR2 patchcount 1
+  x1 0 x2 128 rpw 128 w 128
+texture BIGDOOR4 patchcount 1
+  x1 0 x2 128 rpw 128 w 128
+texture BRNBIGC patchcount 1
+
+
+*/
