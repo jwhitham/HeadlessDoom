@@ -188,7 +188,6 @@ pub extern "C" fn R_DrawFuzzColumn () {
 //  of the BaronOfHell, the HellKnight, uses
 //  identical sprites, kinda brightened up.
 //
-const PU_STATIC: i32 = 1;
 
 #[no_mangle]
 pub extern "C" fn R_DrawTranslatedColumn () {

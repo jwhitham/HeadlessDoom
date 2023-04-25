@@ -333,6 +333,6 @@ pub unsafe fn R_DrawPlanes () {
                 *(*pl).bottom.as_ptr().offset(x as isize) as i32);
         }
         
-        Z_ChangeTag2(ds_source, PU_CACHE as i32);
+        Z_ChangeTag2(ds_source, PU_CACHE);
     }
 }

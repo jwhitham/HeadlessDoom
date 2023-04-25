@@ -106,7 +106,7 @@ unsafe fn R_GenerateComposite (texnum: i32) {
     let unpadded_size: i32 = *texturecompositesize.offset(texnum as isize);
     let block: *mut u8 = Z_Malloc
         (unpadded_size + pad_size, // DSB-21
-          PU_STATIC as i32,
+          PU_STATIC,
           texturecomposite.offset(texnum as isize).as_mut().unwrap());
     memset (block.offset(unpadded_size as isize), 0, pad_size as usize);
     assert!(*texturecomposite.offset(texnum as isize) == block);
@@ -117,7 +117,7 @@ unsafe fn R_GenerateComposite (texnum: i32) {
     let mut patch: *mut texpatch_t = (*texture).patches.as_mut_ptr();
 
     for _ in 0 .. (*texture).patchcount {
-        let realpatch: *mut patch_t = W_CacheLumpNum ((*patch).patch, PU_CACHE);
+        let realpatch: *mut patch_t = W_CacheLumpNum ((*patch).patch, PU_CACHE) as *mut patch_t;
         let x1: i32 = (*patch).originx;
         let x2: i32 = i32::min(x1 + i16::from_le((*realpatch).width) as i32,
                                (*texture).width as i32);
@@ -143,7 +143,7 @@ unsafe fn R_GenerateComposite (texnum: i32) {
 
     // Now that the texture has been built in column cache,
     //  it is purgable from zone memory.
-    Z_ChangeTag2 (block, PU_CACHE as i32);
+    Z_ChangeTag2 (block, PU_CACHE);
 }
 
 //
@@ -170,7 +170,7 @@ pub unsafe extern "C" fn R_GenerateLookup (texnum: i32) {
     let mut patch: *mut texpatch_t = (*texture).patches.as_mut_ptr();
 
     for _ in 0 .. (*texture).patchcount {
-        let realpatch: *mut patch_t = W_CacheLumpNum ((*patch).patch, PU_CACHE);
+        let realpatch: *mut patch_t = W_CacheLumpNum ((*patch).patch, PU_CACHE) as *mut patch_t;
         let x1: i32 = (*patch).originx;
         let x2: i32 = i32::min(x1 + i16::from_le((*realpatch).width) as i32,
                                (*texture).width as i32);
@@ -185,8 +185,7 @@ pub unsafe extern "C" fn R_GenerateLookup (texnum: i32) {
     }
     for x in 0 .. (*texture).width {
         if patchcount[x as usize] == 0 {
-            panic!("R_GenerateLookup: column without a patch ({})\n",
-                    std::ffi::CStr::from_ptr((*texture).name.as_ptr()).to_str().unwrap());
+            panic!("R_GenerateLookup: column without a patch ({})\n", W_Name((*texture).name.as_ptr()));
         }
         // I_Error ("R_GenerateLookup: column without a patch");
 
@@ -226,3 +225,146 @@ pub unsafe extern "C" fn R_GetColumn(tex: i32, pcol: i32) -> *mut u8 {
     return (*texturecomposite.offset(tex as isize)).offset(ofs as isize);
 }
 
+//
+// R_InitTextures
+// Initializes the texture list
+//  with the textures from the world map.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_InitTextures () {
+    
+    // Load the patch names from pnames.lmp.
+    let mut name: [u8; 9] = [0; 9];
+    let names: *mut u8 = W_CacheLumpName ("PNAMES\0".as_ptr(), PU_STATIC);
+    let nummappatches: i32 = i32::from_le(*(names as *mut i32));
+    let name_p: *mut u8 = names.offset(4);
+    let mut patchlookup: Vec<i32> = Vec::new();
+    
+    for _ in 0 .. nummappatches {
+        memcpy (name.as_mut_ptr(), name_p, 8);
+        patchlookup.push(W_CheckNumForName (name.as_ptr()));
+    }
+    Z_Free (names);
+    
+    // Load the map texture definitions from textures.lmp.
+    // The data is contained in one or two lumps,
+    //  TEXTURE1 for shareware, plus TEXTURE2 for commercial.
+    let maptex1: *mut i32 = W_CacheLumpName ("TEXTURE1\0".as_ptr(), PU_STATIC) as *mut i32;
+    let mut maptex: *mut i32 = maptex1;
+    let numtextures1: i32 = i32::from_le(*maptex);
+    let mut maxoff: i32 = W_LumpLength (W_GetNumForName ("TEXTURE1\0".as_ptr()));
+    let mut directory: *mut i32 = maptex.offset(1);
+    let mut maptex2: *mut i32 = std::ptr::null_mut();
+    let mut numtextures2: i32 = 0;
+    let mut maxoff2: i32 = 0;
+
+    if W_CheckNumForName ("TEXTURE2\0".as_ptr()) != -1 {
+        maptex2 = W_CacheLumpName ("TEXTURE2\0".as_ptr(), PU_STATIC) as *mut i32;
+        numtextures2 = i32::from_le(*maptex2);
+        maxoff2 = W_LumpLength (W_GetNumForName ("TEXTURE2\0".as_ptr()));
+    }
+    let numtextures = numtextures1 + numtextures2;
+
+    let sizeof_ptr = std::mem::size_of::<*mut u8>() as i32;
+    textures = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut texture_t;
+    texturecolumnlump = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut i16;
+    texturecolumnofs = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut u16;
+    texturecomposite = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut u8;
+    texturecompositesize = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    texturewidthmask = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    textureheight = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+
+    //        Really complex printing shit...
+    let temp1: i32 = W_GetNumForName ("S_START\0".as_ptr());  // P_???????
+    let temp2: i32 = W_GetNumForName ("S_END\0".as_ptr()) - 1;
+    let temp3: i32 = ((temp2-temp1+63)/64) + ((numtextures+63)/64);
+    print!("[");
+    for _ in 0 .. temp3 {
+        print!(" ");
+    }
+    print!("         ]");
+    for _ in 0 .. temp3 {
+        print!("\x08");
+    }
+    print!("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08");        
+       
+    for i in 0 .. numtextures {
+        if 0 == (i&63) {
+            print!(".");
+        }
+
+        if i == numtextures1 {
+            // Start looking in second texture file.
+            maptex = maptex2;
+            maxoff = maxoff2;
+            directory = maptex.offset(1);
+        }
+                
+        let offset: i32 = i32::from_le(*directory);
+
+        if offset > maxoff {
+            panic!("R_InitTextures: bad texture directory");
+        }
+        
+        let mtexture: *mut maptexture_t = (maptex as *mut u8).offset(offset as isize) as *mut maptexture_t;
+
+        let texture: *mut texture_t = 
+            Z_Malloc ((std::mem::size_of::<texture_t>() as i32)
+                      + ((std::mem::size_of::<texpatch_t>() as i32) *
+                            ((i16::from_le((*mtexture).patchcount) as i32) - 1)),
+                      PU_STATIC, std::ptr::null_mut()) as *mut texture_t;
+        *textures.offset(i as isize) = texture;
+        (*texture).width = i16::from_le((*mtexture).width);
+        (*texture).height = i16::from_le((*mtexture).height);
+        (*texture).patchcount = i16::from_le((*mtexture).patchcount);
+
+        memcpy ((*texture).name.as_mut_ptr() as *mut u8,
+                (*mtexture).name.as_mut_ptr() as *const u8, 8);
+        let mut mpatch: *mut mappatch_t = (*mtexture).patches.as_mut_ptr();
+        let mut patch: *mut texpatch_t = (*texture).patches.as_mut_ptr();
+
+        for _ in 0 .. (*texture).patchcount {
+            (*patch).originx = i16::from_le((*mpatch).originx) as i32;
+            (*patch).originy = i16::from_le((*mpatch).originy) as i32;
+            (*patch).patch = *patchlookup.get(i16::from_le((*mpatch).patch) as usize).unwrap();
+            if (*patch).patch == -1 {
+                panic!("R_InitTextures: Missing patch in texture {}",
+                       W_Name((*texture).name.as_ptr()));
+            }
+            mpatch = mpatch.offset(1);
+            patch = patch.offset(1);
+        }
+        *texturecolumnlump.offset(i as isize) =
+            Z_Malloc (((*texture).width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut i16;
+        *texturecolumnofs.offset(i as isize) =
+            Z_Malloc (((*texture).width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut u16;
+
+        let mut j: i32 = 1;
+        while (j * 2) <= ((*texture).width as i32) {
+            j<<=1;
+        }
+
+        *texturewidthmask.offset(i as isize) = j-1;
+        *textureheight.offset(i as isize) = ((*texture).height as i32) << FRACBITS;
+                
+        directory = directory.offset(1);
+    }
+
+    Z_Free (maptex1 as *mut u8);
+    if maptex2 != std::ptr::null_mut() {
+        Z_Free (maptex2 as *mut u8);
+    }
+    
+    // Precalculate whatever possible.
+    for i in 0 .. numtextures {
+        R_GenerateLookup (i);
+    }
+    
+    // Create translation table for global animation.
+    texturetranslation =
+        Z_Malloc ((numtextures + 1)*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    
+    for i in 0 .. numtextures {
+        *texturetranslation.offset(i as isize) = i;
+    }
+}

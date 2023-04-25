@@ -107,13 +107,13 @@ unsafe fn R_InstallSpriteLump(
         // the lump should be used for all rotations
         if sprtemp[frame as usize].rotate == c_false {
             panic!("R_InitSprites: Sprite {} frame {} has multip rot=0 lump",
-                std::ffi::CStr::from_ptr(spritename).to_str().unwrap(),
+                W_Name(spritename),
                 char::from_u32(('A' as u32) + frame).unwrap());
         }
 
         if sprtemp[frame as usize].rotate == c_true {
             panic!("R_InitSprites: Sprite {} frame {} has rotations and a rot=0 lump",
-                std::ffi::CStr::from_ptr(spritename).to_str().unwrap(),
+                W_Name(spritename),
                 char::from_u32(('A' as u32) + frame).unwrap());
         }
                 
@@ -128,7 +128,7 @@ unsafe fn R_InstallSpriteLump(
     // the lump is only used for one rotation
     if sprtemp[frame as usize].rotate == c_false {
         panic!("R_InitSprites: Sprite {} frame {} has rotations and a rot=0 lump",
-                std::ffi::CStr::from_ptr(spritename).to_str().unwrap(),
+                W_Name(spritename),
                 char::from_u32(('A' as u32) + frame).unwrap());
     }
             
@@ -138,7 +138,7 @@ unsafe fn R_InstallSpriteLump(
     rotation_tmp -= 1;
     if sprtemp[frame as usize].lump[rotation_tmp] != -1 {
         panic!("R_InitSprites: Sprite {} : {} : {} has two lumps mapped to it",
-                std::ffi::CStr::from_ptr(spritename).to_str().unwrap(),
+                W_Name(spritename),
                 char::from_u32(('A' as u32) + frame).unwrap(),
                 char::from_u32(('1' as u32) + (rotation_tmp as u32)).unwrap());
     }
@@ -146,8 +146,6 @@ unsafe fn R_InstallSpriteLump(
     sprtemp[frame as usize].lump[rotation_tmp] = (lump - firstspritelump) as i16;
     sprtemp[frame as usize].flip[rotation_tmp] = flipped as u8;
 }
-
-const PU_STATIC: i32 = 1;
 
 //
 // R_InitSpriteDefs
@@ -208,7 +206,7 @@ unsafe fn R_InitSpriteDefs (namelist: *mut *mut i8) {
                 let patched: i32;
 
                 if modifiedgame != c_false {
-                    patched = W_GetNumForName ((*lump).name.as_ptr());
+                    patched = W_GetNumForName ((*lump).name.as_ptr() as *const u8);
                 } else {
                     patched = l;
                 }
@@ -236,7 +234,7 @@ unsafe fn R_InitSpriteDefs (namelist: *mut *mut i8) {
                 -1 => {
                     // no rotations were found for that frame at all
                     panic!("R_InitSprites: No patches found for {} frame {}",
-                        std::ffi::CStr::from_ptr(spritename).to_str().unwrap(),
+                        W_Name(spritename),
                         char::from_u32(('A' as u32) + frame).unwrap());
                 },
                 0 => {
@@ -247,7 +245,7 @@ unsafe fn R_InitSpriteDefs (namelist: *mut *mut i8) {
                     for rotation in 0 .. 8 {
                         if sprtemp[frame as usize].lump[rotation] == -1 {
                             panic!("R_InitSprites: Sprite {} frame {} is missing rotations",
-                                std::ffi::CStr::from_ptr(spritename).to_str().unwrap(),
+                                W_Name(spritename),
                                 char::from_u32(('A' as u32) + frame).unwrap());
                         }
                     }
@@ -344,7 +342,7 @@ pub unsafe fn R_DrawMaskedColumn (dmc: &mut R_DrawMaskedColumn_params_t) {
 //
 unsafe fn R_DrawVisSprite (dvs: &mut R_DrawVisSprite_params_t) {
     let vis = dvs.vis;
-    let patch = W_CacheLumpNum ((*vis).patch + firstspritelump, PU_CACHE);
+    let patch: *mut patch_t = W_CacheLumpNum ((*vis).patch + firstspritelump, PU_CACHE) as *mut patch_t;
 
     dc_colormap = (*vis).colormap;
     
