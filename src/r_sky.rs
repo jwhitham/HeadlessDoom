@@ -32,8 +32,7 @@ use crate::globals::*;
 // R_InitSkyMap
 // Called whenever the view size changes.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_InitSkyMap () {
+pub unsafe fn R_InitSkyMap () {
   // skyflatnum = R_FlatNumForName ( SKYFLATNAME );
     skytexturemid = (100*FRACUNIT) as i32;
 }

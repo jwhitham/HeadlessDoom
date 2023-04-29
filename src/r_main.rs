@@ -36,6 +36,7 @@ use crate::r_draw::R_DrawFuzzColumn;
 use crate::r_draw::R_DrawTranslatedColumn;
 use crate::r_draw::R_DrawSpan;
 use crate::r_draw::R_InitBuffer;
+use crate::r_draw::R_InitTranslationTables;
 use crate::r_bsp::R_RenderBSPNode;
 use crate::r_bsp::R_ClearClipSegs;
 use crate::r_bsp::R_ClearDrawSegs;
@@ -48,6 +49,8 @@ use crate::tables::finetangent;
 use crate::r_plane::R_DrawPlanes;
 use crate::r_plane::R_ClearPlanes;
 use crate::r_plane::R_InitPlanes;
+use crate::r_data::R_InitData;
+use crate::r_sky::R_InitSkyMap;
 
 
 // Fineangles in the SCREENWIDTH wide window.

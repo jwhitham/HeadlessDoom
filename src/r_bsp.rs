@@ -25,9 +25,11 @@
 
 use crate::defs::*;
 use crate::globals::*;
-use crate::funcs::*;
 use crate::r_segs::R_StoreWallRange;
 use crate::r_things::R_AddSprites;
+use crate::r_plane::R_FindPlane;
+use crate::r_main::R_PointToAngle;
+use crate::r_main::R_PointOnSide;
 use crate::defs::bbox_t::*;
 
 

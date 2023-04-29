@@ -29,6 +29,7 @@ use crate::funcs::*;
 use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
 use crate::tables::finesine;
+use crate::r_data::R_GetColumn;
 
 
 //
@@ -125,8 +126,7 @@ pub unsafe fn R_ClearPlanes () {
 //
 // R_FindPlane
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_FindPlane(pheight: fixed_t, picnum: i32, plightlevel: i32) -> *mut visplane_t {
+pub unsafe fn R_FindPlane(pheight: fixed_t, picnum: i32, plightlevel: i32) -> *mut visplane_t {
     
     let mut height = pheight;
     let mut lightlevel = plightlevel;
@@ -169,8 +169,7 @@ pub unsafe extern "C" fn R_FindPlane(pheight: fixed_t, picnum: i32, plightlevel:
 //
 // R_CheckPlane
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_CheckPlane (ppl: *mut visplane_t, start: i32, stop: i32) -> *mut visplane_t {
+pub unsafe fn R_CheckPlane (ppl: *mut visplane_t, start: i32, stop: i32) -> *mut visplane_t {
     
     let intrl: i32;
     let unionl: i32;

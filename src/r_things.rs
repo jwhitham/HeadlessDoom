@@ -29,6 +29,9 @@ use crate::defs::powertype_t::*;
 use crate::defs::psprnum_t::*;
 use crate::globals::*;
 use crate::funcs::*;
+use crate::r_main::R_PointToAngle;
+use crate::r_main::R_PointOnSegSide;
+use crate::r_segs::R_RenderMaskedSegRange;
 use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
 
@@ -271,7 +274,7 @@ unsafe fn R_InitSpriteDefs (namelist: *mut *mut u8) {
 // R_InitSprites
 // Called at program start.
 //
-#[no_mangle]
+#[no_mangle]    // called from P_Init
 pub unsafe extern "C" fn R_InitSprites (namelist: *mut *mut u8) { 
     for i in 0 .. SCREENWIDTH as usize {
         negonearray[i] = -1;

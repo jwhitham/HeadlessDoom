@@ -28,6 +28,10 @@ use crate::r_things;
 use crate::tables::finetangent;
 use crate::tables::finesine;
 use crate::m_fixed::FixedMul;
+use crate::r_data::R_GetColumn;
+use crate::r_main::R_PointToDist;
+use crate::r_main::R_ScaleFromGlobalAngle;
+use crate::r_plane::R_CheckPlane;
 
 struct R_RenderSegLoop_params_t {
     bottomfrac: fixed_t,
@@ -54,8 +58,7 @@ struct R_RenderSegLoop_params_t {
 //
 // R_RenderMaskedSegRange
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_RenderMaskedSegRange
+pub unsafe fn R_RenderMaskedSegRange
         (ds: *mut drawseg_t, x1: i32, x2: i32) {
     // Calculate light table.
     // Use different light tables
