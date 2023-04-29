@@ -45,9 +45,6 @@ extern {
     pub static mut modifiedgame: boolean;
     pub static mut screenheightarray: [i16; SCREENWIDTH as usize];
     pub static mut negonearray: [i16; SCREENWIDTH as usize];
-    pub static mut colfunc: unsafe extern "C" fn ();
-    pub static mut fuzzcolfunc: unsafe extern "C" fn ();
-    pub static mut basecolfunc: unsafe extern "C" fn ();
     pub static mut detailshift: i32; 
     pub static mut centerxfrac: fixed_t; 
     pub static mut centeryfrac: fixed_t; 
@@ -103,8 +100,6 @@ extern {
     pub static mut setdetail: i32;
     pub static mut finecosine: *mut fixed_t;
     pub static mut scaledviewwidth: i32;
-    pub static mut transcolfunc: unsafe extern "C" fn ();
-    pub static mut spanfunc: unsafe extern "C" fn ();
     pub static mut yslope: [fixed_t; SCREENHEIGHT as usize];
     pub static mut distscale: [fixed_t; SCREENWIDTH as usize];
     pub static mut detailLevel: i32;
@@ -142,3 +137,13 @@ extern {
     pub static mut texturecolumnlump: *mut *mut i16;
     pub static mut texturecomposite: *mut *mut u8;
 }
+
+fn Nothing() {
+    panic!("Nothing() called");
+}
+
+pub static mut colfunc: unsafe fn () = Nothing;
+pub static mut fuzzcolfunc: unsafe fn () = Nothing;
+pub static mut basecolfunc: unsafe fn () = Nothing;
+pub static mut transcolfunc: unsafe fn () = Nothing;
+pub static mut spanfunc: unsafe fn () = Nothing;

@@ -25,8 +25,6 @@
 
 
 use crate::defs::*;
-use crate::funcs::R_DrawColumnLow;
-use crate::funcs::R_DrawSpanLow;
 use crate::globals::*;
 use crate::funcs::*;
 use crate::m_fixed::FixedMul;
@@ -37,6 +35,8 @@ use crate::r_draw::R_DrawTranslatedColumn;
 use crate::r_draw::R_DrawSpan;
 use crate::r_draw::R_InitBuffer;
 use crate::r_draw::R_InitTranslationTables;
+use crate::r_draw::R_DrawSpanLow;
+use crate::r_draw::R_DrawColumnLow;
 use crate::r_bsp::R_RenderBSPNode;
 use crate::r_bsp::R_ClearClipSegs;
 use crate::r_bsp::R_ClearDrawSegs;

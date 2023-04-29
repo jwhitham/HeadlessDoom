@@ -52,8 +52,7 @@ const SBARHEIGHT: i32 = 32;
 // Thus a special case loop for very fast rendering can
 //  be used. It has also been used with Wolfenstein 3D.
 //
-#[no_mangle]
-pub extern "C" fn R_DrawColumn () { 
+pub fn R_DrawColumn () { 
     unsafe {
         let count = dc_yh - dc_yl; 
 
@@ -123,8 +122,7 @@ static mut fuzzpos: usize = 0;
 //  could create the SHADOW effect,
 //  i.e. spectres and invisible players.
 //
-#[no_mangle]
-pub extern "C" fn R_DrawFuzzColumn () { 
+pub fn R_DrawFuzzColumn () { 
     unsafe {
         // Adjust borders. Low... 
         if dc_yl == 0 {
@@ -189,8 +187,7 @@ pub extern "C" fn R_DrawFuzzColumn () {
 //  identical sprites, kinda brightened up.
 //
 
-#[no_mangle]
-pub extern "C" fn R_DrawTranslatedColumn () {
+pub fn R_DrawTranslatedColumn () {
     unsafe {
         let count = dc_yh - dc_yl; 
 
@@ -236,8 +233,7 @@ pub extern "C" fn R_DrawTranslatedColumn () {
 // Assumes a given structure of the PLAYPAL.
 // Could be read from a lump instead.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_InitTranslationTables () {
+pub unsafe fn R_InitTranslationTables () {
     translationtables = Z_Malloc (256*3+255, PU_STATIC,
                                         std::ptr::null_mut());
     //translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // DSB-3
@@ -275,8 +271,7 @@ pub unsafe extern "C" fn R_InitTranslationTables () {
 
 //
 // Draws the actual span.
-#[no_mangle]
-pub extern "C" fn R_DrawSpan () { 
+pub fn R_DrawSpan () { 
    
     unsafe {
         let mut xfrac: fixed_t = ds_xfrac;
@@ -304,10 +299,14 @@ pub extern "C" fn R_DrawSpan () {
 } 
 
 
-#[no_mangle]
-pub extern "C" fn R_DrawSpanLow () { 
+pub fn R_DrawSpanLow () { 
     R_DrawSpan();
 }
+
+pub fn R_DrawColumnLow() {
+    panic!("No implementation for R_DrawColumnLow");
+}
+
 //
 // R_InitBuffer 
 // Creats lookup tables that avoid
@@ -315,8 +314,7 @@ pub extern "C" fn R_DrawSpanLow () {
 //  for getting the framebuffer address
 //  of a pixel to draw.
 //
-#[no_mangle]
-pub extern "C" fn R_InitBuffer(width: i32, height: i32) {
+pub fn R_InitBuffer(width: i32, height: i32) {
     unsafe {
         // Handle resize,
         //  e.g. smaller view windows

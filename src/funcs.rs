@@ -2,8 +2,6 @@
 
 extern {
     pub fn Z_Malloc(size: i32, tag: u32, user: *mut *mut u8) -> *mut u8;
-    pub fn R_DrawColumnLow();
-    pub fn R_DrawSpanLow();
     pub fn memset(s: *mut u8, c: i32, n: usize) -> *mut u8;
     pub fn memcpy(d: *mut u8, s: *const u8, n: usize) -> *mut u8;
     pub fn _strnicmp(a: *const u8, b: *const u8, n: usize) -> i32;
