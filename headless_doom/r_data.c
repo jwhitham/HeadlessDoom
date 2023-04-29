@@ -209,6 +209,11 @@ void R_PrecacheLevel (void)
     if (demoplayback)
 	return;
     
+    // MISSING COVERAGE
+    // R_PrecacheLevel is not called for the first level in the demo because precache is
+    // set to false by G_DoPlayDemo. It will be called for the second level, but demoplayback
+    // is true, so we never reach this point.
+    exit (1);
     // Precache flats.
     flatpresent = alloca(numflats);
     memset (flatpresent,0,numflats);	
