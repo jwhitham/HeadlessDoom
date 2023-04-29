@@ -263,7 +263,7 @@ pub unsafe extern "C" fn R_InitTextures () {
         numtextures2 = i32::from_le(*maptex2);
         maxoff2 = W_LumpLength (W_GetNumForName ("TEXTURE2\0".as_ptr()));
     }
-    let numtextures = numtextures1 + numtextures2;
+    numtextures = numtextures1 + numtextures2;
 
     let sizeof_ptr = std::mem::size_of::<*mut u8>() as i32;
     textures = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut texture_t;

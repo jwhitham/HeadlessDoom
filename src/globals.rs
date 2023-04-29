@@ -135,7 +135,7 @@ extern {
     //pub static mut lastpatch: i32;
     //pub static mut numpatches: i32;
     //pub static mut numspritelumps: i32;
-    //pub static mut numtextures: i32;
+    pub static mut numtextures: i32;
     pub static mut textures: *mut *mut texture_t;
     pub static mut texturewidthmask: *mut i32;
     pub static mut texturecompositesize: *mut i32;
