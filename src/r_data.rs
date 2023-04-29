@@ -199,7 +199,7 @@ pub unsafe extern "C" fn R_GenerateLookup (texnum: i32) {
                 panic!("R_GenerateLookup: texture {} is >64k", texnum);
             }
         }
-    }	
+    }        
     *texturecompositesize.offset(texnum as isize) = size;
 }
 
@@ -230,8 +230,7 @@ pub unsafe extern "C" fn R_GetColumn(tex: i32, pcol: i32) -> *mut u8 {
 // Initializes the texture list
 //  with the textures from the world map.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_InitTextures () {
+unsafe fn R_InitTextures () {
     
     // Load the patch names from pnames.lmp.
     let mut name: [u8; 9] = [0; 9];
@@ -265,7 +264,6 @@ pub unsafe extern "C" fn R_InitTextures () {
     }
     numtextures = numtextures1 + numtextures2;
 
-    let sizeof_ptr = std::mem::size_of::<*mut u8>() as i32;
     textures = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut texture_t;
     texturecolumnlump = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut i16;
     texturecolumnofs = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut u16;
@@ -369,21 +367,85 @@ pub unsafe extern "C" fn R_InitTextures () {
     }
 }
 
-/*
-R_Init: Init DOOM refresh daemon - [.....texture AASTINKY patchcount 2
-  x1 0 x2 16 rpw 16 w 24
-  x1 12 x2 24 rpw 16 w 24
-texture BIGDOOR1 patchcount 5
-  x1 0 x2 64 rpw 64 w 128
-  x1 0 x2 64 rpw 64 w 128
-  x1 17 x2 113 rpw 96 w 128
-  x1 113 x2 128 rpw 64 w 128
-  x1 113 x2 128 rpw 64 w 128
-texture BIGDOOR2 patchcount 1
-  x1 0 x2 128 rpw 128 w 128
-texture BIGDOOR4 patchcount 1
-  x1 0 x2 128 rpw 128 w 128
-texture BRNBIGC patchcount 1
+//
+// R_InitFlats
+//
+unsafe fn R_InitFlats () {
+        
+    firstflat = W_GetNumForName ("F_START\0".as_ptr()) + 1;
+    lastflat = W_GetNumForName ("F_END\0".as_ptr()) - 1;
+    numflats = lastflat - firstflat + 1;
+        
+    // Create translation table for global animation.
+    flattranslation = Z_Malloc ((numflats+1)*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+   
+    for i in 0 .. numflats {
+        *flattranslation.offset(i as isize) = i;
+    }
+}
 
 
-*/
+//
+// R_InitSpriteLumps
+// Finds the width and hoffset of all sprites in the wad,
+//  so the sprite does not need to be cached completely
+//  just for having the header info ready during rendering.
+//
+unsafe fn R_InitSpriteLumps() {
+        
+    firstspritelump = W_GetNumForName ("S_START\0".as_ptr()) + 1;
+    lastspritelump = W_GetNumForName ("S_END\0".as_ptr()) - 1;
+    
+    numspritelumps = lastspritelump - firstspritelump + 1;
+    spritewidth = Z_Malloc (numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    spriteoffset = Z_Malloc (numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    spritetopoffset = Z_Malloc (numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+        
+    for i in 0 .. numspritelumps {
+        if 0 == (i&63) {
+            print!(".");
+        }
+
+        let patch: *mut patch_t = W_CacheLumpNum (firstspritelump + i, PU_CACHE) as *mut patch_t;
+        *spritewidth.offset(i as isize) = (i16::from_le((*patch).width) as i32) << FRACBITS;
+        *spriteoffset.offset(i as isize) = (i16::from_le((*patch).leftoffset) as i32) << FRACBITS;
+        *spritetopoffset.offset(i as isize) = (i16::from_le((*patch).topoffset) as i32) << FRACBITS;
+    }
+}
+
+//
+// R_InitColormaps
+//
+unsafe fn R_InitColormaps () {
+    // Load in the light tables, 
+    //  256 byte align tables.
+    let lump = W_GetNumForName("COLORMAP\0".as_ptr()); 
+    let length = W_LumpLength (lump) + 255; 
+    colormaps = Z_Malloc (length, PU_STATIC, std::ptr::null_mut()); 
+    let offset = colormaps.align_offset(256);
+    if offset < 256 {
+        colormaps = colormaps.offset(offset as isize);
+    }
+    W_ReadLump (lump,colormaps); 
+}
+
+
+
+//
+// R_InitData
+// Locates all the lumps
+//  that will be used by all views
+// Must be called after W_Init.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_InitData () {
+    R_InitTextures ();
+    print!("\nInitTextures");
+    R_InitFlats ();
+    print!("\nInitFlats");
+    R_InitSpriteLumps ();
+    print!("\nInitSprites");
+    R_InitColormaps ();
+    print!("\nInitColormaps");
+}
+

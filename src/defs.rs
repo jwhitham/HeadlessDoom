@@ -13,3 +13,4 @@ pub const MINCHAR: i8 = -0x80;
 pub const MINSHORT: i16 = -0x8000;
 pub const MININT: i32 = -0x80000000;
 pub const MINLONG: i32 = -0x80000000;
+pub const sizeof_ptr: i32 = std::mem::size_of::<*mut u8>() as i32;

@@ -129,12 +129,12 @@ extern {
     pub static mut firstflat: i32;
     pub static mut flattranslation: *mut i32;
     pub static mut texturecolumnofs: *mut *mut u16;
-    //pub static mut lastflat: i32;
-    //pub static mut numflats: i32;
+    pub static mut lastflat: i32;
+    pub static mut numflats: i32;
     //pub static mut firstpatch: i32;
     //pub static mut lastpatch: i32;
     //pub static mut numpatches: i32;
-    //pub static mut numspritelumps: i32;
+    pub static mut numspritelumps: i32;
     pub static mut numtextures: i32;
     pub static mut textures: *mut *mut texture_t;
     pub static mut texturewidthmask: *mut i32;

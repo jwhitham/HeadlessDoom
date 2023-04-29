@@ -19,6 +19,7 @@ extern {
     pub fn W_CacheLumpNum (lump: i32, tag: u32) -> *mut u8;
     pub fn W_CacheLumpName (name: *const u8, tag: u32) -> *mut u8;
     pub fn W_LumpLength (lump: i32) -> i32;
+    pub fn W_ReadLump (lump: i32, dest: *mut u8);
     pub fn R_DrawColumnLow();
     pub fn R_DrawSpanLow();
     pub fn R_InitData();
