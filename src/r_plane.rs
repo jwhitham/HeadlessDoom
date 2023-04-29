@@ -50,6 +50,19 @@ use crate::r_draw::ds_xfrac;
 use crate::r_draw::ds_yfrac;
 use crate::r_draw::ds_xstep;
 use crate::r_draw::ds_ystep;
+use crate::r_main::fixedcolormap;
+use crate::r_main::spanfunc;
+use crate::r_main::centerxfrac;
+use crate::r_main::detailshift;
+use crate::r_main::viewangle;
+use crate::r_main::xtoviewangle;
+use crate::r_main::colfunc;
+use crate::r_main::extralight;
+use crate::r_main::zlight;
+use crate::r_main::viewx;
+use crate::r_main::viewy;
+use crate::r_main::viewz;
+
 
 
 //

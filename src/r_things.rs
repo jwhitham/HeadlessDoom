@@ -50,6 +50,23 @@ use crate::r_draw::translationtables;
 use crate::r_draw::dc_yl;
 use crate::r_draw::dc_yh;
 use crate::r_draw::dc_source;
+use crate::r_main::scalelight;
+use crate::r_main::viewplayer;
+use crate::r_main::viewangleoffset;
+use crate::r_main::fixedcolormap;
+use crate::r_main::extralight;
+use crate::r_main::centerxfrac;
+use crate::r_main::detailshift;
+use crate::r_main::viewsin;
+use crate::r_main::viewcos;
+use crate::r_main::viewx;
+use crate::r_main::viewy;
+use crate::r_main::viewz;
+use crate::r_main::projection;
+use crate::r_main::basecolfunc;
+use crate::r_main::colfunc;
+use crate::r_main::fuzzcolfunc;
+use crate::r_main::centeryfrac;
 
 pub struct R_DrawMaskedColumn_params_t {
     pub column: *mut column_t,

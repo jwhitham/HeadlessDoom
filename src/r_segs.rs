@@ -46,6 +46,14 @@ use crate::r_draw::dc_yh;
 use crate::r_draw::dc_x;
 use crate::r_draw::dc_iscale;
 use crate::r_draw::dc_colormap;
+use crate::r_main::centeryfrac;
+use crate::r_main::viewz;
+use crate::r_main::viewangle;
+use crate::r_main::scalelight;
+use crate::r_main::extralight;
+use crate::r_main::fixedcolormap;
+use crate::r_main::xtoviewangle;
+use crate::r_main::colfunc;
 
 struct R_RenderSegLoop_params_t {
     bottomfrac: fixed_t,

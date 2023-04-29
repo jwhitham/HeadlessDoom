@@ -31,6 +31,13 @@ use crate::r_plane::R_FindPlane;
 use crate::r_main::R_PointToAngle;
 use crate::r_main::R_PointOnSide;
 use crate::defs::bbox_t::*;
+use crate::r_main::viewx;
+use crate::r_main::viewy;
+use crate::r_main::viewz;
+use crate::r_main::viewangle;
+use crate::r_main::viewangletox;
+use crate::r_main::sscount;
+use crate::r_main::clipangle;
 
 const empty_drawseg: drawseg_t = drawseg_t {
     curline: std::ptr::null_mut(),

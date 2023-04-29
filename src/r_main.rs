@@ -54,6 +54,46 @@ use crate::r_sky::R_InitSkyMap;
 use crate::r_data::colormaps;
 
 
+fn Nothing() {
+    panic!("Nothing() called");
+}
+
+pub static mut colfunc: unsafe fn () = Nothing;
+pub static mut fuzzcolfunc: unsafe fn () = Nothing;
+pub static mut basecolfunc: unsafe fn () = Nothing;
+static mut transcolfunc: unsafe fn () = Nothing;
+pub static mut spanfunc: unsafe fn () = Nothing;
+
+pub static mut detailshift: i32 = 0;
+pub static mut centerxfrac: fixed_t = 0;
+pub static mut centeryfrac: fixed_t = 0;
+pub static mut viewx: fixed_t = 0;
+pub static mut viewy: fixed_t = 0;
+pub static mut viewz: fixed_t = 0;
+pub static mut viewcos: fixed_t = 0;
+pub static mut viewsin: fixed_t = 0;
+pub static mut projection: fixed_t = 0;
+pub static mut fixedcolormap: *mut lighttable_t = std::ptr::null_mut();
+pub static mut extralight: i32 = 0;
+pub static mut viewplayer: *mut player_t = std::ptr::null_mut();
+pub static mut viewangleoffset: i32 = 0;
+pub static mut scalelight: [[*mut lighttable_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize] = [
+    [std::ptr::null_mut(); MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
+pub static mut centery: i32 = 0; 
+pub static mut xtoviewangle: [angle_t; (SCREENWIDTH + 1) as usize] = [0; (SCREENWIDTH + 1) as usize];
+pub static mut clipangle: angle_t = 0;
+pub static mut viewangletox: [i32; (FINEANGLES / 2) as usize] = [0; (FINEANGLES / 2) as usize];
+pub static mut sscount: i32 = 0;
+pub static mut zlight: [[*mut lighttable_t; MAXLIGHTZ as usize]; LIGHTLEVELS as usize] = [
+    [std::ptr::null_mut(); MAXLIGHTZ as usize]; LIGHTLEVELS as usize];
+pub static mut viewangle: angle_t = 0;
+static mut centerx: i32 = 0;
+static mut setblocks: i32 = 0;
+static mut setdetail: i32 = 0;
+static mut framecount: i32 = 0;
+static mut scalelightfixed: [*mut lighttable_t; MAXLIGHTSCALE as usize] = 
+    [std::ptr::null_mut(); MAXLIGHTSCALE as usize];
+
 // Fineangles in the SCREENWIDTH wide window.
 const FIELDOFVIEW: u32 = 2048;
 

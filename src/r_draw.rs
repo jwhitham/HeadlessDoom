@@ -29,6 +29,7 @@ use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
 use crate::r_data::colormaps;
+use crate::r_main::centery;
 
 pub static mut dc_texturemid: fixed_t = 0;
 pub static mut dc_yl: i32 = 0; 
