@@ -39,6 +39,13 @@ use crate::r_bsp::ds_p;
 use crate::r_bsp::drawsegs;
 use crate::r_bsp::sidedef;
 use crate::r_bsp::linedef;
+use crate::r_draw::dc_texturemid;
+use crate::r_draw::dc_source;
+use crate::r_draw::dc_yl;
+use crate::r_draw::dc_yh;
+use crate::r_draw::dc_x;
+use crate::r_draw::dc_iscale;
+use crate::r_draw::dc_colormap;
 
 struct R_RenderSegLoop_params_t {
     bottomfrac: fixed_t,

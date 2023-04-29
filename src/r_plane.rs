@@ -34,6 +34,22 @@ use crate::r_bsp::ds_p;
 use crate::r_bsp::drawsegs;
 use crate::r_data::colormaps;
 use crate::r_data::firstflat;
+use crate::r_draw::dc_source;
+use crate::r_draw::dc_yl;
+use crate::r_draw::dc_yh;
+use crate::r_draw::dc_x;
+use crate::r_draw::dc_colormap;
+use crate::r_draw::dc_texturemid;
+use crate::r_draw::dc_iscale;
+use crate::r_draw::ds_source;
+use crate::r_draw::ds_x1;
+use crate::r_draw::ds_x2;
+use crate::r_draw::ds_y;
+use crate::r_draw::ds_colormap;
+use crate::r_draw::ds_xfrac;
+use crate::r_draw::ds_yfrac;
+use crate::r_draw::ds_xstep;
+use crate::r_draw::ds_ystep;
 
 
 //

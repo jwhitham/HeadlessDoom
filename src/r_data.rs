@@ -521,4 +521,9 @@ pub unsafe extern "C" fn R_TextureNumForName (name: *const u8) -> i32 {
 }
 
 
-
+#[no_mangle] // called from P_LoadSideDefs
+pub unsafe extern "C" fn R_PrecacheLevel () {
+    if demoplayback == c_false {
+        panic!("No implementation for R_PrecacheLevel");
+    }
+}

@@ -30,6 +30,26 @@ use crate::globals::*;
 use crate::funcs::*;
 use crate::r_data::colormaps;
 
+pub static mut dc_texturemid: fixed_t = 0;
+pub static mut dc_yl: i32 = 0; 
+pub static mut dc_yh: i32 = 0; 
+pub static mut dc_x: i32 = 0; 
+pub static mut dc_colormap: *const u8 = std::ptr::null();
+pub static mut dc_source: *mut u8 = std::ptr::null_mut();
+pub static mut dc_iscale: fixed_t = 0; 
+pub static mut dc_translation: *const u8 = std::ptr::null();
+pub static mut translationtables: *mut u8 = std::ptr::null_mut();
+pub static mut ds_y: i32 = 0; 
+pub static mut ds_x1: i32 = 0; 
+pub static mut ds_x2: i32 = 0;
+pub static mut ds_colormap: *const u8 = std::ptr::null(); 
+pub static mut ds_xfrac: fixed_t = 0; 
+pub static mut ds_yfrac: fixed_t = 0; 
+pub static mut ds_xstep: fixed_t = 0; 
+pub static mut ds_ystep: fixed_t = 0;
+pub static mut ds_source: *mut u8 = std::ptr::null_mut();
+static mut columnofs: [i32; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
+static mut ylookup: [*mut u8; SCREENWIDTH as usize] = [std::ptr::null_mut(); SCREENWIDTH as usize];
 
 
 // status bar height at bottom of screen
@@ -341,162 +361,22 @@ pub fn R_InitBuffer(width: i32, height: i32) {
         }
     }
 } 
+
+#[no_mangle]
+pub unsafe extern "C" fn R_FillBackScreen () { 
+    if scaledviewwidth != SCREENWIDTH as i32 {
+        panic!("No implementation for R_FillBackScreen");
+    }
+}
  
+#[no_mangle]
+pub unsafe extern "C" fn R_DrawViewBorder() { 
+    if scaledviewwidth != SCREENWIDTH as i32 {
+        panic!("No implementation for R_DrawViewBorder");
+    }
+}
  
-/*
-
-
-//
-// R_FillBackScreen
-// Fills the back screen with a pattern
-//  for variable screen sizes
-// Also draws a beveled edge.
-//
-void R_FillBackScreen (void) 
-{ 
-    byte*	src;
-    byte*	dest; 
-    int		x;
-    int		y; 
-    patch_t*	patch;
-
-    // DOOM border patch.
-    char	name1[] = "FLOOR7_2";
-
-    // DOOM II border patch.
-    char	name2[] = "GRNROCK";	
-
-    char*	name;
-	
-    if (scaledviewwidth == 320)
-	return;
-	
-    if ( gamemode == commercial)
-	name = name2;
-    else
-	name = name1;
-    
-    src = W_CacheLumpName (name, PU_CACHE); 
-    dest = screens[1]; 
-	 
-    for (y=0 ; y<SCREENHEIGHT-SBARHEIGHT ; y++) 
-    { 
-	for (x=0 ; x<SCREENWIDTH/64 ; x++) 
-	{ 
-	    memcpy (dest, src+((y&63)<<6), 64); 
-	    dest += 64; 
-	} 
-
-	if (SCREENWIDTH&63) 
-	{ 
-	    memcpy (dest, src+((y&63)<<6), SCREENWIDTH&63); 
-	    dest += (SCREENWIDTH&63); 
-	} 
-    } 
-	
-    patch = W_CacheLumpName ("brdr_t",PU_CACHE);
-
-    for (x=0 ; x<scaledviewwidth ; x+=8)
-	V_DrawPatch (viewwindowx+x,viewwindowy-8,1,patch);
-    patch = W_CacheLumpName ("brdr_b",PU_CACHE);
-
-    for (x=0 ; x<scaledviewwidth ; x+=8)
-	V_DrawPatch (viewwindowx+x,viewwindowy+viewheight,1,patch);
-    patch = W_CacheLumpName ("brdr_l",PU_CACHE);
-
-    for (y=0 ; y<viewheight ; y+=8)
-	V_DrawPatch (viewwindowx-8,viewwindowy+y,1,patch);
-    patch = W_CacheLumpName ("brdr_r",PU_CACHE);
-
-    for (y=0 ; y<viewheight ; y+=8)
-	V_DrawPatch (viewwindowx+scaledviewwidth,viewwindowy+y,1,patch);
-
-
-    // Draw beveled edge. 
-    V_DrawPatch (viewwindowx-8,
-		 viewwindowy-8,
-		 1,
-		 W_CacheLumpName ("brdr_tl",PU_CACHE));
-    
-    V_DrawPatch (viewwindowx+scaledviewwidth,
-		 viewwindowy-8,
-		 1,
-		 W_CacheLumpName ("brdr_tr",PU_CACHE));
-    
-    V_DrawPatch (viewwindowx-8,
-		 viewwindowy+viewheight,
-		 1,
-		 W_CacheLumpName ("brdr_bl",PU_CACHE));
-    
-    V_DrawPatch (viewwindowx+scaledviewwidth,
-		 viewwindowy+viewheight,
-		 1,
-		 W_CacheLumpName ("brdr_br",PU_CACHE));
-} 
- 
-
-//
-// Copy a screen buffer.
-//
-void
-R_VideoErase
-( unsigned	ofs,
-  int		count ) 
-{ 
-  // LFB copy.
-  // This might not be a good idea if memcpy
-  //  is not optiomal, e.g. byte by byte on
-  //  a 32bit CPU, as GNU GCC/Linux libc did
-  //  at one point.
-    memcpy (screens[0]+ofs, screens[1]+ofs, count); 
-} 
-
-
-//
-// R_DrawViewBorder
-// Draws the border around the view
-//  for different size windows?
-//
-void
-V_MarkRect
-( int		x,
-  int		y,
-  int		width,
-  int		height ); 
- 
-void R_DrawViewBorder (void) 
-{ 
-    int		top;
-    int		side;
-    int		ofs;
-    int		i; 
- 
-    if (scaledviewwidth == SCREENWIDTH) 
-	return; 
-  
-    top = ((SCREENHEIGHT-SBARHEIGHT)-viewheight)/2; 
-    side = (SCREENWIDTH-scaledviewwidth)/2; 
- 
-    // copy top and one line of left side 
-    R_VideoErase (0, top*SCREENWIDTH+side); 
- 
-    // copy one line of right side and bottom 
-    ofs = (viewheight+top)*SCREENWIDTH-side; 
-    R_VideoErase (ofs, top*SCREENWIDTH+side); 
- 
-    // copy sides using wraparound 
-    ofs = top*SCREENWIDTH + SCREENWIDTH-side; 
-    side <<= 1;
-    
-    for (i=1 ; i<viewheight ; i++) 
-    { 
-	R_VideoErase (ofs, side); 
-	ofs += SCREENWIDTH; 
-    } 
-
-    // ? 
-    V_MarkRect (0,0,SCREENWIDTH, SCREENHEIGHT-SBARHEIGHT); 
-} 
- 
-*/
-
+#[no_mangle]
+pub extern "C" fn R_VideoErase() { 
+    panic!("No implementation for R_VideoErase");
+}

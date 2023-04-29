@@ -41,6 +41,15 @@ use crate::r_data::spriteoffset;
 use crate::r_data::spritewidth;
 use crate::r_data::spritetopoffset;
 use crate::r_data::colormaps;
+use crate::r_draw::dc_colormap;
+use crate::r_draw::dc_texturemid;
+use crate::r_draw::dc_iscale;
+use crate::r_draw::dc_x;
+use crate::r_draw::dc_translation;
+use crate::r_draw::translationtables;
+use crate::r_draw::dc_yl;
+use crate::r_draw::dc_yh;
+use crate::r_draw::dc_source;
 
 pub struct R_DrawMaskedColumn_params_t {
     pub column: *mut column_t,
