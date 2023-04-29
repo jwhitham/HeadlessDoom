@@ -32,6 +32,8 @@ use crate::tables::finesine;
 use crate::r_data::R_GetColumn;
 use crate::r_bsp::ds_p;
 use crate::r_bsp::drawsegs;
+use crate::r_data::colormaps;
+use crate::r_data::firstflat;
 
 
 //

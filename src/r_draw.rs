@@ -28,6 +28,7 @@
 use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
+use crate::r_data::colormaps;
 
 
 

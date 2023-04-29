@@ -36,6 +36,11 @@ use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
 use crate::r_bsp::ds_p;
 use crate::r_bsp::drawsegs;
+use crate::r_data::lastspritelump;
+use crate::r_data::spriteoffset;
+use crate::r_data::spritewidth;
+use crate::r_data::spritetopoffset;
+use crate::r_data::colormaps;
 
 pub struct R_DrawMaskedColumn_params_t {
     pub column: *mut column_t,

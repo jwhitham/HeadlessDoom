@@ -51,6 +51,7 @@ use crate::r_plane::R_ClearPlanes;
 use crate::r_plane::R_InitPlanes;
 use crate::r_data::R_InitData;
 use crate::r_sky::R_InitSkyMap;
+use crate::r_data::colormaps;
 
 
 // Fineangles in the SCREENWIDTH wide window.

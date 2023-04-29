@@ -23,7 +23,6 @@
 //
 //-----------------------------------------------------------------------------
 
-
 static const char
 rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 
@@ -52,6 +51,7 @@ rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 
 #include "r_data.h"
 
+#if 0
 //
 // Graphics.
 // DOOM graphics for walls and sprites
@@ -138,7 +138,6 @@ int		firstpatch;
 int		lastpatch;
 int		numpatches;
 
-int		firstspritelump;
 int		lastspritelump;
 int		numspritelumps;
 
@@ -148,15 +147,11 @@ texture_t**	textures;
 
 int*			texturewidthmask;
 // needed for texture pegging
-fixed_t*		textureheight;		
 int*			texturecompositesize;
 short**			texturecolumnlump;
 unsigned short**	texturecolumnofs;
 byte**			texturecomposite;
 
-// for global animation
-int*		flattranslation;
-int*		texturetranslation;
 
 // needed for pre rendering
 fixed_t*	spritewidth;	
@@ -190,9 +185,11 @@ lighttable_t	*colormaps;
 int		flatmemory;
 int		texturememory;
 int		spritememory;
+#endif
 
 void R_PrecacheLevel (void)
 {
+#if 0
     char*		flatpresent;
     char*		texturepresent;
     char*		spritepresent;
@@ -205,7 +202,7 @@ void R_PrecacheLevel (void)
     texture_t*		texture;
     thinker_t*		th;
     spriteframe_t*	sf;
-
+#endif
     if (demoplayback)
 	return;
     
@@ -214,6 +211,7 @@ void R_PrecacheLevel (void)
     // set to false by G_DoPlayDemo. It will be called for the second level, but demoplayback
     // is true, so we never reach this point.
     exit (1);
+#if 0
     // Precache flats.
     flatpresent = alloca(numflats);
     memset (flatpresent,0,numflats);	
@@ -298,8 +296,13 @@ void R_PrecacheLevel (void)
 	    }
 	}
     }
+#endif
 }
 
 
+int		firstspritelump;
+int*		flattranslation;
+fixed_t*		textureheight;		
+int*		texturetranslation;
 
 

@@ -27,6 +27,22 @@ use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
 
+pub static mut lastspritelump: i32 = 0;
+pub static mut spriteoffset: *mut fixed_t = std::ptr::null_mut();
+pub static mut spritetopoffset: *mut fixed_t = std::ptr::null_mut();
+pub static mut spritewidth: *mut fixed_t = std::ptr::null_mut();
+static mut texturecolumnofs: *mut *mut u16 = std::ptr::null_mut();
+static mut numtextures: i32 = 0;
+pub static mut firstflat: i32 = 0;
+static mut lastflat: i32 = 0;
+static mut numflats: i32 = 0;
+static mut numspritelumps: i32 = 0;
+static mut texturecompositesize: *mut i32 = std::ptr::null_mut();
+static mut texturewidthmask: *mut i32 = std::ptr::null_mut();
+static mut texturecolumnlump: *mut *mut i16 = std::ptr::null_mut();
+static mut texturecomposite: *mut *mut u8 = std::ptr::null_mut();
+pub static mut colormaps: *mut u8 = std::ptr::null_mut();
+static mut textures: *mut *mut texture_t = std::ptr::null_mut();
 
 //
 // Graphics.

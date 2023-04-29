@@ -1,14 +1,12 @@
 // Global variables used in Doom
 use crate::defs::*;
 extern {
-    pub static mut texturetranslation: *mut i32;
     pub static mut extralight: i32;
     pub static mut walllights: *mut *mut lighttable_t;
     pub static mut scalelight: [[*mut lighttable_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
     pub static mut maskedtexturecol: *mut i16;
     pub static mut dc_texturemid: fixed_t;
     pub static mut dc_x: i32; 
-    pub static mut textureheight: *mut fixed_t;
     pub static mut fixedcolormap: *mut lighttable_t;
     pub static mut dc_colormap: *const u8;
     pub static mut dc_iscale: fixed_t; 
@@ -18,7 +16,6 @@ extern {
     pub static mut dc_yl: i32; 
     pub static mut dc_yh: i32; 
     pub static mut dc_source: *mut u8;
-    pub static mut colormaps: *mut u8;
     pub static mut viewheight: i32;
     pub static mut dc_translation: *const u8;
     pub static mut translationtables: *mut u8;
@@ -34,8 +31,6 @@ extern {
     pub static mut viewwindowx: i32;
     pub static mut viewwindowy: i32;
     pub static mut screens: [*mut u8; 5];
-    pub static mut firstspritelump: i32;
-    pub static mut lastspritelump: i32;
     pub static mut numsprites: i32;
     pub static mut sprites: *mut spritedef_t;
     pub static mut lumpinfo: *mut lumpinfo_t;
@@ -52,9 +47,6 @@ extern {
     pub static mut viewsin: fixed_t;
     pub static mut viewwidth: i32;
     pub static mut projection: fixed_t;
-    pub static mut spriteoffset: *mut fixed_t;
-    pub static mut spritetopoffset: *mut fixed_t;
-    pub static mut spritewidth: *mut fixed_t;
     pub static mut validcount: i32;
     pub static mut pspritescale: fixed_t;
     pub static mut pspriteiscale: fixed_t;
@@ -112,21 +104,14 @@ extern {
     pub static mut spanstart: [i32; SCREENHEIGHT as usize];
     pub static mut skytexturemid: i32;
     pub static mut skytexture: i32;
-    pub static mut firstflat: i32;
+
+    // These are used from C code
+    pub static mut firstspritelump: i32;
     pub static mut flattranslation: *mut i32;
-    pub static mut texturecolumnofs: *mut *mut u16;
-    pub static mut lastflat: i32;
-    pub static mut numflats: i32;
-    //pub static mut firstpatch: i32;
-    //pub static mut lastpatch: i32;
-    //pub static mut numpatches: i32;
-    pub static mut numspritelumps: i32;
-    pub static mut numtextures: i32;
-    pub static mut textures: *mut *mut texture_t;
-    pub static mut texturewidthmask: *mut i32;
-    pub static mut texturecompositesize: *mut i32;
-    pub static mut texturecolumnlump: *mut *mut i16;
-    pub static mut texturecomposite: *mut *mut u8;
+    // used from p_spec
+    pub static mut texturetranslation: *mut i32;
+    // used from p_floor
+    pub static mut textureheight: *mut fixed_t;
 }
 
 fn Nothing() {
@@ -138,3 +123,5 @@ pub static mut fuzzcolfunc: unsafe fn () = Nothing;
 pub static mut basecolfunc: unsafe fn () = Nothing;
 pub static mut transcolfunc: unsafe fn () = Nothing;
 pub static mut spanfunc: unsafe fn () = Nothing;
+
+
