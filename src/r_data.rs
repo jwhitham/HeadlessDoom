@@ -149,8 +149,7 @@ unsafe fn R_GenerateComposite (texnum: i32) {
 //
 // R_GenerateLookup
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_GenerateLookup (texnum: i32) {
+unsafe fn R_GenerateLookup (texnum: i32) {
     
     let texture: *mut texture_t = *textures.offset(texnum as isize);
 
@@ -448,4 +447,64 @@ pub unsafe extern "C" fn R_InitData () {
     R_InitColormaps ();
     print!("\nInitColormaps");
 }
+
+
+//
+// R_FlatNumForName
+// Retrieval, get a flat number for a flat name.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_FlatNumForName (name: *const u8) -> i32 {
+    let i = W_CheckNumForName (name);
+
+    if i == -1 {
+        panic!("R_FlatNumForName: {} not found", W_Name(name));
+    }
+    return i - firstflat;
+}
+
+
+
+
+//
+// R_CheckTextureNumForName
+// Check whether texture is available.
+// Filter out NoTexture indicator.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_CheckTextureNumForName (name: *const u8) -> i32 {
+
+    // "NoTexture" marker.
+    if *name.offset(0) == ('-' as u8) {
+        return 0;
+    }
+    
+    for i in 0 .. numtextures {
+        if 0 == _strnicmp ((*(*textures.offset(i as isize))).name.as_ptr(), name, 8) {
+            return i;
+        }
+    }
+                
+    return -1;
+}
+
+
+
+//
+// R_TextureNumForName
+// Calls R_CheckTextureNumForName,
+//  aborts with error message.
+//
+#[no_mangle]
+pub unsafe extern "C" fn R_TextureNumForName (name: *const u8) -> i32 {
+        
+    let i = R_CheckTextureNumForName (name);
+
+    if i == -1 {
+        panic!("R_TextureNumForName: {} not found", W_Name(name));
+    }
+    return i;
+}
+
+
 

@@ -2933,7 +2933,7 @@ typedef struct
 typedef struct
 {
     // Keep name for switch changing, etc.
-    char	name[8];		
+    unsigned char	name[8];		
     short	width;
     short	height;
     

@@ -80,7 +80,7 @@ const BLANK_SPRITEFRAME: spriteframe_t = spriteframe_t {
 static mut spritelights: *mut *mut lighttable_t = std::ptr::null_mut();
 static mut sprtemp: sprtemp_t = [BLANK_SPRITEFRAME; SPRTEMP_SIZE];
 static mut maxframe: i32 = 0;
-static mut spritename: *mut i8 = std::ptr::null_mut();
+static mut spritename: *mut u8 = std::ptr::null_mut();
 static mut vissprites: [vissprite_t; MAXVISSPRITES as usize] = [BLANK_VISSPRITE; MAXVISSPRITES as usize];
 static mut vissprite_p: *mut vissprite_t = std::ptr::null_mut();
 static mut overflowsprite: vissprite_t = BLANK_VISSPRITE;
@@ -162,7 +162,7 @@ unsafe fn R_InstallSpriteLump(
 //  letter/number appended.
 // The rotation character can be 0 to signify no rotations.
 //
-unsafe fn R_InitSpriteDefs (namelist: *mut *mut i8) { 
+unsafe fn R_InitSpriteDefs (namelist: *mut *mut u8) { 
     // count the number of sprite names
     numsprites = 0;
     for i in 0 .. i32::MAX {
@@ -272,7 +272,7 @@ unsafe fn R_InitSpriteDefs (namelist: *mut *mut i8) {
 // Called at program start.
 //
 #[no_mangle]
-pub unsafe extern "C" fn R_InitSprites (namelist: *mut *mut i8) { 
+pub unsafe extern "C" fn R_InitSprites (namelist: *mut *mut u8) { 
     for i in 0 .. SCREENWIDTH as usize {
         negonearray[i] = -1;
     }
