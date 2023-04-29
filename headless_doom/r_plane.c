@@ -23,7 +23,7 @@
 //
 //-----------------------------------------------------------------------------
 
-
+#if 0
 static const char
 rcsid[] = "$Id: r_plane.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 
@@ -102,3 +102,4 @@ fixed_t			cachedystep[SCREENHEIGHT];
 
 
 
+#endif

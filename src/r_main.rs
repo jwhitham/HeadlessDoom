@@ -52,6 +52,8 @@ use crate::r_plane::R_InitPlanes;
 use crate::r_data::R_InitData;
 use crate::r_sky::R_InitSkyMap;
 use crate::r_data::colormaps;
+use crate::r_plane::yslope;
+use crate::r_plane::distscale;
 
 
 fn Nothing() {

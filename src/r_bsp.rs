@@ -38,6 +38,8 @@ use crate::r_main::viewangle;
 use crate::r_main::viewangletox;
 use crate::r_main::sscount;
 use crate::r_main::clipangle;
+use crate::r_plane::ceilingplane;
+use crate::r_plane::floorplane;
 
 const empty_drawseg: drawseg_t = drawseg_t {
     curline: std::ptr::null_mut(),

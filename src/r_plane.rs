@@ -63,6 +63,39 @@ use crate::r_main::viewx;
 use crate::r_main::viewy;
 use crate::r_main::viewz;
 
+const empty_visplane: visplane_t = visplane_t {
+  height: 0,
+  picnum: 0,
+  lightlevel: 0,
+  minx: 0,
+  maxx: 0,
+  pad1: 0,
+  top: [0; SCREENWIDTH as usize],
+  pad2: 0,
+  pad3: 0,
+  bottom: [0; SCREENWIDTH as usize],
+  pad4: 0,
+};
+
+static mut planeheight: fixed_t = 0;
+static mut cachedheight: [fixed_t; SCREENHEIGHT as usize] = [0; SCREENHEIGHT as usize];
+static mut cacheddistance: [fixed_t; SCREENHEIGHT as usize] = [0; SCREENHEIGHT as usize];
+static mut cachedystep: [fixed_t; SCREENHEIGHT as usize] = [0; SCREENHEIGHT as usize];
+static mut cachedxstep: [fixed_t; SCREENHEIGHT as usize] = [0; SCREENHEIGHT as usize];
+static mut basexscale: fixed_t = 0;
+static mut baseyscale: fixed_t = 0;
+static mut planezlight: *mut *mut lighttable_t = std::ptr::null_mut();
+static mut visplanes: [visplane_t; MAXVISPLANES as usize] = [empty_visplane; MAXVISPLANES as usize];
+static mut lastvisplane: *mut visplane_t = std::ptr::null_mut();
+static mut openings: [i16; MAXOPENINGS as usize] = [0; MAXOPENINGS as usize];
+static mut spanstart: [i32; SCREENHEIGHT as usize] = [0; SCREENHEIGHT as usize];
+pub static mut ceilingclip: [i16; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
+pub static mut ceilingplane: *mut visplane_t = std::ptr::null_mut();
+pub static mut floorclip: [i16; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
+pub static mut floorplane: *mut visplane_t = std::ptr::null_mut();
+pub static mut lastopening: *mut i16 = std::ptr::null_mut();
+pub static mut yslope: [fixed_t; SCREENHEIGHT as usize] = [0; SCREENHEIGHT as usize];
+pub static mut distscale: [fixed_t; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
 
 
 //

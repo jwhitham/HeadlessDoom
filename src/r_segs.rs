@@ -54,6 +54,11 @@ use crate::r_main::extralight;
 use crate::r_main::fixedcolormap;
 use crate::r_main::xtoviewangle;
 use crate::r_main::colfunc;
+use crate::r_plane::ceilingclip;
+use crate::r_plane::ceilingplane;
+use crate::r_plane::floorclip;
+use crate::r_plane::floorplane;
+use crate::r_plane::lastopening;
 
 struct R_RenderSegLoop_params_t {
     bottomfrac: fixed_t,
