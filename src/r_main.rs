@@ -101,18 +101,16 @@ fn R_PointOnSide_common(x: fixed_t, y: fixed_t,
     return 1;
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn R_PointOnSide(x: fixed_t, y: fixed_t,
-                                       node: *mut node_t) -> i32 {
+pub unsafe fn R_PointOnSide(x: fixed_t, y: fixed_t,
+                            node: *mut node_t) -> i32 {
     return R_PointOnSide_common(x, y,
                                 (*node).x, (*node).y,
                                 (*node).dx, (*node).dy);
 }
 
 
-#[no_mangle]
-pub unsafe extern "C" fn R_PointOnSegSide(x: fixed_t, y: fixed_t,
-                                          line: *mut seg_t) -> i32 {
+pub unsafe fn R_PointOnSegSide(x: fixed_t, y: fixed_t,
+                               line: *mut seg_t) -> i32 {
     let lx = (*(*line).v1).x;
     let ly = (*(*line).v1).y;
     let ldx = (*(*line).v2).x - lx;
@@ -192,13 +190,12 @@ fn R_PointToAngle_common(px: fixed_t, py: fixed_t) -> angle_t {
     }
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn R_PointToAngle (x: fixed_t, y: fixed_t) -> angle_t {
+pub unsafe fn R_PointToAngle (x: fixed_t, y: fixed_t) -> angle_t {
     return R_PointToAngle_common(x - viewx, y - viewy);
 }
 
 
-#[no_mangle]
+#[no_mangle] // called from p_map and others
 pub unsafe extern "C" fn R_PointToAngle2
         (x1: fixed_t, y1: fixed_t,
          x2: fixed_t, y2: fixed_t) -> angle_t {
@@ -207,8 +204,7 @@ pub unsafe extern "C" fn R_PointToAngle2
     return R_PointToAngle_common(x2 - x1, y2 - y1);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn R_PointToDist(x: fixed_t, y: fixed_t) -> fixed_t {
+pub unsafe fn R_PointToDist(x: fixed_t, y: fixed_t) -> fixed_t {
     let mut dx = i32::abs(x - viewx);
     let mut dy = i32::abs(y - viewy);
 
@@ -254,8 +250,7 @@ fn R_InitPointToAngle () {
 //  at the given angle.
 // rw_distance must be calculated first.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_ScaleFromGlobalAngle (visangle: angle_t) -> fixed_t {
+pub unsafe fn R_ScaleFromGlobalAngle (visangle: angle_t) -> fixed_t {
     let anglea: u32 = ANG90.wrapping_add(visangle.wrapping_sub(viewangle)) as u32;
     let angleb: u32 = ANG90.wrapping_add(visangle.wrapping_sub(rw_normalangle)) as u32;
 
@@ -311,8 +306,7 @@ fn R_InitTables () {
 //
 // R_InitTextureMapping
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_InitTextureMapping () {
+unsafe fn R_InitTextureMapping () {
     let mut t: i32;
     
     // Use tangent table to generate viewangletox:
@@ -394,7 +388,7 @@ unsafe fn R_InitLightTables () {
 //  because it might be in the middle of a refresh.
 // The change will take effect next refresh.
 //
-#[no_mangle]
+#[no_mangle] // called from M_StartControlPanel
 pub unsafe extern "C" fn R_SetViewSize(blocks: i32, detail: i32) {
     setsizeneeded = c_true;
     setblocks = blocks;
@@ -404,7 +398,7 @@ pub unsafe extern "C" fn R_SetViewSize(blocks: i32, detail: i32) {
 //
 // R_ExecuteSetViewSize
 //
-#[no_mangle]
+#[no_mangle] // called from D_Display
 pub unsafe extern "C" fn R_ExecuteSetViewSize () {
 
     setsizeneeded = c_false;
@@ -483,7 +477,7 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
 //
 // R_Init
 //
-#[no_mangle]
+#[no_mangle] // called from D_DoomMain
 pub unsafe extern "C" fn R_Init () {
     R_InitData ();
     print!("\nR_InitData");
@@ -509,7 +503,7 @@ pub unsafe extern "C" fn R_Init () {
 //
 // R_PointInSubsector
 //
-#[no_mangle]
+#[no_mangle] // called from P_RespawnSpecials and others
 pub unsafe extern "C" fn R_PointInSubsector(x: fixed_t, y: fixed_t) -> *mut subsector_t {
     // single subsector is a special case
     if numnodes == 0 {
@@ -530,8 +524,7 @@ pub unsafe extern "C" fn R_PointInSubsector(x: fixed_t, y: fixed_t) -> *mut subs
 //
 // R_SetupFrame
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_SetupFrame (player: *mut player_t) {
+unsafe fn R_SetupFrame (player: *mut player_t) {
     viewplayer = player;
     viewx = (*(*player).mo).x;
     viewy = (*(*player).mo).y;
@@ -568,7 +561,7 @@ pub unsafe extern "C" fn R_SetupFrame (player: *mut player_t) {
 //
 // R_RenderView
 //
-#[no_mangle]
+#[no_mangle] // called from D_Display
 pub unsafe extern "C" fn R_RenderPlayerView (player: *mut player_t) {
     R_SetupFrame (player);
 

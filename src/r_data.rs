@@ -205,8 +205,7 @@ unsafe fn R_GenerateLookup (texnum: i32) {
 //
 // R_GetColumn
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_GetColumn(tex: i32, pcol: i32) -> *mut u8 {
+pub unsafe fn R_GetColumn(tex: i32, pcol: i32) -> *mut u8 {
     let col: i32 = pcol & (*texturewidthmask.offset(tex as isize) as i32);
     let collump: *mut i16 = *texturecolumnlump.offset(tex as isize);
     let colofs: *mut u16 = *texturecolumnofs.offset(tex as isize);
@@ -436,8 +435,7 @@ unsafe fn R_InitColormaps () {
 //  that will be used by all views
 // Must be called after W_Init.
 //
-#[no_mangle]
-pub unsafe extern "C" fn R_InitData () {
+pub unsafe fn R_InitData () {
     R_InitTextures ();
     print!("\nInitTextures");
     R_InitFlats ();
@@ -453,7 +451,7 @@ pub unsafe extern "C" fn R_InitData () {
 // R_FlatNumForName
 // Retrieval, get a flat number for a flat name.
 //
-#[no_mangle]
+#[no_mangle] // called from P_LoadSectors
 pub unsafe extern "C" fn R_FlatNumForName (name: *const u8) -> i32 {
     let i = W_CheckNumForName (name);
 
@@ -471,7 +469,7 @@ pub unsafe extern "C" fn R_FlatNumForName (name: *const u8) -> i32 {
 // Check whether texture is available.
 // Filter out NoTexture indicator.
 //
-#[no_mangle]
+#[no_mangle] // called from P_InitPicAnims
 pub unsafe extern "C" fn R_CheckTextureNumForName (name: *const u8) -> i32 {
 
     // "NoTexture" marker.
@@ -495,7 +493,7 @@ pub unsafe extern "C" fn R_CheckTextureNumForName (name: *const u8) -> i32 {
 // Calls R_CheckTextureNumForName,
 //  aborts with error message.
 //
-#[no_mangle]
+#[no_mangle] // called from P_LoadSideDefs
 pub unsafe extern "C" fn R_TextureNumForName (name: *const u8) -> i32 {
         
     let i = R_CheckTextureNumForName (name);
