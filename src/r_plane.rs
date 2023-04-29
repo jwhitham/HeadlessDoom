@@ -30,6 +30,8 @@ use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
 use crate::tables::finesine;
 use crate::r_data::R_GetColumn;
+use crate::r_bsp::ds_p;
+use crate::r_bsp::drawsegs;
 
 
 //

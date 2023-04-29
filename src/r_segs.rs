@@ -32,6 +32,13 @@ use crate::r_data::R_GetColumn;
 use crate::r_main::R_PointToDist;
 use crate::r_main::R_ScaleFromGlobalAngle;
 use crate::r_plane::R_CheckPlane;
+use crate::r_bsp::curline;
+use crate::r_bsp::frontsector;
+use crate::r_bsp::backsector;
+use crate::r_bsp::ds_p;
+use crate::r_bsp::drawsegs;
+use crate::r_bsp::sidedef;
+use crate::r_bsp::linedef;
 
 struct R_RenderSegLoop_params_t {
     bottomfrac: fixed_t,

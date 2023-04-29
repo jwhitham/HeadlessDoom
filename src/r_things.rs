@@ -34,6 +34,8 @@ use crate::r_main::R_PointOnSegSide;
 use crate::r_segs::R_RenderMaskedSegRange;
 use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
+use crate::r_bsp::ds_p;
+use crate::r_bsp::drawsegs;
 
 pub struct R_DrawMaskedColumn_params_t {
     pub column: *mut column_t,

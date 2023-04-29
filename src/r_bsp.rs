@@ -32,6 +32,37 @@ use crate::r_main::R_PointToAngle;
 use crate::r_main::R_PointOnSide;
 use crate::defs::bbox_t::*;
 
+const empty_drawseg: drawseg_t = drawseg_t {
+    curline: std::ptr::null_mut(),
+    x1: 0,
+    x2: 0,
+    scale1: 0,
+    scale2: 0,
+    scalestep: 0,
+    silhouette: 0,
+    bsilheight: 0,
+    tsilheight: 0,
+    sprtopclip: std::ptr::null_mut(),
+    sprbottomclip: std::ptr::null_mut(),
+    maskedtexturecol: std::ptr::null_mut(),
+};
+
+const empty_cliprange: cliprange_t = cliprange_t {
+    first: 0,
+    last: 0,
+};
+
+pub static mut ds_p: *mut drawseg_t = std::ptr::null_mut();
+pub static mut drawsegs: [drawseg_t; MAXDRAWSEGS as usize] = [
+                            empty_drawseg; MAXDRAWSEGS as usize];
+pub static mut curline: *mut seg_t = std::ptr::null_mut();
+pub static mut frontsector: *mut sector_t = std::ptr::null_mut();
+pub static mut backsector: *mut sector_t = std::ptr::null_mut();
+pub static mut sidedef: *mut side_t = std::ptr::null_mut();
+pub static mut linedef: *mut line_t = std::ptr::null_mut();
+static mut newend: *mut cliprange_t = std::ptr::null_mut();
+static mut solidsegs: [cliprange_t; MAXSEGS as usize] = [
+                            empty_cliprange; MAXSEGS as usize];
 
 //
 // R_ClearDrawSegs

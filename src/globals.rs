@@ -1,9 +1,6 @@
 // Global variables used in Doom
 use crate::defs::*;
 extern {
-    pub static mut curline: *mut seg_t;
-    pub static mut frontsector: *mut sector_t;
-    pub static mut backsector: *mut sector_t;
     pub static mut texturetranslation: *mut i32;
     pub static mut extralight: i32;
     pub static mut walllights: *mut *mut lighttable_t;
@@ -62,8 +59,6 @@ extern {
     pub static mut pspritescale: fixed_t;
     pub static mut pspriteiscale: fixed_t;
     pub static mut viewplayer: *mut player_t;
-    pub static mut ds_p: *mut drawseg_t;
-    pub static mut drawsegs: [drawseg_t; MAXDRAWSEGS as usize];
     pub static mut viewangleoffset: i32;
     pub static mut ceilingclip: [i16; SCREENWIDTH as usize];
     pub static mut markceiling: boolean;
@@ -77,15 +72,11 @@ extern {
     pub static mut midtexture: i32;
     pub static mut toptexture: i32;
     pub static mut bottomtexture: i32;
-    pub static mut sidedef: *mut side_t;
-    pub static mut linedef: *mut line_t;
     pub static mut rw_normalangle: angle_t;
     pub static mut rw_angle1: i32;
     pub static mut viewangle: angle_t;
     pub static mut skyflatnum: i32;
     pub static mut lastopening: *mut i16;
-    pub static mut newend: *mut cliprange_t;
-    pub static mut solidsegs: [cliprange_t; MAXSEGS as usize];
     pub static mut clipangle: angle_t;
     pub static mut viewangletox: [i32; (FINEANGLES / 2) as usize];
     pub static mut segs: *mut seg_t;
