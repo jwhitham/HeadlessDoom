@@ -54,6 +54,9 @@ use crate::r_sky::R_InitSkyMap;
 use crate::r_data::colormaps;
 use crate::r_plane::yslope;
 use crate::r_plane::distscale;
+use crate::r_segs::rw_normalangle;
+use crate::r_segs::rw_distance;
+use crate::r_segs::walllights;
 
 
 fn Nothing() {

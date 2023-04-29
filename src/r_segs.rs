@@ -60,6 +60,18 @@ use crate::r_plane::floorclip;
 use crate::r_plane::floorplane;
 use crate::r_plane::lastopening;
 
+static mut markceiling: boolean = c_false;
+static mut markfloor: boolean = c_false;
+static mut segtextured: boolean = c_false;
+pub static mut rw_distance: fixed_t = 0;
+static mut midtexture: i32 = 0;
+static mut toptexture: i32 = 0;
+static mut bottomtexture: i32 = 0;
+pub static mut rw_normalangle: angle_t = 0;
+pub static mut rw_angle1: i32 = 0;
+pub static mut walllights: *mut *mut lighttable_t = std::ptr::null_mut();
+pub static mut maskedtexturecol: *mut i16 = std::ptr::null_mut();
+
 struct R_RenderSegLoop_params_t {
     bottomfrac: fixed_t,
     bottomstep: fixed_t,

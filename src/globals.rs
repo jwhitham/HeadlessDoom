@@ -1,8 +1,6 @@
 // Global variables used in Doom
 use crate::defs::*;
 extern {
-    pub static mut walllights: *mut *mut lighttable_t;
-    pub static mut maskedtexturecol: *mut i16;
     pub static mut screens: [*mut u8; 5];
     pub static mut numsprites: i32;
     pub static mut sprites: *mut spritedef_t;
@@ -12,15 +10,6 @@ extern {
     pub static mut negonearray: [i16; SCREENWIDTH as usize];
     pub static mut pspritescale: fixed_t;
     pub static mut pspriteiscale: fixed_t;
-    pub static mut markceiling: boolean;
-    pub static mut markfloor: boolean;
-    pub static mut segtextured: boolean;
-    pub static mut rw_distance: fixed_t;
-    pub static mut midtexture: i32;
-    pub static mut toptexture: i32;
-    pub static mut bottomtexture: i32;
-    pub static mut rw_normalangle: angle_t;
-    pub static mut rw_angle1: i32;
     pub static mut skyflatnum: i32;
     pub static mut segs: *mut seg_t;
     pub static mut numsubsectors: i32;
