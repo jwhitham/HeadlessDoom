@@ -26,7 +26,8 @@
 //-----------------------------------------------------------------------------
 
 use crate::defs::*;
-use crate::globals::*;
+
+pub static mut skytexturemid: i32 = 0;
 
 //
 // R_InitSkyMap

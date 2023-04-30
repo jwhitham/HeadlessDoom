@@ -62,6 +62,7 @@ use crate::r_main::zlight;
 use crate::r_main::viewx;
 use crate::r_main::viewy;
 use crate::r_main::viewz;
+use crate::r_sky::skytexturemid;
 
 const empty_visplane: visplane_t = visplane_t {
   height: 0,

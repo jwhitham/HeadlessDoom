@@ -10,7 +10,6 @@ extern {
     pub static mut negonearray: [i16; SCREENWIDTH as usize];
     pub static mut pspritescale: fixed_t;
     pub static mut pspriteiscale: fixed_t;
-    pub static mut skyflatnum: i32;
     pub static mut segs: *mut seg_t;
     pub static mut numsubsectors: i32;
     pub static mut subsectors: *mut subsector_t;
@@ -19,8 +18,6 @@ extern {
     pub static mut detailLevel: i32;
     pub static mut screenblocks: i32;
     pub static mut numnodes: i32;
-    pub static mut skytexturemid: i32;
-    pub static mut skytexture: i32;
     pub static mut demoplayback: boolean;
 
     // These are used from C code
@@ -40,5 +37,9 @@ extern {
     pub static mut validcount: i32;
     // used from d_main
     pub static mut setsizeneeded: boolean;
+    // use from g_game, p_map, p_mobj
+    pub static mut skyflatnum: i32;
+    // used from g_game
+    pub static mut skytexture: i32;
 }
 
