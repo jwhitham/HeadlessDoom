@@ -59,6 +59,8 @@ use crate::r_plane::ceilingplane;
 use crate::r_plane::floorclip;
 use crate::r_plane::floorplane;
 use crate::r_plane::lastopening;
+use crate::r_things::negonearray;
+use crate::r_things::screenheightarray;
 
 static mut markceiling: boolean = c_false;
 static mut markfloor: boolean = c_false;

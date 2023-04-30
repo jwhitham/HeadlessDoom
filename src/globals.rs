@@ -2,14 +2,8 @@
 use crate::defs::*;
 extern {
     pub static mut screens: [*mut u8; 5];
-    pub static mut numsprites: i32;
-    pub static mut sprites: *mut spritedef_t;
     pub static mut lumpinfo: *mut lumpinfo_t;
     pub static mut modifiedgame: boolean;
-    pub static mut screenheightarray: [i16; SCREENWIDTH as usize];
-    pub static mut negonearray: [i16; SCREENWIDTH as usize];
-    pub static mut pspritescale: fixed_t;
-    pub static mut pspriteiscale: fixed_t;
     pub static mut segs: *mut seg_t;
     pub static mut numsubsectors: i32;
     pub static mut subsectors: *mut subsector_t;
@@ -41,5 +35,7 @@ extern {
     pub static mut skyflatnum: i32;
     // used from g_game
     pub static mut skytexture: i32;
+    // used from f_finale
+    pub static mut sprites: *mut spritedef_t;
 }
 

@@ -68,6 +68,12 @@ use crate::r_main::colfunc;
 use crate::r_main::fuzzcolfunc;
 use crate::r_main::centeryfrac;
 
+static mut numsprites: i32 = 0;
+pub static mut negonearray: [i16; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
+pub static mut pspritescale: fixed_t = 0;
+pub static mut pspriteiscale: fixed_t = 0;
+pub static mut screenheightarray: [i16; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
+
 pub struct R_DrawMaskedColumn_params_t {
     pub column: *mut column_t,
     pub sprtopscreen: fixed_t,

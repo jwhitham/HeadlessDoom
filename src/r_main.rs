@@ -57,6 +57,9 @@ use crate::r_plane::distscale;
 use crate::r_segs::rw_normalangle;
 use crate::r_segs::rw_distance;
 use crate::r_segs::walllights;
+use crate::r_things::pspritescale;
+use crate::r_things::pspriteiscale;
+use crate::r_things::screenheightarray;
 
 
 fn Nothing() {
