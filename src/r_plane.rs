@@ -34,13 +34,6 @@ use crate::r_bsp::ds_p;
 use crate::r_bsp::drawsegs;
 use crate::r_data::colormaps;
 use crate::r_data::firstflat;
-use crate::r_draw::dc_source;
-use crate::r_draw::dc_yl;
-use crate::r_draw::dc_yh;
-use crate::r_draw::dc_x;
-use crate::r_draw::dc_colormap;
-use crate::r_draw::dc_texturemid;
-use crate::r_draw::dc_iscale;
 use crate::r_draw::ds_source;
 use crate::r_draw::ds_x1;
 use crate::r_draw::ds_x2;
@@ -50,6 +43,8 @@ use crate::r_draw::ds_xfrac;
 use crate::r_draw::ds_yfrac;
 use crate::r_draw::ds_xstep;
 use crate::r_draw::ds_ystep;
+use crate::r_draw::empty_R_DrawColumn_params;
+use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_main::fixedcolormap;
 use crate::r_main::spanfunc;
 use crate::r_main::centerxfrac;
@@ -354,23 +349,24 @@ pub unsafe fn R_DrawPlanes () {
     
         // sky flat
         if (*pl).picnum == skyflatnum {
-            dc_iscale = pspriteiscale>>detailshift;
+            let mut dc: R_DrawColumn_params_t = empty_R_DrawColumn_params;
+            dc.dc_iscale = pspriteiscale>>detailshift;
             
             // Sky is allways drawn full bright,
             //  i.e. colormaps[0] is used.
             // Because of this hack, sky is not affected
             //  by INVUL inverse mapping.
-            dc_colormap = colormaps;
-            dc_texturemid = skytexturemid;
+            dc.dc_colormap = colormaps;
+            dc.dc_texturemid = skytexturemid;
             for x in (*pl).minx ..= (*pl).maxx {
-                dc_yl = (*pl).top[x as usize] as i32;
-                dc_yh = (*pl).bottom[x as usize] as i32;
+                dc.dc_yl = (*pl).top[x as usize] as i32;
+                dc.dc_yh = (*pl).bottom[x as usize] as i32;
 
-                if dc_yl <= dc_yh {
+                if dc.dc_yl <= dc.dc_yh {
                     let angle = viewangle.wrapping_add(xtoviewangle[x as usize])>>ANGLETOSKYSHIFT;
-                    dc_x = x;
-                    dc_source = R_GetColumn(skytexture, angle as i32);
-                    colfunc ();
+                    dc.dc_x = x;
+                    dc.dc_source = R_GetColumn(skytexture, angle as i32);
+                    colfunc (&mut dc);
                 }
             }
             continue;

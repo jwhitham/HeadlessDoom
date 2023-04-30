@@ -39,13 +39,6 @@ use crate::r_bsp::ds_p;
 use crate::r_bsp::drawsegs;
 use crate::r_bsp::sidedef;
 use crate::r_bsp::linedef;
-use crate::r_draw::dc_texturemid;
-use crate::r_draw::dc_source;
-use crate::r_draw::dc_yl;
-use crate::r_draw::dc_yh;
-use crate::r_draw::dc_x;
-use crate::r_draw::dc_iscale;
-use crate::r_draw::dc_colormap;
 use crate::r_main::centeryfrac;
 use crate::r_main::viewz;
 use crate::r_main::viewangle;
@@ -61,6 +54,8 @@ use crate::r_plane::floorplane;
 use crate::r_plane::lastopening;
 use crate::r_things::negonearray;
 use crate::r_things::screenheightarray;
+use crate::r_draw::empty_R_DrawColumn_params;
+use crate::r_draw::R_DrawColumn_params_t;
 
 static mut markceiling: boolean = c_false;
 static mut markfloor: boolean = c_false;
@@ -75,6 +70,7 @@ pub static mut walllights: *mut *mut lighttable_t = std::ptr::null_mut();
 pub static mut maskedtexturecol: *mut i16 = std::ptr::null_mut();
 
 struct R_RenderSegLoop_params_t {
+    dc: R_DrawColumn_params_t,
     bottomfrac: fixed_t,
     bottomstep: fixed_t,
     maskedtexture: boolean,
@@ -127,6 +123,7 @@ pub unsafe fn R_RenderMaskedSegRange
 
     let rw_scalestep = (*ds).scalestep;
     let mut dmc = r_things::R_DrawMaskedColumn_params_t {
+        dc: empty_R_DrawColumn_params,
         column: std::ptr::null_mut(),
         sprtopscreen: 0,
         spryscale: (*ds).scale1 + (x1 - (*ds).x1)*rw_scalestep,
@@ -136,50 +133,50 @@ pub unsafe fn R_RenderMaskedSegRange
     
     // find positioning
     if (((*(*curline).linedef).flags as u32) & ML_DONTPEGBOTTOM) != 0 {
-        dc_texturemid =
+        dmc.dc.dc_texturemid =
             if (*frontsector).floorheight > (*backsector).floorheight {
                 (*frontsector).floorheight
             } else {
                 (*backsector).floorheight
             };
-        dc_texturemid = dc_texturemid +
+        dmc.dc.dc_texturemid = dmc.dc.dc_texturemid +
                 *textureheight.offset(texnum as isize) - viewz;
     } else {
-        dc_texturemid =
+        dmc.dc.dc_texturemid =
             if (*frontsector).ceilingheight < (*backsector).ceilingheight {
                 (*frontsector).ceilingheight
             } else {
                 (*backsector).ceilingheight
             };
-        dc_texturemid = dc_texturemid - viewz;
+        dmc.dc.dc_texturemid = dmc.dc.dc_texturemid - viewz;
     }
-    dc_texturemid += (*(*curline).sidedef).rowoffset;
+    dmc.dc.dc_texturemid += (*(*curline).sidedef).rowoffset;
             
     if fixedcolormap != std::ptr::null_mut() {
-        dc_colormap = fixedcolormap;
+        dmc.dc.dc_colormap = fixedcolormap;
     }
     
     // draw the columns
     for x in x1 ..= x2 {
-        dc_x = x;
+        dmc.dc.dc_x = x;
         // calculate lighting
-        let colnum = *maskedtexturecol.offset(dc_x as isize);
+        let colnum = *maskedtexturecol.offset(dmc.dc.dc_x as isize);
         if colnum != MAXSHORT {
             if fixedcolormap == std::ptr::null_mut() {
                 let index = i32::min((MAXLIGHTSCALE - 1) as i32,
                                     dmc.spryscale>>LIGHTSCALESHIFT);
-                dc_colormap = *walllights.offset(index as isize);
+                dmc.dc.dc_colormap = *walllights.offset(index as isize);
             }
                 
-            dmc.sprtopscreen = centeryfrac - FixedMul(dc_texturemid, dmc.spryscale);
-            dc_iscale = ((0xffffffff as u32) / (dmc.spryscale as u32)) as i32;
+            dmc.sprtopscreen = centeryfrac - FixedMul(dmc.dc.dc_texturemid, dmc.spryscale);
+            dmc.dc.dc_iscale = ((0xffffffff as u32) / (dmc.spryscale as u32)) as i32;
             
             // draw the texture
             dmc.column = (R_GetColumn(texnum, colnum as i32)
                             as *mut u8).offset(-3) as *mut column_t;
                 
             r_things::R_DrawMaskedColumn (&mut dmc);
-            *maskedtexturecol.offset(dc_x as isize) = MAXSHORT;
+            *maskedtexturecol.offset(dmc.dc.dc_x as isize) = MAXSHORT;
         }
         dmc.spryscale += rw_scalestep;
     }
@@ -239,19 +236,19 @@ unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
             let index = i32::min(rsl.rw_scale>>LIGHTSCALESHIFT,
                                  (MAXLIGHTSCALE-1) as i32);
 
-            dc_colormap = *walllights.offset(index as isize);
-            dc_x = x as i32;
-            dc_iscale = ((0xffffffff as u32) / (rsl.rw_scale as u32)) as i32;
+            rsl.dc.dc_colormap = *walllights.offset(index as isize);
+            rsl.dc.dc_x = x as i32;
+            rsl.dc.dc_iscale = ((0xffffffff as u32) / (rsl.rw_scale as u32)) as i32;
         }
         
         // draw the wall tiers
         if midtexture != 0 {
             // single sided line
-            dc_yl = yl;
-            dc_yh = yh;
-            dc_texturemid = rsl.rw_midtexturemid;
-            dc_source = R_GetColumn(midtexture,texturecolumn);
-            colfunc ();
+            rsl.dc.dc_yl = yl;
+            rsl.dc.dc_yh = yh;
+            rsl.dc.dc_texturemid = rsl.rw_midtexturemid;
+            rsl.dc.dc_source = R_GetColumn(midtexture,texturecolumn);
+            colfunc (&mut rsl.dc);
             ceilingclip[x] = viewheight as i16;
             floorclip[x] = -1;
         } else {
@@ -263,11 +260,11 @@ unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
                 rsl.pixhigh += rsl.pixhighstep;
 
                 if mid >= yl {
-                    dc_yl = yl;
-                    dc_yh = mid;
-                    dc_texturemid = rsl.rw_toptexturemid;
-                    dc_source = R_GetColumn(toptexture,texturecolumn);
-                    colfunc ();
+                    rsl.dc.dc_yl = yl;
+                    rsl.dc.dc_yh = mid;
+                    rsl.dc.dc_texturemid = rsl.rw_toptexturemid;
+                    rsl.dc.dc_source = R_GetColumn(toptexture,texturecolumn);
+                    colfunc (&mut rsl.dc);
                     ceilingclip[x] = mid as i16;
                 } else {
                     ceilingclip[x] = (yl-1) as i16;
@@ -286,12 +283,12 @@ unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
                 rsl.pixlow += rsl.pixlowstep;
 
                 if mid <= yh {
-                    dc_yl = mid;
-                    dc_yh = yh;
-                    dc_texturemid = rsl.rw_bottomtexturemid;
-                    dc_source = R_GetColumn(bottomtexture,
+                    rsl.dc.dc_yl = mid;
+                    rsl.dc.dc_yh = yh;
+                    rsl.dc.dc_texturemid = rsl.rw_bottomtexturemid;
+                    rsl.dc.dc_source = R_GetColumn(bottomtexture,
                                 texturecolumn);
-                    colfunc ();
+                    colfunc (&mut rsl.dc);
                     floorclip[x] = mid as i16;
                 } else {
                     floorclip[x] = (yh+1) as i16;
@@ -332,6 +329,7 @@ pub unsafe fn R_StoreWallRange (start: i32, stop: i32) {
     }
     
     let mut rsl = R_RenderSegLoop_params_t {
+        dc: empty_R_DrawColumn_params,
         bottomfrac: 0,
         bottomstep: 0,
         topfrac: 0,

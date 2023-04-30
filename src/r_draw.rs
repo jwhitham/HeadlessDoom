@@ -31,14 +31,28 @@ use crate::funcs::*;
 use crate::r_data::colormaps;
 use crate::r_main::centery;
 
-pub static mut dc_texturemid: fixed_t = 0;
-pub static mut dc_yl: i32 = 0; 
-pub static mut dc_yh: i32 = 0; 
-pub static mut dc_x: i32 = 0; 
-pub static mut dc_colormap: *const u8 = std::ptr::null();
-pub static mut dc_source: *mut u8 = std::ptr::null_mut();
-pub static mut dc_iscale: fixed_t = 0; 
-pub static mut dc_translation: *const u8 = std::ptr::null();
+pub struct R_DrawColumn_params_t {
+    pub dc_texturemid: fixed_t,
+    pub dc_yl: i32,
+    pub dc_yh: i32,
+    pub dc_x: i32,
+    pub dc_colormap: *const u8,
+    pub dc_source: *mut u8,
+    pub dc_iscale: fixed_t,
+    pub dc_translation: *const u8,
+}
+
+pub const empty_R_DrawColumn_params: R_DrawColumn_params_t = R_DrawColumn_params_t {
+    dc_texturemid: 0,
+    dc_yl: 0,
+    dc_yh: 0,
+    dc_x: 0,
+    dc_colormap: std::ptr::null(),
+    dc_source: std::ptr::null_mut(),
+    dc_iscale: 0,
+    dc_translation: std::ptr::null(),
+};
+
 pub static mut translationtables: *mut u8 = std::ptr::null_mut();
 pub static mut ds_y: i32 = 0; 
 pub static mut ds_x1: i32 = 0; 
@@ -74,9 +88,9 @@ const SBARHEIGHT: i32 = 32;
 // Thus a special case loop for very fast rendering can
 //  be used. It has also been used with Wolfenstein 3D.
 //
-pub fn R_DrawColumn () { 
+pub fn R_DrawColumn (dc: &mut R_DrawColumn_params_t) { 
     unsafe {
-        let count = dc_yh - dc_yl; 
+        let count = dc.dc_yh - dc.dc_yl; 
 
         // Zero length, column does not exceed a pixel.
         if count < 0 {
@@ -86,14 +100,14 @@ pub fn R_DrawColumn () {
         // Framebuffer destination address.
         // Use ylookup LUT to avoid multiply with ScreenWidth.
         // Use columnofs LUT for subwindows? 
-        let mut dest: *mut u8 = ylookup[dc_yl as usize].offset(columnofs[dc_x as usize] as isize); 
+        let mut dest: *mut u8 = ylookup[dc.dc_yl as usize].offset(columnofs[dc.dc_x as usize] as isize); 
 
         // Determine scaling,
         //  which is the only mapping to be done.
-        let fracstep: fixed_t = dc_iscale; 
+        let fracstep: fixed_t = dc.dc_iscale; 
         let mut frac: fixed_t =
-                dc_texturemid.wrapping_add(
-                    fracstep.wrapping_mul((dc_yl - centery) as fixed_t));
+                dc.dc_texturemid.wrapping_add(
+                    fracstep.wrapping_mul((dc.dc_yl - centery) as fixed_t));
 
         // Inner loop that does the actual texture mapping,
         //  e.g. a DDA-lile scaling.
@@ -101,9 +115,9 @@ pub fn R_DrawColumn () {
         for _ in 0 ..= count {
             // Re-map color indices from wall texture column
             //  using a lighting/special effects LUT.
-            //*dest = dc_colormap[dc_source[((frac>>FRACBITS)&127) as usize] as usize];
-            *dest = *dc_colormap.offset(
-                        *dc_source.offset(((frac>>FRACBITS)&127) as isize)
+            //*dest = dc.dc_colormap[dc.dc_source[((frac>>FRACBITS)&127) as usize] as usize];
+            *dest = *dc.dc_colormap.offset(
+                        *dc.dc_source.offset(((frac>>FRACBITS)&127) as isize)
                             as isize);
 
             dest = dest.offset(SCREENWIDTH as isize); 
@@ -144,54 +158,52 @@ static mut fuzzpos: usize = 0;
 //  could create the SHADOW effect,
 //  i.e. spectres and invisible players.
 //
-pub fn R_DrawFuzzColumn () { 
-    unsafe {
-        // Adjust borders. Low... 
-        if dc_yl == 0 {
-            dc_yl = 1;
-        }
+pub unsafe fn R_DrawFuzzColumn (dc: &mut R_DrawColumn_params_t) { 
+    // Adjust borders. Low... 
+    if dc.dc_yl == 0 {
+        dc.dc_yl = 1;
+    }
 
-        // .. and high.
-        if dc_yh == viewheight-1 {
-            dc_yh = viewheight - 2; 
-        }
-             
-        let count = dc_yh - dc_yl; 
-
-        // Zero length.
-        if count < 0 {
-            return; 
-        }
+    // .. and high.
+    if dc.dc_yh == viewheight-1 {
+        dc.dc_yh = viewheight - 2; 
+    }
          
-        // Does not work with blocky mode.
-        let mut dest: *mut u8 = ylookup[dc_yl as usize].offset(columnofs[dc_x as usize] as isize); 
+    let count = dc.dc_yh - dc.dc_yl; 
 
-        // Looks familiar.
-        let fracstep: fixed_t = dc_iscale; 
-        let mut frac: fixed_t =
-                dc_texturemid.wrapping_add(
-                    fracstep.wrapping_mul((dc_yl - centery) as fixed_t));
+    // Zero length.
+    if count < 0 {
+        return; 
+    }
+     
+    // Does not work with blocky mode.
+    let mut dest: *mut u8 = ylookup[dc.dc_yl as usize].offset(columnofs[dc.dc_x as usize] as isize); 
 
-        // Looks like an attempt at dithering,
-        //  using the colormap #6 (of 0-31, a bit
-        //  brighter than average).
-        for _ in 0 ..= count {
-            // Lookup framebuffer, and retrieve
-            //  a pixel that is either one column
-            //  left or right of the current one.
-            // Add index from colormap to index.
-            *dest = *colormaps.offset((6*256) as isize +
-                        *dest.offset(fuzzoffset[fuzzpos]) as isize);
+    // Looks familiar.
+    let fracstep: fixed_t = dc.dc_iscale; 
+    let mut frac: fixed_t =
+            dc.dc_texturemid.wrapping_add(
+                fracstep.wrapping_mul((dc.dc_yl - centery) as fixed_t));
 
-            // Clamp table lookup index.
-            fuzzpos += 1;
-            if fuzzpos == FUZZTABLE {
-                fuzzpos = 0;
-            }
-            
-            dest = dest.offset(SCREENWIDTH as isize); 
-            frac = frac.wrapping_add(fracstep);
+    // Looks like an attempt at dithering,
+    //  using the colormap #6 (of 0-31, a bit
+    //  brighter than average).
+    for _ in 0 ..= count {
+        // Lookup framebuffer, and retrieve
+        //  a pixel that is either one column
+        //  left or right of the current one.
+        // Add index from colormap to index.
+        *dest = *colormaps.offset((6*256) as isize +
+                    *dest.offset(fuzzoffset[fuzzpos]) as isize);
+
+        // Clamp table lookup index.
+        fuzzpos += 1;
+        if fuzzpos == FUZZTABLE {
+            fuzzpos = 0;
         }
+        
+        dest = dest.offset(SCREENWIDTH as isize); 
+        frac = frac.wrapping_add(fracstep);
     }
 } 
 
@@ -209,41 +221,39 @@ pub fn R_DrawFuzzColumn () {
 //  identical sprites, kinda brightened up.
 //
 
-pub fn R_DrawTranslatedColumn () {
-    unsafe {
-        let count = dc_yh - dc_yl; 
+pub unsafe fn R_DrawTranslatedColumn (dc: &mut R_DrawColumn_params_t) { 
+    let count = dc.dc_yh - dc.dc_yl; 
 
-        // Zero length.
-        if count < 0 {
-            return; 
-        }
-         
-        // FIXME. As above.
-        let mut dest: *mut u8 = ylookup[dc_yl as usize].offset(columnofs[dc_x as usize] as isize); 
-
-        // Looks familiar.
-        let fracstep: fixed_t = dc_iscale; 
-        let mut frac: fixed_t =
-                dc_texturemid.wrapping_add(
-                    fracstep.wrapping_mul((dc_yl - centery) as fixed_t));
-
-        // Here we do an additional index re-mapping.
-        for _ in 0 ..= count {
-            // Translation tables are used
-            //  to map certain colorramps to other ones,
-            //  used with PLAY sprites.
-            // Thus the "green" ramp of the player 0 sprite
-            //  is mapped to gray, red, black/indigo. 
-            *dest = *dc_colormap.offset(
-                        *dc_translation.offset(
-                            *dc_source.offset(((frac>>FRACBITS)&127) as isize)
-                                as isize)
-                            as isize);
-            dest = dest.offset(SCREENWIDTH as isize); 
-            frac = frac.wrapping_add(fracstep);
-        }
+    // Zero length.
+    if count < 0 {
+        return; 
     }
-} 
+     
+    // FIXME. As above.
+    let mut dest: *mut u8 = ylookup[dc.dc_yl as usize].offset(columnofs[dc.dc_x as usize] as isize); 
+
+    // Looks familiar.
+    let fracstep: fixed_t = dc.dc_iscale; 
+    let mut frac: fixed_t =
+            dc.dc_texturemid.wrapping_add(
+                fracstep.wrapping_mul((dc.dc_yl - centery) as fixed_t));
+
+    // Here we do an additional index re-mapping.
+    for _ in 0 ..= count {
+        // Translation tables are used
+        //  to map certain colorramps to other ones,
+        //  used with PLAY sprites.
+        // Thus the "green" ramp of the player 0 sprite
+        //  is mapped to gray, red, black/indigo. 
+        *dest = *dc.dc_colormap.offset(
+                    *dc.dc_translation.offset(
+                        *dc.dc_source.offset(((frac>>FRACBITS)&127) as isize)
+                            as isize)
+                        as isize);
+        dest = dest.offset(SCREENWIDTH as isize); 
+        frac = frac.wrapping_add(fracstep);
+    }
+}
 
 
 
@@ -325,7 +335,7 @@ pub fn R_DrawSpanLow () {
     R_DrawSpan();
 }
 
-pub fn R_DrawColumnLow() {
+pub fn R_DrawColumnLow(_dc: &mut R_DrawColumn_params_t) { 
     panic!("No implementation for R_DrawColumnLow");
 }
 

@@ -41,15 +41,7 @@ use crate::r_data::spriteoffset;
 use crate::r_data::spritewidth;
 use crate::r_data::spritetopoffset;
 use crate::r_data::colormaps;
-use crate::r_draw::dc_colormap;
-use crate::r_draw::dc_texturemid;
-use crate::r_draw::dc_iscale;
-use crate::r_draw::dc_x;
-use crate::r_draw::dc_translation;
 use crate::r_draw::translationtables;
-use crate::r_draw::dc_yl;
-use crate::r_draw::dc_yh;
-use crate::r_draw::dc_source;
 use crate::r_main::scalelight;
 use crate::r_main::viewplayer;
 use crate::r_main::viewangleoffset;
@@ -67,6 +59,8 @@ use crate::r_main::basecolfunc;
 use crate::r_main::colfunc;
 use crate::r_main::fuzzcolfunc;
 use crate::r_main::centeryfrac;
+use crate::r_draw::R_DrawColumn_params_t;
+use crate::r_draw::empty_R_DrawColumn_params;
 
 static mut numsprites: i32 = 0;
 pub static mut negonearray: [i16; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
@@ -75,6 +69,7 @@ pub static mut pspriteiscale: fixed_t = 0;
 pub static mut screenheightarray: [i16; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
 
 pub struct R_DrawMaskedColumn_params_t {
+    pub dc: R_DrawColumn_params_t,
     pub column: *mut column_t,
     pub sprtopscreen: fixed_t,
     pub spryscale: fixed_t,
@@ -350,7 +345,7 @@ unsafe fn R_NewVisSprite () -> *mut vissprite_t {
 //  in posts/runs of opaque pixels.
 //
 pub unsafe fn R_DrawMaskedColumn (dmc: &mut R_DrawMaskedColumn_params_t) {
-    let basetexturemid = dc_texturemid;
+    let basetexturemid = dmc.dc.dc_texturemid;
 
     while (*dmc.column).topdelta != 0xff {
         // calculate unclipped screen coordinates
@@ -358,24 +353,24 @@ pub unsafe fn R_DrawMaskedColumn (dmc: &mut R_DrawMaskedColumn_params_t) {
         let topscreen = dmc.sprtopscreen.wrapping_add(dmc.spryscale.wrapping_mul((*dmc.column).topdelta as fixed_t));
         let bottomscreen = topscreen.wrapping_add(dmc.spryscale.wrapping_mul((*dmc.column).length as fixed_t));
 
-        dc_yl = ((topscreen as i32) + (FRACUNIT as i32) - 1) >> FRACBITS;
-        dc_yh = ((bottomscreen as i32) - 1) >> FRACBITS;
+        dmc.dc.dc_yl = ((topscreen as i32) + (FRACUNIT as i32) - 1) >> FRACBITS;
+        dmc.dc.dc_yh = ((bottomscreen as i32) - 1) >> FRACBITS;
             
-        dc_yh = i32::min(dc_yh, (*dmc.mfloorclip.offset(dc_x as isize) as i32) - 1);
-        dc_yl = i32::max(dc_yl, (*dmc.mceilingclip.offset(dc_x as isize) as i32) + 1);
+        dmc.dc.dc_yh = i32::min(dmc.dc.dc_yh, (*dmc.mfloorclip.offset(dmc.dc.dc_x as isize) as i32) - 1);
+        dmc.dc.dc_yl = i32::max(dmc.dc.dc_yl, (*dmc.mceilingclip.offset(dmc.dc.dc_x as isize) as i32) + 1);
 
-        if dc_yl <= dc_yh {
-            dc_source = (dmc.column as *mut u8).offset(3);
-            dc_texturemid = basetexturemid.wrapping_sub(((*dmc.column).topdelta as fixed_t) << FRACBITS);
+        if dmc.dc.dc_yl <= dmc.dc.dc_yh {
+            dmc.dc.dc_source = (dmc.column as *mut u8).offset(3);
+            dmc.dc.dc_texturemid = basetexturemid.wrapping_sub(((*dmc.column).topdelta as fixed_t) << FRACBITS);
 
             // Drawn by either R_DrawColumn
             //  or (SHADOW) R_DrawFuzzColumn.
-            colfunc ();
+            colfunc (&mut dmc.dc);
         }
         dmc.column = (dmc.column as *mut u8).offset(((*dmc.column).length as isize) + 4) as *mut column_t;
     }
 
-    dc_texturemid = basetexturemid;
+    dmc.dc.dc_texturemid = basetexturemid;
 }
 
 //
@@ -385,33 +380,36 @@ pub unsafe fn R_DrawMaskedColumn (dmc: &mut R_DrawMaskedColumn_params_t) {
 unsafe fn R_DrawVisSprite (dvs: &mut R_DrawVisSprite_params_t) {
     let vis = dvs.vis;
     let patch: *mut patch_t = W_CacheLumpNum ((*vis).patch + firstspritelump, PU_CACHE) as *mut patch_t;
+    let mut dmc = R_DrawMaskedColumn_params_t {
+        dc: empty_R_DrawColumn_params,
+        column: std::ptr::null_mut(),
+        spryscale: 0,
+        sprtopscreen: 0,
+        mfloorclip: dvs.mfloorclip,
+        mceilingclip: dvs.mceilingclip,
+    };
 
-    dc_colormap = (*vis).colormap;
+    dmc.dc.dc_colormap = (*vis).colormap;
     
-    if dc_colormap == std::ptr::null() {
+    if dmc.dc.dc_colormap == std::ptr::null() {
         // NULL colormap = shadow draw
         colfunc = fuzzcolfunc;
     } else if ((*vis).mobjflags & MF_TRANSLATION) != 0 {
         colfunc = R_DrawTranslatedColumn;
-        dc_translation = translationtables.offset(
+        dmc.dc.dc_translation = translationtables.offset(
                 - 256 +
             ( ((*vis).mobjflags & MF_TRANSLATION) >> (MF_TRANSSHIFT-8) ) as isize);
     }
     
-    dc_iscale = i32::abs((*vis).xiscale as i32) >> detailshift;
-    dc_texturemid = (*vis).texturemid;
+    dmc.dc.dc_iscale = i32::abs((*vis).xiscale as i32) >> detailshift;
+    dmc.dc.dc_texturemid = (*vis).texturemid;
     let mut frac = (*vis).startfrac;
 
-    let mut dmc = R_DrawMaskedColumn_params_t {
-        column: std::ptr::null_mut(),
-        spryscale: (*vis).scale,
-        sprtopscreen: centeryfrac.wrapping_sub(FixedMul(dc_texturemid, (*vis).scale)),
-        mfloorclip: dvs.mfloorclip,
-        mceilingclip: dvs.mceilingclip,
-    };
+    dmc.spryscale = (*vis).scale;
+    dmc.sprtopscreen = centeryfrac.wrapping_sub(FixedMul(dmc.dc.dc_texturemid, (*vis).scale));
  
     for x in (*vis).x1 ..= (*vis).x2 {
-        dc_x = x;
+        dmc.dc.dc_x = x;
         let texturecolumn = frac>>FRACBITS;
         dmc.column = (patch as *mut u8).offset(
                        i32::from_le(

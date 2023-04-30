@@ -37,6 +37,7 @@ use crate::r_draw::R_InitBuffer;
 use crate::r_draw::R_InitTranslationTables;
 use crate::r_draw::R_DrawSpanLow;
 use crate::r_draw::R_DrawColumnLow;
+use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_bsp::R_RenderBSPNode;
 use crate::r_bsp::R_ClearClipSegs;
 use crate::r_bsp::R_ClearDrawSegs;
@@ -62,15 +63,19 @@ use crate::r_things::pspriteiscale;
 use crate::r_things::screenheightarray;
 
 
-fn Nothing() {
+fn Nothing(_dc: &mut R_DrawColumn_params_t) {
     panic!("Nothing() called");
 }
 
-pub static mut colfunc: unsafe fn () = Nothing;
-pub static mut fuzzcolfunc: unsafe fn () = Nothing;
-pub static mut basecolfunc: unsafe fn () = Nothing;
-static mut transcolfunc: unsafe fn () = Nothing;
-pub static mut spanfunc: unsafe fn () = Nothing;
+fn Nothing0() {
+    panic!("Nothing0() called");
+}
+
+pub static mut colfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = Nothing;
+pub static mut fuzzcolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = Nothing;
+pub static mut basecolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = Nothing;
+static mut transcolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = Nothing;
+pub static mut spanfunc: unsafe fn () = Nothing0;
 
 pub static mut detailshift: i32 = 0;
 pub static mut centerxfrac: fixed_t = 0;
