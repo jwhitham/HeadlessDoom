@@ -53,16 +53,31 @@ pub const empty_R_DrawColumn_params: R_DrawColumn_params_t = R_DrawColumn_params
     dc_translation: std::ptr::null(),
 };
 
+pub struct R_DrawSpan_params_t {
+    pub ds_y: i32,
+    pub ds_x1: i32,
+    pub ds_x2: i32,
+    pub ds_colormap: *const u8,
+    pub ds_xfrac: fixed_t,
+    pub ds_yfrac: fixed_t,
+    pub ds_xstep: fixed_t,
+    pub ds_ystep: fixed_t,
+    pub ds_source: *mut u8,
+}
+
+pub const empty_R_DrawSpan_params: R_DrawSpan_params_t = R_DrawSpan_params_t {
+    ds_y: 0,
+    ds_x1: 0,
+    ds_x2: 0,
+    ds_colormap: std::ptr::null(),
+    ds_xfrac: 0,
+    ds_yfrac: 0,
+    ds_xstep: 0,
+    ds_ystep: 0,
+    ds_source: std::ptr::null_mut(),
+};
+
 pub static mut translationtables: *mut u8 = std::ptr::null_mut();
-pub static mut ds_y: i32 = 0; 
-pub static mut ds_x1: i32 = 0; 
-pub static mut ds_x2: i32 = 0;
-pub static mut ds_colormap: *const u8 = std::ptr::null(); 
-pub static mut ds_xfrac: fixed_t = 0; 
-pub static mut ds_yfrac: fixed_t = 0; 
-pub static mut ds_xstep: fixed_t = 0; 
-pub static mut ds_ystep: fixed_t = 0;
-pub static mut ds_source: *mut u8 = std::ptr::null_mut();
 static mut columnofs: [i32; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
 static mut ylookup: [*mut u8; SCREENWIDTH as usize] = [std::ptr::null_mut(); SCREENWIDTH as usize];
 
@@ -303,16 +318,16 @@ pub unsafe fn R_InitTranslationTables () {
 
 //
 // Draws the actual span.
-pub fn R_DrawSpan () { 
+pub fn R_DrawSpan (ds: &mut R_DrawSpan_params_t) { 
    
     unsafe {
-        let mut xfrac: fixed_t = ds_xfrac;
-        let mut yfrac: fixed_t = ds_yfrac;
+        let mut xfrac: fixed_t = ds.ds_xfrac;
+        let mut yfrac: fixed_t = ds.ds_yfrac;
          
-        let mut dest: *mut u8 = ylookup[ds_y as usize].offset(columnofs[ds_x1 as usize] as isize);
+        let mut dest: *mut u8 = ylookup[ds.ds_y as usize].offset(columnofs[ds.ds_x1 as usize] as isize);
 
         // We do not check for zero spans here?
-        let count = ds_x2 - ds_x1; 
+        let count = ds.ds_x2 - ds.ds_x1; 
 
         for _ in 0 ..= count {
             // Current texture index in u,v.
@@ -320,19 +335,19 @@ pub fn R_DrawSpan () {
 
             // Lookup pixel from flat texture tile,
             //  re-index using light/colormap.
-            *dest = *ds_colormap.offset(*ds_source.offset(spot as isize) as isize);
+            *dest = *ds.ds_colormap.offset(*ds.ds_source.offset(spot as isize) as isize);
             dest = dest.offset(1);
 
             // Next step in u,v.
-            xfrac = xfrac.wrapping_add(ds_xstep);
-            yfrac = yfrac.wrapping_add(ds_ystep);
+            xfrac = xfrac.wrapping_add(ds.ds_xstep);
+            yfrac = yfrac.wrapping_add(ds.ds_ystep);
         }
     }
 } 
 
 
-pub fn R_DrawSpanLow () { 
-    R_DrawSpan();
+pub fn R_DrawSpanLow (ds: &mut R_DrawSpan_params_t) { 
+    R_DrawSpan(ds);
 }
 
 pub fn R_DrawColumnLow(_dc: &mut R_DrawColumn_params_t) { 

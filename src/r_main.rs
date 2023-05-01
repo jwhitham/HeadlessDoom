@@ -38,6 +38,7 @@ use crate::r_draw::R_InitTranslationTables;
 use crate::r_draw::R_DrawSpanLow;
 use crate::r_draw::R_DrawColumnLow;
 use crate::r_draw::R_DrawColumn_params_t;
+use crate::r_draw::R_DrawSpan_params_t;
 use crate::r_bsp::R_RenderBSPNode;
 use crate::r_bsp::R_ClearClipSegs;
 use crate::r_bsp::R_ClearDrawSegs;
@@ -63,19 +64,11 @@ use crate::r_things::pspriteiscale;
 use crate::r_things::screenheightarray;
 
 
-fn Nothing(_dc: &mut R_DrawColumn_params_t) {
-    panic!("Nothing() called");
-}
-
-fn Nothing0() {
-    panic!("Nothing0() called");
-}
-
-pub static mut colfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = Nothing;
-pub static mut fuzzcolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = Nothing;
-pub static mut basecolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = Nothing;
-static mut transcolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = Nothing;
-pub static mut spanfunc: unsafe fn () = Nothing0;
+pub static mut colfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+pub static mut fuzzcolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+pub static mut basecolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+static mut transcolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+pub static mut spanfunc: unsafe fn (ds: &mut R_DrawSpan_params_t) = R_DrawSpan;
 
 pub static mut detailshift: i32 = 0;
 pub static mut centerxfrac: fixed_t = 0;
