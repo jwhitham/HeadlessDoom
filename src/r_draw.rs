@@ -35,14 +35,16 @@ pub struct VideoContext_t {
     pub translationtables: *mut u8,
     fuzzpos: usize,
     columnofs: [i32; SCREENWIDTH as usize],
-    ylookup: [*mut u8; SCREENWIDTH as usize],
+    ylookup: [usize; SCREENWIDTH as usize],
+    pub screen: [u8; (SCREENWIDTH * SCREENHEIGHT) as usize],
 }
 
 pub const empty_VideoContext: VideoContext_t = VideoContext_t {
     translationtables: std::ptr::null_mut(),
     fuzzpos: 0,
     columnofs: [0; SCREENWIDTH as usize],
-    ylookup: [std::ptr::null_mut(); SCREENWIDTH as usize],
+    ylookup: [0; SCREENWIDTH as usize],
+    screen: [0; (SCREENWIDTH * SCREENHEIGHT) as usize],
 };
 
 pub struct R_DrawColumn_params_t {
@@ -127,7 +129,7 @@ pub fn R_DrawColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) {
         // Framebuffer destination address.
         // Use ylookup LUT to avoid multiply with ScreenWidth.
         // Use columnofs LUT for subwindows? 
-        let mut dest: *mut u8 = vc.ylookup[dc.dc_yl as usize].offset(vc.columnofs[dc.dc_x as usize] as isize); 
+        let mut dest: usize = vc.ylookup[dc.dc_yl as usize] + (vc.columnofs[dc.dc_x as usize] as usize);
 
         // Determine scaling,
         //  which is the only mapping to be done.
@@ -143,11 +145,11 @@ pub fn R_DrawColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) {
             // Re-map color indices from wall texture column
             //  using a lighting/special effects LUT.
             //*dest = dc.dc_colormap[dc.dc_source[((frac>>FRACBITS)&127) as usize] as usize];
-            *dest = *dc.dc_colormap.offset(
+            vc.screen[dest] = *dc.dc_colormap.offset(
                         *dc.dc_source.offset(((frac>>FRACBITS)&127) as isize)
                             as isize);
 
-            dest = dest.offset(SCREENWIDTH as isize); 
+            dest += SCREENWIDTH as usize;
             frac = frac.wrapping_add(fracstep);
         }
     }
@@ -202,7 +204,7 @@ pub unsafe fn R_DrawFuzzColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_p
     }
      
     // Does not work with blocky mode.
-    let mut dest: *mut u8 = vc.ylookup[dc.dc_yl as usize].offset(vc.columnofs[dc.dc_x as usize] as isize); 
+    let mut dest: usize = vc.ylookup[dc.dc_yl as usize] + (vc.columnofs[dc.dc_x as usize] as usize);
 
     // Looks familiar.
     let fracstep: fixed_t = dc.dc_iscale; 
@@ -218,8 +220,8 @@ pub unsafe fn R_DrawFuzzColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_p
         //  a pixel that is either one column
         //  left or right of the current one.
         // Add index from colormap to index.
-        *dest = *colormaps.offset((6*256) as isize +
-                    *dest.offset(fuzzoffset[vc.fuzzpos]) as isize);
+        vc.screen[dest] = *colormaps.offset((6*256) as isize +
+                    vc.screen[((dest as isize) + (fuzzoffset[vc.fuzzpos] as isize)) as usize] as isize);
 
         // Clamp table lookup index.
         vc.fuzzpos += 1;
@@ -227,7 +229,7 @@ pub unsafe fn R_DrawFuzzColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_p
             vc.fuzzpos = 0;
         }
         
-        dest = dest.offset(SCREENWIDTH as isize); 
+        dest += SCREENWIDTH as usize;
         frac = frac.wrapping_add(fracstep);
     }
 } 
@@ -254,8 +256,7 @@ pub unsafe fn R_DrawTranslatedColumn (vc: &mut VideoContext_t, dc: &mut R_DrawCo
         return; 
     }
      
-    // FIXME. As above.
-    let mut dest: *mut u8 = vc.ylookup[dc.dc_yl as usize].offset(vc.columnofs[dc.dc_x as usize] as isize); 
+    let mut dest: usize = vc.ylookup[dc.dc_yl as usize] + (vc.columnofs[dc.dc_x as usize] as usize);
 
     // Looks familiar.
     let fracstep: fixed_t = dc.dc_iscale; 
@@ -270,12 +271,12 @@ pub unsafe fn R_DrawTranslatedColumn (vc: &mut VideoContext_t, dc: &mut R_DrawCo
         //  used with PLAY sprites.
         // Thus the "green" ramp of the player 0 sprite
         //  is mapped to gray, red, black/indigo. 
-        *dest = *dc.dc_colormap.offset(
+        vc.screen[dest] = *dc.dc_colormap.offset(
                     *dc.dc_translation.offset(
                         *dc.dc_source.offset(((frac>>FRACBITS)&127) as isize)
                             as isize)
                         as isize);
-        dest = dest.offset(SCREENWIDTH as isize); 
+        dest += SCREENWIDTH as usize;
         frac = frac.wrapping_add(fracstep);
     }
 }
@@ -330,35 +331,33 @@ pub unsafe fn R_InitTranslationTables () -> VideoContext_t {
 
 //
 // Draws the actual span.
-pub fn R_DrawSpan (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t) { 
+pub unsafe fn R_DrawSpan (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t) { 
    
-    unsafe {
-        let mut xfrac: fixed_t = ds.ds_xfrac;
-        let mut yfrac: fixed_t = ds.ds_yfrac;
-         
-        let mut dest: *mut u8 = vc.ylookup[ds.ds_y as usize].offset(vc.columnofs[ds.ds_x1 as usize] as isize);
+    let mut xfrac: fixed_t = ds.ds_xfrac;
+    let mut yfrac: fixed_t = ds.ds_yfrac;
+     
+    let mut dest: usize = vc.ylookup[ds.ds_y as usize] + (vc.columnofs[ds.ds_x1 as usize] as usize);
 
-        // We do not check for zero spans here?
-        let count = ds.ds_x2 - ds.ds_x1; 
+    // We do not check for zero spans here?
+    let count = ds.ds_x2 - ds.ds_x1; 
 
-        for _ in 0 ..= count {
-            // Current texture index in u,v.
-            let spot = ((yfrac>>(16-6))&(63*64)) + ((xfrac>>16)&63);
+    for _ in 0 ..= count {
+        // Current texture index in u,v.
+        let spot = ((yfrac>>(16-6))&(63*64)) + ((xfrac>>16)&63);
 
-            // Lookup pixel from flat texture tile,
-            //  re-index using light/colormap.
-            *dest = *ds.ds_colormap.offset(*ds.ds_source.offset(spot as isize) as isize);
-            dest = dest.offset(1);
+        // Lookup pixel from flat texture tile,
+        //  re-index using light/colormap.
+        vc.screen[dest] = *ds.ds_colormap.offset(*ds.ds_source.offset(spot as isize) as isize);
+        dest += 1;
 
-            // Next step in u,v.
-            xfrac = xfrac.wrapping_add(ds.ds_xstep);
-            yfrac = yfrac.wrapping_add(ds.ds_ystep);
-        }
+        // Next step in u,v.
+        xfrac = xfrac.wrapping_add(ds.ds_xstep);
+        yfrac = yfrac.wrapping_add(ds.ds_ystep);
     }
 } 
 
 
-pub fn R_DrawSpanLow (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t) { 
+pub unsafe fn R_DrawSpanLow (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t) { 
     R_DrawSpan(vc, ds);
 }
 
@@ -394,8 +393,7 @@ pub fn R_InitBuffer(vc: &mut VideoContext_t, width: i32, height: i32) {
 
         // Preclaculate all row offsets.
         for i in 0 .. height {
-            vc.ylookup[i as usize] = screens[0].offset(
-                ((i + viewwindowy) as isize) * (SCREENWIDTH as isize));
+            vc.ylookup[i as usize] = ((i + viewwindowy) as usize) * (SCREENWIDTH as usize);
         }
     }
 } 

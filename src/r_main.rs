@@ -613,6 +613,8 @@ unsafe fn R_SetupFrame (player: *mut player_t) {
 //
 #[no_mangle] // called from D_Display
 pub unsafe extern "C" fn R_RenderPlayerView (player: *mut player_t) {
+    memcpy(remove_this_vc_global.screen.as_mut_ptr(), screens[0],
+          (SCREENWIDTH * SCREENHEIGHT) as usize);
     R_SetupFrame (player);
 
     // Clear buffers.
@@ -636,6 +638,9 @@ pub unsafe extern "C" fn R_RenderPlayerView (player: *mut player_t) {
     NetUpdate ();
     
     R_DrawMasked (&mut remove_this_vc_global);
+
+    memcpy(screens[0], remove_this_vc_global.screen.as_ptr(),
+          (SCREENWIDTH * SCREENHEIGHT) as usize);
 
     // Check for new console commands.
     NetUpdate ();				
