@@ -38,6 +38,7 @@ use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawSpan_params;
 use crate::r_draw::R_DrawSpan_params_t;
+use crate::r_draw::VideoContext_t;
 use crate::r_main::fixedcolormap;
 use crate::r_main::spanfunc;
 use crate::r_main::centerxfrac;
@@ -110,7 +111,7 @@ pub fn R_InitPlanes () {
 //
 // BASIC PRIMITIVE
 //
-unsafe fn R_MapPlane(ds: &mut R_DrawSpan_params_t, y: i32, x1: i32, x2: i32) {
+unsafe fn R_MapPlane(vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t, y: i32, x1: i32, x2: i32) {
     if (x2 < x1)
     || (x1 < 0)
     || (x2 >= viewwidth)
@@ -151,7 +152,7 @@ unsafe fn R_MapPlane(ds: &mut R_DrawSpan_params_t, y: i32, x1: i32, x2: i32) {
     ds.ds_x2 = x2;
 
     // high or low detail
-    spanfunc (ds);
+    spanfunc (vc, ds);
 }
 
 //
@@ -288,18 +289,18 @@ pub unsafe fn R_CheckPlane (ppl: *mut visplane_t, start: i32, stop: i32) -> *mut
 //
 // R_MakeSpans
 //
-unsafe fn R_MakeSpans(ds: &mut R_DrawSpan_params_t, x: i32, pt1: i32, pb1: i32, pt2: i32, pb2: i32) {
+unsafe fn R_MakeSpans(vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t, x: i32, pt1: i32, pb1: i32, pt2: i32, pb2: i32) {
     let mut t1 = pt1;
     let mut t2 = pt2;
     let mut b1 = pb1;
     let mut b2 = pb2;
 
     while (t1 < t2) && (t1<=b1) {
-        R_MapPlane (ds,t1,spanstart[t1 as usize],x-1);
+        R_MapPlane (vc,ds,t1,spanstart[t1 as usize],x-1);
         t1 += 1;
     }
     while (b1 > b2) && (b1>=t1) {
-        R_MapPlane (ds,b1,spanstart[b1 as usize],x-1);
+        R_MapPlane (vc,ds,b1,spanstart[b1 as usize],x-1);
         b1 -= 1;
     }
 	
@@ -317,7 +318,7 @@ unsafe fn R_MakeSpans(ds: &mut R_DrawSpan_params_t, x: i32, pt1: i32, pb1: i32, 
 // R_DrawPlanes
 // At the end of each frame.
 //
-pub unsafe fn R_DrawPlanes () {
+pub unsafe fn R_DrawPlanes (vc: &mut VideoContext_t) {
     if ds_p > drawsegs.as_mut_ptr().offset(MAXDRAWSEGS as isize) {
         panic!("R_DrawPlanes: drawsegs overflow");
     }
@@ -360,7 +361,7 @@ pub unsafe fn R_DrawPlanes () {
                     let angle = viewangle.wrapping_add(xtoviewangle[x as usize])>>ANGLETOSKYSHIFT;
                     dc.dc_x = x;
                     dc.dc_source = R_GetColumn(skytexture, angle as i32);
-                    colfunc (&mut dc);
+                    colfunc (vc, &mut dc);
                 }
             }
             continue;
@@ -383,7 +384,7 @@ pub unsafe fn R_DrawPlanes () {
         *(*pl).top.as_mut_ptr().offset(((*pl).minx as isize) - 1) = 0xff;
             
         for x in (*pl).minx ..= (*pl).maxx + 1 {
-            R_MakeSpans(&mut ds, x,
+            R_MakeSpans(vc, &mut ds, x,
                 *(*pl).top.as_ptr().offset((x as isize) - 1) as i32,
                 *(*pl).bottom.as_ptr().offset((x as isize) - 1) as i32,
                 *(*pl).top.as_ptr().offset(x as isize) as i32,

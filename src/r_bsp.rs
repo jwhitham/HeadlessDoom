@@ -25,6 +25,7 @@
 
 use crate::defs::*;
 use crate::globals::*;
+use crate::r_draw::VideoContext_t;
 use crate::r_segs::R_StoreWallRange;
 use crate::r_things::R_AddSprites;
 use crate::r_plane::R_FindPlane;
@@ -89,7 +90,7 @@ pub unsafe fn R_ClearDrawSegs () {
 //  e.g. single sided LineDefs (middle texture)
 //  that entirely block the view.
 // 
-unsafe fn R_ClipSolidWallSegment(first: i32, last: i32) {
+unsafe fn R_ClipSolidWallSegment(vc: &mut VideoContext_t, first: i32, last: i32) {
     // Find the first range that touches the range
     //  (adjacent pixels are touching).
     let mut start: *mut cliprange_t = solidsegs.as_mut_ptr();
@@ -101,7 +102,7 @@ unsafe fn R_ClipSolidWallSegment(first: i32, last: i32) {
         if last < ((*start).first - 1) {
             // Post is entirely visible (above start),
             //  so insert a new clippost.
-            R_StoreWallRange (first, last);
+            R_StoreWallRange (vc, first, last);
             let mut next: *mut cliprange_t = newend;
             newend = newend.offset(1);
             
@@ -115,7 +116,7 @@ unsafe fn R_ClipSolidWallSegment(first: i32, last: i32) {
         }
             
         // There is a fragment above *start.
-        R_StoreWallRange (first, (*start).first - 1);
+        R_StoreWallRange (vc, first, (*start).first - 1);
         // Now adjust the clip size.
         (*start).first = first;
     }
@@ -129,7 +130,7 @@ unsafe fn R_ClipSolidWallSegment(first: i32, last: i32) {
     let mut crunch = false;
     while last >= ((*next.offset(1)).first - 1) {
         // There is a fragment between two posts.
-        R_StoreWallRange ((*next).last + 1, (*next.offset(1)).first - 1);
+        R_StoreWallRange (vc, (*next).last + 1, (*next.offset(1)).first - 1);
         next = next.offset(1);
         
         if last <= (*next).last {
@@ -143,7 +144,7 @@ unsafe fn R_ClipSolidWallSegment(first: i32, last: i32) {
    
     if !crunch {
         // There is a fragment after *next.
-        R_StoreWallRange ((*next).last + 1, last);
+        R_StoreWallRange (vc, (*next).last + 1, last);
         // Adjust the clip size.
         (*start).last = last;
     }
@@ -172,7 +173,7 @@ unsafe fn R_ClipSolidWallSegment(first: i32, last: i32) {
 // Does handle windows,
 //  e.g. LineDefs with upper and lower texture.
 //
-unsafe fn R_ClipPassWallSegment(first: i32, last: i32) {
+unsafe fn R_ClipPassWallSegment(vc: &mut VideoContext_t, first: i32, last: i32) {
     // Find the first range that touches the range
     //  (adjacent pixels are touching).
     let mut start: *mut cliprange_t = solidsegs.as_mut_ptr();
@@ -183,12 +184,12 @@ unsafe fn R_ClipPassWallSegment(first: i32, last: i32) {
     if first < (*start).first {
         if last < ((*start).first - 1) {
             // Post is entirely visible (above start).
-            R_StoreWallRange (first, last);
+            R_StoreWallRange (vc, first, last);
             return;
         }
         
         // There is a fragment above *start.
-        R_StoreWallRange (first, (*start).first - 1);
+        R_StoreWallRange (vc, first, (*start).first - 1);
     }
 
     // Bottom contained in start?
@@ -198,7 +199,7 @@ unsafe fn R_ClipPassWallSegment(first: i32, last: i32) {
         
     while last >= ((*start.offset(1)).first - 1) {
         // There is a fragment between two posts.
-        R_StoreWallRange ((*start).last + 1, (*start.offset(1)).first - 1);
+        R_StoreWallRange (vc, (*start).last + 1, (*start.offset(1)).first - 1);
         start = start.offset(1);
         
         if last <= (*start).last {
@@ -207,7 +208,7 @@ unsafe fn R_ClipPassWallSegment(first: i32, last: i32) {
     }
     
     // There is a fragment after *next.
-    R_StoreWallRange ((*start).last + 1, last);
+    R_StoreWallRange (vc, (*start).last + 1, last);
 }
 
 
@@ -275,7 +276,7 @@ unsafe fn R_ClipAngles(angle1_param: angle_t, angle2_param: angle_t) -> Option<R
 // Clips the given segment
 // and adds any visible pieces to the line list.
 //
-unsafe fn R_AddLine (line: *mut seg_t) {
+unsafe fn R_AddLine (vc: &mut VideoContext_t, line: *mut seg_t) {
     curline = line;
 
     // OPTIMIZE: quickly reject orthogonal back sides.
@@ -332,9 +333,9 @@ unsafe fn R_AddLine (line: *mut seg_t) {
     }
 
     if !clipsolid {
-        R_ClipPassWallSegment (ca.x1, ca.x2-1);
+        R_ClipPassWallSegment (vc, ca.x1, ca.x2-1);
     } else {
-        R_ClipSolidWallSegment (ca.x1, ca.x2-1);
+        R_ClipSolidWallSegment (vc, ca.x1, ca.x2-1);
     }
 }
 
@@ -424,7 +425,7 @@ unsafe fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
 // Add sprites of things in sector.
 // Draw one or more line segments.
 //
-unsafe fn R_Subsector (num: i32) {
+unsafe fn R_Subsector (vc: &mut VideoContext_t, num: i32) {
     if num>=numsubsectors {
         panic!("R_Subsector: ss {} with numss = {}",
              num,
@@ -457,7 +458,7 @@ unsafe fn R_Subsector (num: i32) {
     R_AddSprites (frontsector);
 
     for _ in 0 .. count {
-        R_AddLine (line);
+        R_AddLine (vc, line);
         line = line.offset(1);
     }
 }
@@ -467,13 +468,13 @@ unsafe fn R_Subsector (num: i32) {
 // Renders all subsectors below a given node,
 //  traversing subtree recursively.
 // Just call with BSP root.
-pub unsafe fn R_RenderBSPNode (bspnum: i32) {
+pub unsafe fn R_RenderBSPNode (vc: &mut VideoContext_t, bspnum: i32) {
     // Found a subsector?
     if (bspnum & NF_SUBSECTOR as i32) != 0 {
         if bspnum == -1 {
-            R_Subsector (0);
+            R_Subsector (vc, 0);
         } else {
-            R_Subsector (bspnum & (!NF_SUBSECTOR as i32));
+            R_Subsector (vc, bspnum & (!NF_SUBSECTOR as i32));
         }
         return;
     }
@@ -484,11 +485,11 @@ pub unsafe fn R_RenderBSPNode (bspnum: i32) {
     let side: i32 = R_PointOnSide (viewx, viewy, bsp);
 
     // Recursively divide front space.
-    R_RenderBSPNode ((*bsp).children[side as usize] as i32); 
+    R_RenderBSPNode (vc, (*bsp).children[side as usize] as i32); 
 
     // Possibly divide back space.
     if R_CheckBBox ((*bsp).bbox[(side^1) as usize].as_mut_ptr()) != 0 {
-        R_RenderBSPNode ((*bsp).children[(side^1) as usize] as i32);
+        R_RenderBSPNode (vc, (*bsp).children[(side^1) as usize] as i32);
     }
 }
 

@@ -41,7 +41,7 @@ use crate::r_data::spriteoffset;
 use crate::r_data::spritewidth;
 use crate::r_data::spritetopoffset;
 use crate::r_data::colormaps;
-use crate::r_draw::translationtables;
+use crate::r_draw::VideoContext_t;
 use crate::r_main::scalelight;
 use crate::r_main::viewplayer;
 use crate::r_main::viewangleoffset;
@@ -344,7 +344,7 @@ unsafe fn R_NewVisSprite () -> *mut vissprite_t {
 // Masked means: partly transparent, i.e. stored
 //  in posts/runs of opaque pixels.
 //
-pub unsafe fn R_DrawMaskedColumn (dmc: &mut R_DrawMaskedColumn_params_t) {
+pub unsafe fn R_DrawMaskedColumn (vc: &mut VideoContext_t, dmc: &mut R_DrawMaskedColumn_params_t) {
     let basetexturemid = dmc.dc.dc_texturemid;
 
     while (*dmc.column).topdelta != 0xff {
@@ -365,7 +365,7 @@ pub unsafe fn R_DrawMaskedColumn (dmc: &mut R_DrawMaskedColumn_params_t) {
 
             // Drawn by either R_DrawColumn
             //  or (SHADOW) R_DrawFuzzColumn.
-            colfunc (&mut dmc.dc);
+            colfunc (vc, &mut dmc.dc);
         }
         dmc.column = (dmc.column as *mut u8).offset(((*dmc.column).length as isize) + 4) as *mut column_t;
     }
@@ -377,7 +377,7 @@ pub unsafe fn R_DrawMaskedColumn (dmc: &mut R_DrawMaskedColumn_params_t) {
 // R_DrawVisSprite
 //  mfloorclip and mceilingclip should also be set.
 //
-unsafe fn R_DrawVisSprite (dvs: &mut R_DrawVisSprite_params_t) {
+unsafe fn R_DrawVisSprite (vc: &mut VideoContext_t, dvs: &mut R_DrawVisSprite_params_t) {
     let vis = dvs.vis;
     let patch: *mut patch_t = W_CacheLumpNum ((*vis).patch + firstspritelump, PU_CACHE) as *mut patch_t;
     let mut dmc = R_DrawMaskedColumn_params_t {
@@ -396,7 +396,7 @@ unsafe fn R_DrawVisSprite (dvs: &mut R_DrawVisSprite_params_t) {
         colfunc = fuzzcolfunc;
     } else if ((*vis).mobjflags & MF_TRANSLATION) != 0 {
         colfunc = R_DrawTranslatedColumn;
-        dmc.dc.dc_translation = translationtables.offset(
+        dmc.dc.dc_translation = vc.translationtables.offset(
                 - 256 +
             ( ((*vis).mobjflags & MF_TRANSLATION) >> (MF_TRANSSHIFT-8) ) as isize);
     }
@@ -415,7 +415,7 @@ unsafe fn R_DrawVisSprite (dvs: &mut R_DrawVisSprite_params_t) {
                        i32::from_le(
                            *(*patch).columnofs.as_ptr().offset(texturecolumn as isize))
                        as isize) as *mut column_t;
-        R_DrawMaskedColumn (&mut dmc);
+        R_DrawMaskedColumn (vc, &mut dmc);
         frac = frac.wrapping_add((*vis).xiscale);
     }
 
@@ -575,7 +575,7 @@ const BASEYCENTER: i32 = 100;
 // R_DrawPSprite
 //
 // e.g. current weapon
-unsafe fn R_DrawPSprite (dps: &mut R_DrawPSprite_params_t) {
+unsafe fn R_DrawPSprite (vc: &mut VideoContext_t, dps: &mut R_DrawPSprite_params_t) {
     // decide which patch to use
     if ((*(*dps.psp).state).sprite as u32) >= (numsprites as u32) {
         panic!("R_DrawPSprite: invalid sprite number {}",
@@ -655,13 +655,13 @@ unsafe fn R_DrawPSprite (dps: &mut R_DrawPSprite_params_t) {
         mfloorclip: dps.mfloorclip,
         mceilingclip: dps.mceilingclip,
     };
-    R_DrawVisSprite (&mut dvs);
+    R_DrawVisSprite (vc, &mut dvs);
 }
 
 //
 // R_DrawPlayerSprites
 //
-unsafe fn R_DrawPlayerSprites () {
+unsafe fn R_DrawPlayerSprites (vc: &mut VideoContext_t) {
     // get light level
     let lightnum =
     ((*(*(*(*viewplayer).mo).subsector).sector).lightlevel >> LIGHTSEGSHIFT) as i32
@@ -680,7 +680,7 @@ unsafe fn R_DrawPlayerSprites () {
     
     for _ in 0 .. NUMPSPRITES {
         if (*dps.psp).state != std::ptr::null_mut() {
-            R_DrawPSprite (&mut dps);
+            R_DrawPSprite (vc, &mut dps);
         }
         dps.psp = dps.psp.offset(1);
     }
@@ -689,7 +689,7 @@ unsafe fn R_DrawPlayerSprites () {
 //
 // R_DrawSprite
 //
-unsafe fn R_DrawSprite (spr: *mut vissprite_t) {
+unsafe fn R_DrawSprite (vc: &mut VideoContext_t, spr: *mut vissprite_t) {
     // Only (*spr).x1 ..= (*spr).x2 is actually used
     let mut clipbot: [i16; SCREENWIDTH as usize] = [-2; SCREENWIDTH as usize];
     let mut cliptop: [i16; SCREENWIDTH as usize] = [-2; SCREENWIDTH as usize];
@@ -729,7 +729,7 @@ unsafe fn R_DrawSprite (spr: *mut vissprite_t) {
         || ((lowscale < (*spr).scale) && 0 == R_PointOnSegSide ((*spr).gx, (*spr).gy, (*ds).curline)) {
             // masked mid texture?
             if (*ds).maskedtexturecol != std::ptr::null_mut() {
-                R_RenderMaskedSegRange (ds, r1 as i32, r2 as i32);
+                R_RenderMaskedSegRange (vc, ds, r1 as i32, r2 as i32);
             }
             // seg is behind sprite
             continue;
@@ -792,7 +792,7 @@ unsafe fn R_DrawSprite (spr: *mut vissprite_t) {
         mfloorclip: clipbot.as_mut_ptr(),
         mceilingclip: cliptop.as_mut_ptr(),
     };
-    R_DrawVisSprite (&mut dvs);
+    R_DrawVisSprite (vc, &mut dvs);
 }
 
 
@@ -801,7 +801,7 @@ unsafe fn R_DrawSprite (spr: *mut vissprite_t) {
 //
 // R_DrawMasked
 //
-pub unsafe fn R_DrawMasked () {
+pub unsafe fn R_DrawMasked (vc: &mut VideoContext_t) {
     // Sort sprites according to scale
     let mut sorted_sprites: Vec<*mut vissprite_t> = Vec::new();
     let mut iter: *mut vissprite_t = vissprites.as_mut_ptr();
@@ -814,14 +814,14 @@ pub unsafe fn R_DrawMasked () {
 
     // draw all vissprites back to front
     for spr in sorted_sprites {
-	    R_DrawSprite (spr);
+	    R_DrawSprite (vc, spr);
     }
     
     // render any remaining masked mid textures
     let mut ds: *mut drawseg_t = ds_p.offset(-1);
     while ds >= drawsegs.as_mut_ptr() {
         if (*ds).maskedtexturecol != std::ptr::null_mut() {
-            R_RenderMaskedSegRange (ds, (*ds).x1, (*ds).x2);
+            R_RenderMaskedSegRange (vc, ds, (*ds).x1, (*ds).x2);
         }
         ds = ds.offset(-1);
     }
@@ -829,7 +829,7 @@ pub unsafe fn R_DrawMasked () {
     // draw the psprites on top of everything
     //  but does not draw on side views
     if viewangleoffset == 0 {
-        R_DrawPlayerSprites ();
+        R_DrawPlayerSprites (vc);
     }
 }
 

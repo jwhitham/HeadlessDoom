@@ -56,6 +56,7 @@ use crate::r_things::negonearray;
 use crate::r_things::screenheightarray;
 use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_draw::R_DrawColumn_params_t;
+use crate::r_draw::VideoContext_t;
 
 static mut markceiling: boolean = c_false;
 static mut markfloor: boolean = c_false;
@@ -96,7 +97,7 @@ struct R_RenderSegLoop_params_t {
 // R_RenderMaskedSegRange
 //
 pub unsafe fn R_RenderMaskedSegRange
-        (ds: *mut drawseg_t, x1: i32, x2: i32) {
+        (vc: &mut VideoContext_t, ds: *mut drawseg_t, x1: i32, x2: i32) {
     // Calculate light table.
     // Use different light tables
     //   for horizontal / vertical / diagonal. Diagonal?
@@ -175,7 +176,7 @@ pub unsafe fn R_RenderMaskedSegRange
             dmc.column = (R_GetColumn(texnum, colnum as i32)
                             as *mut u8).offset(-3) as *mut column_t;
                 
-            r_things::R_DrawMaskedColumn (&mut dmc);
+            r_things::R_DrawMaskedColumn (vc, &mut dmc);
             *maskedtexturecol.offset(dmc.dc.dc_x as isize) = MAXSHORT;
         }
         dmc.spryscale += rw_scalestep;
@@ -193,7 +194,7 @@ pub unsafe fn R_RenderMaskedSegRange
 const HEIGHTBITS: i32 = 12;
 const HEIGHTUNIT: i32 = 1<<HEIGHTBITS;
 
-unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
+unsafe fn R_RenderSegLoop (vc: &mut VideoContext_t, rsl: &mut R_RenderSegLoop_params_t) {
     let mut texturecolumn: fixed_t = 0;
     for x in rsl.rw_x as usize .. rsl.rw_stopx as usize {
         // mark floor / ceiling areas
@@ -248,7 +249,7 @@ unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
             rsl.dc.dc_yh = yh;
             rsl.dc.dc_texturemid = rsl.rw_midtexturemid;
             rsl.dc.dc_source = R_GetColumn(midtexture,texturecolumn);
-            colfunc (&mut rsl.dc);
+            colfunc (vc, &mut rsl.dc);
             ceilingclip[x] = viewheight as i16;
             floorclip[x] = -1;
         } else {
@@ -264,7 +265,7 @@ unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
                     rsl.dc.dc_yh = mid;
                     rsl.dc.dc_texturemid = rsl.rw_toptexturemid;
                     rsl.dc.dc_source = R_GetColumn(toptexture,texturecolumn);
-                    colfunc (&mut rsl.dc);
+                    colfunc (vc, &mut rsl.dc);
                     ceilingclip[x] = mid as i16;
                 } else {
                     ceilingclip[x] = (yl-1) as i16;
@@ -288,7 +289,7 @@ unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
                     rsl.dc.dc_texturemid = rsl.rw_bottomtexturemid;
                     rsl.dc.dc_source = R_GetColumn(bottomtexture,
                                 texturecolumn);
-                    colfunc (&mut rsl.dc);
+                    colfunc (vc, &mut rsl.dc);
                     floorclip[x] = mid as i16;
                 } else {
                     floorclip[x] = (yh+1) as i16;
@@ -318,7 +319,7 @@ unsafe fn R_RenderSegLoop (rsl: &mut R_RenderSegLoop_params_t) {
 // A wall segment will be drawn
 //  between start and stop pixels (inclusive).
 //
-pub unsafe fn R_StoreWallRange (start: i32, stop: i32) {
+pub unsafe fn R_StoreWallRange (vc: &mut VideoContext_t, start: i32, stop: i32) {
     // don't overflow and crash
     if ds_p == drawsegs.as_mut_ptr().offset(MAXDRAWSEGS as isize) {
         return;
@@ -635,7 +636,7 @@ pub unsafe fn R_StoreWallRange (start: i32, stop: i32) {
         floorplane = R_CheckPlane (floorplane, rsl.rw_x, rsl.rw_stopx-1);
     }
 
-    R_RenderSegLoop (&mut rsl);
+    R_RenderSegLoop (vc, &mut rsl);
 
     
     // save sprite clipping info

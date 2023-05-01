@@ -39,6 +39,8 @@ use crate::r_draw::R_DrawSpanLow;
 use crate::r_draw::R_DrawColumnLow;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::R_DrawSpan_params_t;
+use crate::r_draw::VideoContext_t;
+use crate::r_draw::empty_VideoContext;
 use crate::r_bsp::R_RenderBSPNode;
 use crate::r_bsp::R_ClearClipSegs;
 use crate::r_bsp::R_ClearDrawSegs;
@@ -63,12 +65,13 @@ use crate::r_things::pspritescale;
 use crate::r_things::pspriteiscale;
 use crate::r_things::screenheightarray;
 
+static mut remove_this_vc_global: VideoContext_t = empty_VideoContext;
 
-pub static mut colfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-pub static mut fuzzcolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-pub static mut basecolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-static mut transcolfunc: unsafe fn (dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-pub static mut spanfunc: unsafe fn (ds: &mut R_DrawSpan_params_t) = R_DrawSpan;
+pub static mut colfunc: unsafe fn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+pub static mut fuzzcolfunc: unsafe fn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+pub static mut basecolfunc: unsafe fn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+static mut transcolfunc: unsafe fn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+pub static mut spanfunc: unsafe fn (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t) = R_DrawSpan;
 
 pub static mut detailshift: i32 = 0;
 pub static mut centerxfrac: fixed_t = 0;
@@ -481,7 +484,7 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
         spanfunc = R_DrawSpanLow;
     }
 
-    R_InitBuffer (scaledviewwidth, viewheight);
+    R_InitBuffer (&mut remove_this_vc_global, scaledviewwidth, viewheight);
     
     R_InitTextureMapping ();
     
@@ -541,7 +544,7 @@ pub unsafe extern "C" fn R_Init () {
     print!("\nR_InitLightTables");
     R_InitSkyMap ();
     print!("\nR_InitSkyMap");
-    R_InitTranslationTables ();
+    remove_this_vc_global = R_InitTranslationTables ();
     print!("\nR_InitTranslationsTables");
     
     framecount = 0;
@@ -622,17 +625,17 @@ pub unsafe extern "C" fn R_RenderPlayerView (player: *mut player_t) {
     NetUpdate ();
 
     // The head node is the last node output.
-    R_RenderBSPNode (numnodes-1);
+    R_RenderBSPNode (&mut remove_this_vc_global, numnodes-1);
     
     // Check for new console commands.
     NetUpdate ();
     
-    R_DrawPlanes ();
+    R_DrawPlanes (&mut remove_this_vc_global);
     
     // Check for new console commands.
     NetUpdate ();
     
-    R_DrawMasked ();
+    R_DrawMasked (&mut remove_this_vc_global);
 
     // Check for new console commands.
     NetUpdate ();				
