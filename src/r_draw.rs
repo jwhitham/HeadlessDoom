@@ -28,7 +28,6 @@
 use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
-use crate::r_main::centery;
 use crate::r_data::colormap_index_t;
 use crate::r_data::COLORMAP_SIZE;
 use crate::r_main::RenderContext_t;
@@ -138,7 +137,7 @@ pub fn R_DrawColumn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) {
         let fracstep: fixed_t = dc.dc_iscale; 
         let mut frac: fixed_t =
                 dc.dc_texturemid.wrapping_add(
-                    fracstep.wrapping_mul((dc.dc_yl - centery) as fixed_t));
+                    fracstep.wrapping_mul((dc.dc_yl - rc.centery) as fixed_t));
 
         // Inner loop that does the actual texture mapping,
         //  e.g. a DDA-lile scaling.
@@ -211,7 +210,7 @@ pub unsafe fn R_DrawFuzzColumn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_
     let fracstep: fixed_t = dc.dc_iscale; 
     let mut frac: fixed_t =
             dc.dc_texturemid.wrapping_add(
-                fracstep.wrapping_mul((dc.dc_yl - centery) as fixed_t));
+                fracstep.wrapping_mul((dc.dc_yl - rc.centery) as fixed_t));
 
     // Looks like an attempt at dithering,
     //  using the colormap #6 (of 0-31, a bit
@@ -264,7 +263,7 @@ pub unsafe fn R_DrawTranslatedColumn (rc: &mut RenderContext_t, dc: &mut R_DrawC
     let fracstep: fixed_t = dc.dc_iscale; 
     let mut frac: fixed_t =
             dc.dc_texturemid.wrapping_add(
-                fracstep.wrapping_mul((dc.dc_yl - centery) as fixed_t));
+                fracstep.wrapping_mul((dc.dc_yl - rc.centery) as fixed_t));
 
     // Here we do an additional index re-mapping.
     for _ in 0 ..= count {

@@ -31,7 +31,6 @@ use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
 use crate::r_draw::R_DrawColumn;
 use crate::r_draw::R_DrawFuzzColumn;
-use crate::r_draw::R_DrawTranslatedColumn;
 use crate::r_draw::R_DrawSpan;
 use crate::r_draw::R_InitBuffer;
 use crate::r_draw::R_InitTranslationTables;
@@ -69,40 +68,53 @@ use crate::r_things::pspritescale;
 use crate::r_things::pspriteiscale;
 use crate::r_things::screenheightarray;
 
+type dc_function_t = unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t);
+type ds_function_t = unsafe fn (rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t);
+
 pub struct RenderContext_t {
     pub rd: RenderData_t,
     pub vc: VideoContext_t,
+    pub centerx: i32,
+    pub centery: i32,
+    pub centerxfrac: fixed_t,
+    pub centeryfrac: fixed_t,
+    pub projection: fixed_t,
+    pub fixedcolormap_index: colormap_index_t,
+    pub colfunc: dc_function_t,
+    pub fuzzcolfunc: dc_function_t,
+    pub basecolfunc: dc_function_t,
+    pub spanfunc: ds_function_t,
 }
 
 const empty_RenderContext: RenderContext_t = RenderContext_t {
     rd: empty_RenderData,
     vc: empty_VideoContext,
+    centerx: 0,
+    centery: 0,
+    centerxfrac: 0,
+    centeryfrac: 0,
+    projection: 0,
+    fixedcolormap_index: NULL_COLORMAP,
+    colfunc: R_DrawColumn,
+    fuzzcolfunc: R_DrawColumn,
+    basecolfunc: R_DrawColumn,
+    spanfunc: R_DrawSpan,
 };
 
 static mut remove_this_rc_global: RenderContext_t = empty_RenderContext;
 
-pub static mut colfunc: unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-pub static mut fuzzcolfunc: unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-pub static mut basecolfunc: unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-static mut transcolfunc: unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-pub static mut spanfunc: unsafe fn (rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t) = R_DrawSpan;
 
 pub static mut detailshift: i32 = 0;
-pub static mut centerxfrac: fixed_t = 0;
-pub static mut centeryfrac: fixed_t = 0;
 pub static mut viewx: fixed_t = 0;
 pub static mut viewy: fixed_t = 0;
 pub static mut viewz: fixed_t = 0;
 pub static mut viewcos: fixed_t = 0;
 pub static mut viewsin: fixed_t = 0;
-pub static mut projection: fixed_t = 0;
-pub static mut fixedcolormap_index: colormap_index_t = NULL_COLORMAP;
 pub static mut extralight: i32 = 0;
 pub static mut viewplayer: *mut player_t = std::ptr::null_mut();
 pub static mut viewangleoffset: i32 = 0;
 pub static mut scalelight: [[colormap_index_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize] = [
     [NULL_COLORMAP; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
-pub static mut centery: i32 = 0; 
 pub static mut xtoviewangle: [angle_t; (SCREENWIDTH + 1) as usize] = [0; (SCREENWIDTH + 1) as usize];
 pub static mut clipangle: angle_t = 0;
 pub static mut viewangletox: [i32; (FINEANGLES / 2) as usize] = [0; (FINEANGLES / 2) as usize];
@@ -110,7 +122,6 @@ pub static mut sscount: i32 = 0;
 pub static mut zlight: [[colormap_index_t; MAXLIGHTZ as usize]; LIGHTLEVELS as usize] = [
     [NULL_COLORMAP; MAXLIGHTZ as usize]; LIGHTLEVELS as usize];
 pub static mut viewangle: angle_t = 0;
-static mut centerx: i32 = 0;
 static mut setblocks: i32 = 0;
 static mut setdetail: i32 = 0;
 static mut framecount: i32 = 0;
@@ -321,7 +332,7 @@ pub unsafe fn R_ScaleFromGlobalAngle (visangle: angle_t) -> fixed_t {
     // both sines are allways positive
     let sinea: i32 = finesine[(anglea>>ANGLETOFINESHIFT) as usize];
     let sineb: i32 = finesine[(angleb>>ANGLETOFINESHIFT) as usize];
-    let num: fixed_t = FixedMul(projection,sineb)<<detailshift;
+    let num: fixed_t = FixedMul(remove_this_rc_global.projection,sineb)<<detailshift;
     let den: i32 = FixedMul(rw_distance,sinea);
     let mut scale: fixed_t;
 
@@ -370,7 +381,7 @@ fn R_InitTables () {
 //
 // R_InitTextureMapping
 //
-unsafe fn R_InitTextureMapping () {
+unsafe fn R_InitTextureMapping (rc: &mut RenderContext_t) {
     let mut t: i32;
     
     // Use tangent table to generate viewangletox:
@@ -379,7 +390,7 @@ unsafe fn R_InitTextureMapping () {
     //
     // Calc focallength
     //  so FIELDOFVIEW angles covers SCREENWIDTH.
-    let focallength = FixedDiv (centerxfrac,
+    let focallength = FixedDiv (rc.centerxfrac,
                 finetangent[(FINEANGLES/4+FIELDOFVIEW/2) as usize] );
     
     for i in 0 .. (FINEANGLES / 2) as usize {
@@ -389,7 +400,7 @@ unsafe fn R_InitTextureMapping () {
             t = viewwidth+1;
         } else {
             t = FixedMul (finetangent[i], focallength);
-            t = (centerxfrac - t + (FRACUNIT - 1) as i32) >> FRACBITS;
+            t = (rc.centerxfrac - t + (FRACUNIT - 1) as i32) >> FRACBITS;
             t = i32::max(-1, i32::min(viewwidth + 1, t));
         }
         viewangletox[i] = t;
@@ -464,6 +475,7 @@ pub unsafe extern "C" fn R_SetViewSize(blocks: i32, detail: i32) {
 //
 #[no_mangle] // called from D_Display
 pub unsafe extern "C" fn R_ExecuteSetViewSize () {
+    let rc = &mut remove_this_rc_global;
 
     setsizeneeded = c_false;
 
@@ -478,29 +490,27 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
     detailshift = setdetail;
     viewwidth = scaledviewwidth>>detailshift;
     
-    centery = viewheight/2;
-    centerx = viewwidth/2;
-    centerxfrac = centerx<<FRACBITS;
-    centeryfrac = centery<<FRACBITS;
-    projection = centerxfrac;
+    rc.centery = viewheight/2;
+    rc.centerx = viewwidth/2;
+    rc.centerxfrac = rc.centerx<<FRACBITS;
+    rc.centeryfrac = rc.centery<<FRACBITS;
+    rc.projection = rc.centerxfrac;
 
     if detailshift == c_false {
-        basecolfunc = R_DrawColumn;
-        colfunc = R_DrawColumn;
-        fuzzcolfunc = R_DrawFuzzColumn;
-        transcolfunc = R_DrawTranslatedColumn;
-        spanfunc = R_DrawSpan;
+        rc.basecolfunc = R_DrawColumn;
+        rc.colfunc = R_DrawColumn;
+        rc.fuzzcolfunc = R_DrawFuzzColumn;
+        rc.spanfunc = R_DrawSpan;
     } else {
-        basecolfunc = R_DrawColumnLow;
-        colfunc = R_DrawColumnLow;
-        fuzzcolfunc = R_DrawFuzzColumn;
-        transcolfunc = R_DrawTranslatedColumn;
-        spanfunc = R_DrawSpanLow;
+        rc.basecolfunc = R_DrawColumnLow;
+        rc.colfunc = R_DrawColumnLow;
+        rc.fuzzcolfunc = R_DrawFuzzColumn;
+        rc.spanfunc = R_DrawSpanLow;
     }
 
-    R_InitBuffer (&mut remove_this_rc_global, scaledviewwidth, viewheight);
+    R_InitBuffer (rc, scaledviewwidth, viewheight);
     
-    R_InitTextureMapping ();
+    R_InitTextureMapping (rc);
     
     // psprite scales
     pspritescale = ((FRACUNIT as i32) * viewwidth) / (SCREENWIDTH as i32);
@@ -588,7 +598,7 @@ pub unsafe extern "C" fn R_PointInSubsector(x: fixed_t, y: fixed_t) -> *mut subs
 //
 // R_SetupFrame
 //
-unsafe fn R_SetupFrame (player: *mut player_t) {
+unsafe fn R_SetupFrame (rc: &mut RenderContext_t, player: *mut player_t) {
     viewplayer = player;
     viewx = (*(*player).mo).x;
     viewy = (*(*player).mo).y;
@@ -603,15 +613,15 @@ unsafe fn R_SetupFrame (player: *mut player_t) {
     sscount = 0;
     
     if (*player).fixedcolormap != 0 {
-        fixedcolormap_index = ((*player).fixedcolormap * (COLORMAP_SIZE as i32)) as colormap_index_t;
+        rc.fixedcolormap_index = ((*player).fixedcolormap * (COLORMAP_SIZE as i32)) as colormap_index_t;
     
         walllights = scalelightfixed.as_mut_ptr();
 
         for i in 0 .. MAXLIGHTSCALE as usize {
-            scalelightfixed[i] = fixedcolormap_index;
+            scalelightfixed[i] = rc.fixedcolormap_index;
         }
     } else {
-        fixedcolormap_index = NULL_COLORMAP;
+        rc.fixedcolormap_index = NULL_COLORMAP;
     }
         
     framecount += 1;
@@ -625,33 +635,35 @@ unsafe fn R_SetupFrame (player: *mut player_t) {
 //
 #[no_mangle] // called from D_Display
 pub unsafe extern "C" fn R_RenderPlayerView (player: *mut player_t) {
-    memcpy(remove_this_rc_global.vc.screen.as_mut_ptr(), screens[0],
+
+    let rc = &mut remove_this_rc_global;
+    memcpy(rc.vc.screen.as_mut_ptr(), screens[0],
           (SCREENWIDTH * SCREENHEIGHT) as usize);
-    R_SetupFrame (player);
+    R_SetupFrame (rc, player);
 
     // Clear buffers.
     R_ClearClipSegs ();
     R_ClearDrawSegs ();
-    R_ClearPlanes ();
+    R_ClearPlanes (rc);
     R_ClearSprites ();
     
     // check for new console commands.
     NetUpdate ();
 
     // The head node is the last node output.
-    R_RenderBSPNode (&mut remove_this_rc_global, numnodes-1);
+    R_RenderBSPNode (rc, numnodes-1);
     
     // Check for new console commands.
     NetUpdate ();
     
-    R_DrawPlanes (&mut remove_this_rc_global);
+    R_DrawPlanes (rc);
     
     // Check for new console commands.
     NetUpdate ();
     
-    R_DrawMasked (&mut remove_this_rc_global);
+    R_DrawMasked (rc);
 
-    memcpy(screens[0], remove_this_rc_global.vc.screen.as_ptr(),
+    memcpy(screens[0], rc.vc.screen.as_ptr(),
           (SCREENWIDTH * SCREENHEIGHT) as usize);
 
     // Check for new console commands.

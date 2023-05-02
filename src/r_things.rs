@@ -46,20 +46,13 @@ use crate::r_data::colormap_index_t;
 use crate::r_main::scalelight;
 use crate::r_main::viewplayer;
 use crate::r_main::viewangleoffset;
-use crate::r_main::fixedcolormap_index;
 use crate::r_main::extralight;
-use crate::r_main::centerxfrac;
 use crate::r_main::detailshift;
 use crate::r_main::viewsin;
 use crate::r_main::viewcos;
 use crate::r_main::viewx;
 use crate::r_main::viewy;
 use crate::r_main::viewz;
-use crate::r_main::projection;
-use crate::r_main::basecolfunc;
-use crate::r_main::colfunc;
-use crate::r_main::fuzzcolfunc;
-use crate::r_main::centeryfrac;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawColumn_params;
 
@@ -397,7 +390,7 @@ pub unsafe fn R_DrawMaskedColumn (rc: &mut RenderContext_t, dmc: &mut R_DrawMask
 
             // Drawn by either R_DrawColumn
             //  or (SHADOW) R_DrawFuzzColumn.
-            colfunc (rc, &mut dmc.dc);
+            (rc.colfunc) (rc, &mut dmc.dc);
         }
         dmc.column = (dmc.column as *mut u8).offset(((*dmc.column).length as isize) + 4) as *mut column_t;
     }
@@ -425,9 +418,9 @@ unsafe fn R_DrawVisSprite (rc: &mut RenderContext_t, dvs: &mut R_DrawVisSprite_p
     
     if dmc.dc.dc_colormap_index == NULL_COLORMAP {
         // NULL colormap = shadow draw
-        colfunc = fuzzcolfunc;
+        rc.colfunc = rc.fuzzcolfunc;
     } else if ((*vis).mobjflags & MF_TRANSLATION) != 0 {
-        colfunc = R_DrawTranslatedColumn;
+        rc.colfunc = R_DrawTranslatedColumn;
         dmc.dc.dc_translation = rc.vc.translationtables.offset(
                 - 256 +
             ( ((*vis).mobjflags & MF_TRANSLATION) >> (MF_TRANSSHIFT-8) ) as isize);
@@ -438,7 +431,7 @@ unsafe fn R_DrawVisSprite (rc: &mut RenderContext_t, dvs: &mut R_DrawVisSprite_p
     let mut frac = (*vis).startfrac;
 
     dmc.spryscale = (*vis).scale;
-    dmc.sprtopscreen = centeryfrac.wrapping_sub(FixedMul(dmc.dc.dc_texturemid, (*vis).scale));
+    dmc.sprtopscreen = rc.centeryfrac.wrapping_sub(FixedMul(dmc.dc.dc_texturemid, (*vis).scale));
  
     for x in (*vis).x1 ..= (*vis).x2 {
         dmc.dc.dc_x = x;
@@ -451,7 +444,7 @@ unsafe fn R_DrawVisSprite (rc: &mut RenderContext_t, dvs: &mut R_DrawVisSprite_p
         frac = frac.wrapping_add((*vis).xiscale);
     }
 
-    colfunc = basecolfunc;
+    rc.colfunc = rc.basecolfunc;
 }
 
 //
@@ -459,7 +452,7 @@ unsafe fn R_DrawVisSprite (rc: &mut RenderContext_t, dvs: &mut R_DrawVisSprite_p
 // Generates a vissprite for a thing
 //  if it might be visible.
 //
-unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
+unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
     // transform the origin point
     let tr_x = (* thing).x - viewx;
     let tr_y = (* thing).y - viewy;
@@ -474,7 +467,7 @@ unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
         return;
     }
     
-    let xscale = FixedDiv(projection, tz);
+    let xscale = FixedDiv(rc.projection, tz);
  
     gxt = -FixedMul(tr_x,viewsin); 
     gyt = FixedMul(tr_y,viewcos); 
@@ -513,7 +506,7 @@ unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
     
     // calculate edges of the shape
     tx -= *spriteoffset.offset(lump as isize); 
-    let x1 = (centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS;
+    let x1 = (rc.centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS;
 
     // off the right side?
     if x1 > viewwidth {
@@ -521,7 +514,7 @@ unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
     }
     
     tx +=  *spritewidth.offset(lump as isize);
-    let x2 = ((centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS) - 1;
+    let x2 = ((rc.centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS) - 1;
 
     // off the left side
     if x2 < 0 {
@@ -558,9 +551,9 @@ unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
     if ((*thing).flags & MF_SHADOW) != 0 {
         // shadow draw
         (*vis).colormap_index = NULL_COLORMAP;
-    } else if fixedcolormap_index != NULL_COLORMAP {
+    } else if rc.fixedcolormap_index != NULL_COLORMAP {
         // fixed map
-        (*vis).colormap_index = fixedcolormap_index;
+        (*vis).colormap_index = rc.fixedcolormap_index;
     } else if ((*thing).frame & (FF_FULLBRIGHT as i32)) != 0 {
         // full bright
         (*vis).colormap_index = 0;
@@ -577,7 +570,7 @@ unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
 // R_AddSprites
 // During BSP traversal, this adds sprites by sector.
 //
-pub unsafe fn R_AddSprites (sec: *mut sector_t) {
+pub unsafe fn R_AddSprites (rc: &mut RenderContext_t, sec: *mut sector_t) {
 
     // BSP is traversed by subsector.
     // A sector might have been split into several
@@ -597,7 +590,7 @@ pub unsafe fn R_AddSprites (sec: *mut sector_t) {
     // Handle all things in sector.
     let mut thing = (*sec).thinglist;
     while thing != std::ptr::null_mut() {
-        R_ProjectSprite (thing);
+        R_ProjectSprite (rc, thing);
         thing = (*thing).snext;
     }
 }
@@ -628,7 +621,7 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
     let mut tx = (*dps.psp).sx.wrapping_sub((160 * FRACUNIT) as i32);
     
     tx -= *spriteoffset.offset(lump as isize); 
-    let x1 = (centerxfrac + FixedMul (tx,pspritescale) ) >>FRACBITS;
+    let x1 = (rc.centerxfrac + FixedMul (tx,pspritescale) ) >>FRACBITS;
 
     // off the right side
     if x1 > viewwidth {
@@ -636,7 +629,7 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
     }
 
     tx += *spritewidth.offset(lump as isize);
-    let x2 = ((centerxfrac + FixedMul (tx, pspritescale) ) >>FRACBITS) - 1;
+    let x2 = ((rc.centerxfrac + FixedMul (tx, pspritescale) ) >>FRACBITS) - 1;
 
     // off the left side
     if x2 < 0 {
@@ -671,9 +664,9 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
     || (((*viewplayer).powers[pw_invisibility as usize] & 8) != 0) {
         // shadow draw
         (*vis).colormap_index = NULL_COLORMAP;
-    } else if fixedcolormap_index != NULL_COLORMAP {
+    } else if rc.fixedcolormap_index != NULL_COLORMAP {
         // fixed color
-        (*vis).colormap_index = fixedcolormap_index;
+        (*vis).colormap_index = rc.fixedcolormap_index;
     } else if (((*(*dps.psp).state).frame as u32) & FF_FULLBRIGHT) != 0 {
         // full bright
         (*vis).colormap_index = 0;

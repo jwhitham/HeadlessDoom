@@ -40,13 +40,9 @@ use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawSpan_params;
 use crate::r_draw::R_DrawSpan_params_t;
 use crate::r_main::RenderContext_t;
-use crate::r_main::fixedcolormap_index;
-use crate::r_main::spanfunc;
-use crate::r_main::centerxfrac;
 use crate::r_main::detailshift;
 use crate::r_main::viewangle;
 use crate::r_main::xtoviewangle;
-use crate::r_main::colfunc;
 use crate::r_main::extralight;
 use crate::r_main::zlight;
 use crate::r_main::viewx;
@@ -141,8 +137,8 @@ unsafe fn R_MapPlane(rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t, y: 
     ds.ds_xfrac = viewx + FixedMul(*finecosine.offset(angle as isize), length);
     ds.ds_yfrac = -viewy - FixedMul(finesine[angle as usize], length);
 
-    if fixedcolormap_index != NULL_COLORMAP {
-        ds.ds_colormap_index = fixedcolormap_index;
+    if rc.fixedcolormap_index != NULL_COLORMAP {
+        ds.ds_colormap_index = rc.fixedcolormap_index;
     } else {
         let index: u32 = u32::min((distance >> LIGHTZSHIFT) as u32, MAXLIGHTZ - 1);
         ds.ds_colormap_index = *planezlight.offset(index as isize);
@@ -153,14 +149,14 @@ unsafe fn R_MapPlane(rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t, y: 
     ds.ds_x2 = x2;
 
     // high or low detail
-    spanfunc (rc, ds);
+    (rc.spanfunc) (rc, ds);
 }
 
 //
 // R_ClearPlanes
 // At begining of frame.
 //
-pub unsafe fn R_ClearPlanes () {
+pub unsafe fn R_ClearPlanes (rc: &mut RenderContext_t) {
     // opening / clipping determination
     for i in 0 .. viewwidth as usize {
         floorclip[i] = viewheight as i16;
@@ -177,8 +173,8 @@ pub unsafe fn R_ClearPlanes () {
     let angle: angle_t = viewangle.wrapping_sub(ANG90)>>ANGLETOFINESHIFT;
     
     // scale will be unit scale at SCREENWIDTH/2 distance
-    basexscale = FixedDiv (*finecosine.offset(angle as isize),centerxfrac);
-    baseyscale = -FixedDiv (finesine[angle as usize],centerxfrac);
+    basexscale = FixedDiv (*finecosine.offset(angle as isize),rc.centerxfrac);
+    baseyscale = -FixedDiv (finesine[angle as usize],rc.centerxfrac);
 }
 
 //
@@ -362,7 +358,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
                     let angle = viewangle.wrapping_add(xtoviewangle[x as usize])>>ANGLETOSKYSHIFT;
                     dc.dc_x = x;
                     dc.dc_source = R_GetColumn(skytexture, angle as i32);
-                    colfunc (rc, &mut dc);
+                    (rc.colfunc) (rc, &mut dc);
                 }
             }
             continue;

@@ -455,7 +455,7 @@ unsafe fn R_Subsector (rc: &mut RenderContext_t, num: i32) {
         ceilingplane = std::ptr::null_mut();
     }
         
-    R_AddSprites (frontsector);
+    R_AddSprites (rc, frontsector);
 
     for _ in 0 .. count {
         R_AddLine (rc, line);

@@ -42,14 +42,11 @@ use crate::r_bsp::ds_p;
 use crate::r_bsp::drawsegs;
 use crate::r_bsp::sidedef;
 use crate::r_bsp::linedef;
-use crate::r_main::centeryfrac;
 use crate::r_main::viewz;
 use crate::r_main::viewangle;
 use crate::r_main::scalelight;
 use crate::r_main::extralight;
-use crate::r_main::fixedcolormap_index;
 use crate::r_main::xtoviewangle;
-use crate::r_main::colfunc;
 use crate::r_plane::ceilingclip;
 use crate::r_plane::ceilingplane;
 use crate::r_plane::floorclip;
@@ -155,8 +152,8 @@ pub unsafe fn R_RenderMaskedSegRange
     }
     dmc.dc.dc_texturemid += (*(*curline).sidedef).rowoffset;
             
-    if fixedcolormap_index != NULL_COLORMAP {
-        dmc.dc.dc_colormap_index = fixedcolormap_index;
+    if rc.fixedcolormap_index != NULL_COLORMAP {
+        dmc.dc.dc_colormap_index = rc.fixedcolormap_index;
     }
     
     // draw the columns
@@ -165,13 +162,13 @@ pub unsafe fn R_RenderMaskedSegRange
         // calculate lighting
         let colnum = *maskedtexturecol.offset(dmc.dc.dc_x as isize);
         if colnum != MAXSHORT {
-            if fixedcolormap_index == NULL_COLORMAP {
+            if rc.fixedcolormap_index == NULL_COLORMAP {
                 let index = i32::min((MAXLIGHTSCALE - 1) as i32,
                                     dmc.spryscale>>LIGHTSCALESHIFT);
                 dmc.dc.dc_colormap_index = *walllights.offset(index as isize);
             }
                 
-            dmc.sprtopscreen = centeryfrac - FixedMul(dmc.dc.dc_texturemid, dmc.spryscale);
+            dmc.sprtopscreen = rc.centeryfrac - FixedMul(dmc.dc.dc_texturemid, dmc.spryscale);
             dmc.dc.dc_iscale = ((0xffffffff as u32) / (dmc.spryscale as u32)) as i32;
             
             // draw the texture
@@ -251,7 +248,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
             rsl.dc.dc_yh = yh;
             rsl.dc.dc_texturemid = rsl.rw_midtexturemid;
             rsl.dc.dc_source = R_GetColumn(midtexture,texturecolumn);
-            colfunc (rc, &mut rsl.dc);
+            (rc.colfunc) (rc, &mut rsl.dc);
             ceilingclip[x] = viewheight as i16;
             floorclip[x] = -1;
         } else {
@@ -267,7 +264,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                     rsl.dc.dc_yh = mid;
                     rsl.dc.dc_texturemid = rsl.rw_toptexturemid;
                     rsl.dc.dc_source = R_GetColumn(toptexture,texturecolumn);
-                    colfunc (rc, &mut rsl.dc);
+                    (rc.colfunc) (rc, &mut rsl.dc);
                     ceilingclip[x] = mid as i16;
                 } else {
                     ceilingclip[x] = (yl-1) as i16;
@@ -291,7 +288,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                     rsl.dc.dc_texturemid = rsl.rw_bottomtexturemid;
                     rsl.dc.dc_source = R_GetColumn(bottomtexture,
                                 texturecolumn);
-                    colfunc (rc, &mut rsl.dc);
+                    (rc.colfunc) (rc, &mut rsl.dc);
                     floorclip[x] = mid as i16;
                 } else {
                     floorclip[x] = (yh+1) as i16;
@@ -574,7 +571,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         //  use different light tables
         //  for horizontal / vertical / diagonal
         // OPTIMIZE: get rid of LIGHTSEGSHIFT globally
-        if fixedcolormap_index == NULL_COLORMAP {
+        if rc.fixedcolormap_index == NULL_COLORMAP {
             let mut lightnum = (((*frontsector).lightlevel >> LIGHTSEGSHIFT) as i32) + extralight;
 
             if (*(*curline).v1).y == (*(*curline).v2).y {
@@ -609,22 +606,22 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     worldbottom >>= 4;
     
     rsl.topstep = -FixedMul (rsl.rw_scalestep, worldtop);
-    rsl.topfrac = (centeryfrac>>4) - FixedMul (worldtop, rsl.rw_scale);
+    rsl.topfrac = (rc.centeryfrac>>4) - FixedMul (worldtop, rsl.rw_scale);
 
     rsl.bottomstep = -FixedMul (rsl.rw_scalestep,worldbottom);
-    rsl.bottomfrac = (centeryfrac>>4) - FixedMul (worldbottom, rsl.rw_scale);
+    rsl.bottomfrac = (rc.centeryfrac>>4) - FixedMul (worldbottom, rsl.rw_scale);
     
     if backsector != std::ptr::null_mut() {
         worldhigh >>= 4;
         worldlow >>= 4;
 
         if worldhigh < worldtop {
-            rsl.pixhigh = (centeryfrac>>4) - FixedMul (worldhigh, rsl.rw_scale);
+            rsl.pixhigh = (rc.centeryfrac>>4) - FixedMul (worldhigh, rsl.rw_scale);
             rsl.pixhighstep = -FixedMul (rsl.rw_scalestep,worldhigh);
         }
         
         if worldlow > worldbottom {
-            rsl.pixlow = (centeryfrac>>4) - FixedMul (worldlow, rsl.rw_scale);
+            rsl.pixlow = (rc.centeryfrac>>4) - FixedMul (worldlow, rsl.rw_scale);
             rsl.pixlowstep = -FixedMul (rsl.rw_scalestep,worldlow);
         }
     }
