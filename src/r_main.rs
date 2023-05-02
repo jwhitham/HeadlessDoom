@@ -101,7 +101,7 @@ const empty_RenderContext: RenderContext_t = RenderContext_t {
     spanfunc: R_DrawSpan,
 };
 
-static mut remove_this_rc_global: RenderContext_t = empty_RenderContext;
+pub static mut remove_this_rc_global: RenderContext_t = empty_RenderContext;
 
 
 pub static mut detailshift: i32 = 0;

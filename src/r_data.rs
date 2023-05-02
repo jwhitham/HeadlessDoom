@@ -26,6 +26,7 @@
 use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
+use crate::r_main::remove_this_rc_global;
 
 pub static mut lastspritelump: i32 = 0;
 pub static mut spriteoffset: *mut fixed_t = std::ptr::null_mut();
@@ -48,24 +49,37 @@ pub const NULL_COLORMAP: colormap_index_t = colormap_index_t::MAX;
 pub const WAD_NUMCOLORMAPS: usize = 34; // NUMCOLORMAPS is 32, this is not correct, the WAD has 34.
 pub type colormaps_t = [u8; WAD_NUMCOLORMAPS * COLORMAP_SIZE];
 
+// A single patch from a texture definition,
+//  basically a rectangular area within
+//  the texture rectangle.
+struct texpatch_t {
+    // Block origin (allways UL),
+    // which has allready accounted
+    // for the internal origin of the patch.
+    originx: i32,
+    originy: i32,
+    patch: i32,
+}
+
+
 // A maptexturedef_t describes a rectangular texture,
 //  which is composed of one or more mappatch_t structures
 //  that arrange graphic patches.
-pub struct texture_t {
+struct texture_t {
     // Keep name for switch changing, etc.
-    pub name: String,
-    pub width: i16,
-    pub height: i16,
+    name: String,
+    width: i16,
+    height: i16,
     // All the patches[patchcount]
     //  are drawn back to front into the cached texture.
-    pub patchcount: i16,
-    pub patch: Vec<texpatch_t>,
+    patchcount: i16,
+    patches: Vec<texpatch_t>,
 }
 
 
 pub struct RenderData_t {
     pub colormaps: colormaps_t,
-    pub textures: Vec<texture_t>,
+    textures: Vec<texture_t>,
 }
 
 pub const empty_RenderData: RenderData_t = RenderData_t {
@@ -146,7 +160,7 @@ unsafe fn R_DrawColumnInCache(
 //
 unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
 
-    let texture: &texture_t = rd.textures.get(texnum as usize).unwrap();
+    let texture: &mut texture_t = rd.textures.get_mut(texnum as usize).unwrap();
 
     const pad_size: i32 = 128;
     let unpadded_size: i32 = *texturecompositesize.offset(texnum as isize);
@@ -197,7 +211,7 @@ unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
 //
 unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
     
-    let texture: &texture_t = rd.textures.get(texnum as usize).unwrap();
+    let texture: &mut texture_t = rd.textures.get_mut(texnum as usize).unwrap();
 
     // Composited texture not created yet.
     *texturecomposite.offset(texnum as isize) = std::ptr::null_mut();
@@ -354,23 +368,23 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
             height: i16::from_le((*mtexture).height),
             patchcount: i16::from_le((*mtexture).patchcount),
             name: W_Name((*mtexture).name.as_mut_ptr() as *const u8).to_uppercase(),
-            patch: Vec::new(),
+            patches: Vec::new(),
         };
 
         let mut mpatch: *mut mappatch_t = (*mtexture).patches.as_mut_ptr();
 
-        for _ in 0 .. (*texture).patchcount {
-            let mut patch = patch_t {
+        for _ in 0 .. texture.patchcount {
+            let patch = texpatch_t {
                 originx: i16::from_le((*mpatch).originx) as i32,
                 originy: i16::from_le((*mpatch).originy) as i32,
                 patch: *patchlookup.get(i16::from_le((*mpatch).patch) as usize).unwrap(),
             };
-            if (*patch).patch == -1 {
+            if patch.patch == -1 {
                 panic!("R_InitTextures: Missing patch in texture {}",
-                       W_Name((*texture).name.as_ptr()));
+                       texture.name);
             }
             mpatch = mpatch.offset(1);
-            texture.patch.push(patch);
+            texture.patches.push(patch);
         }
         *texturecolumnlump.offset(i as isize) =
             Z_Malloc ((texture.width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut i16;
@@ -514,15 +528,16 @@ pub unsafe extern "C" fn R_FlatNumForName (name: *const u8) -> i32 {
 #[no_mangle] // called from P_InitPicAnims
 pub unsafe extern "C" fn R_CheckTextureNumForName (name: *const u8) -> i32 {
 
+    let rd = &mut remove_this_rc_global.rd;
+    let find = W_Name(name).to_uppercase();
+
     // "NoTexture" marker.
-    if *name.offset(0) == ('-' as u8) {
+    if find.starts_with("-") {
         return 0;
     }
-
-    let find = W_Name(name).to_uppercase();
     
     for i in 0 .. numtextures {
-        if find == name {
+        if find == rd.textures.get(i as usize).unwrap().name {
             return i;
         }
     }
