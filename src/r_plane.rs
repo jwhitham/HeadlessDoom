@@ -32,14 +32,15 @@ use crate::tables::finesine;
 use crate::r_data::R_GetColumn;
 use crate::r_bsp::ds_p;
 use crate::r_bsp::drawsegs;
-use crate::r_data::colormaps;
 use crate::r_data::firstflat;
 use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawSpan_params;
 use crate::r_draw::R_DrawSpan_params_t;
 use crate::r_draw::VideoContext_t;
-use crate::r_main::fixedcolormap;
+use crate::r_draw::NULL_COLORMAP;
+use crate::r_draw::colormap_index_t;
+use crate::r_main::fixedcolormap_index;
 use crate::r_main::spanfunc;
 use crate::r_main::centerxfrac;
 use crate::r_main::detailshift;
@@ -75,7 +76,7 @@ static mut cachedystep: [fixed_t; SCREENHEIGHT as usize] = [0; SCREENHEIGHT as u
 static mut cachedxstep: [fixed_t; SCREENHEIGHT as usize] = [0; SCREENHEIGHT as usize];
 static mut basexscale: fixed_t = 0;
 static mut baseyscale: fixed_t = 0;
-static mut planezlight: *mut *mut lighttable_t = std::ptr::null_mut();
+static mut planezlight: *mut colormap_index_t = std::ptr::null_mut();
 static mut visplanes: [visplane_t; MAXVISPLANES as usize] = [empty_visplane; MAXVISPLANES as usize];
 static mut lastvisplane: *mut visplane_t = std::ptr::null_mut();
 static mut openings: [i16; MAXOPENINGS as usize] = [0; MAXOPENINGS as usize];
@@ -140,11 +141,11 @@ unsafe fn R_MapPlane(vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t, y: i
     ds.ds_xfrac = viewx + FixedMul(*finecosine.offset(angle as isize), length);
     ds.ds_yfrac = -viewy - FixedMul(finesine[angle as usize], length);
 
-    if fixedcolormap != std::ptr::null_mut() {
-        ds.ds_colormap = fixedcolormap;
+    if fixedcolormap_index != NULL_COLORMAP {
+        ds.ds_colormap_index = fixedcolormap_index;
     } else {
         let index: u32 = u32::min((distance >> LIGHTZSHIFT) as u32, MAXLIGHTZ - 1);
-        ds.ds_colormap = *planezlight.offset(index as isize);
+        ds.ds_colormap_index = *planezlight.offset(index as isize);
     }
     
     ds.ds_y = y;
@@ -351,7 +352,7 @@ pub unsafe fn R_DrawPlanes (vc: &mut VideoContext_t) {
             //  i.e. colormaps[0] is used.
             // Because of this hack, sky is not affected
             //  by INVUL inverse mapping.
-            dc.dc_colormap = colormaps;
+            dc.dc_colormap_index = 0;
             dc.dc_texturemid = skytexturemid;
             for x in (*pl).minx ..= (*pl).maxx {
                 dc.dc_yl = (*pl).top[x as usize] as i32;

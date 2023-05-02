@@ -26,6 +26,8 @@
 use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
+use crate::r_draw::VideoContext_t;
+use crate::r_draw::colormaps_t;
 
 pub static mut lastspritelump: i32 = 0;
 pub static mut spriteoffset: *mut fixed_t = std::ptr::null_mut();
@@ -41,8 +43,14 @@ static mut texturecompositesize: *mut i32 = std::ptr::null_mut();
 static mut texturewidthmask: *mut i32 = std::ptr::null_mut();
 static mut texturecolumnlump: *mut *mut i16 = std::ptr::null_mut();
 static mut texturecomposite: *mut *mut u8 = std::ptr::null_mut();
-pub static mut colormaps: *mut u8 = std::ptr::null_mut();
 static mut textures: *mut *mut texture_t = std::ptr::null_mut();
+
+pub struct DataContext_t {
+}
+
+pub const empty_DataContext: DataContext_t = DataContext_t {
+};
+
 
 //
 // Graphics.
@@ -430,17 +438,16 @@ unsafe fn R_InitSpriteLumps() {
 //
 // R_InitColormaps
 //
-unsafe fn R_InitColormaps () {
+unsafe fn R_InitColormaps (vc: &mut VideoContext_t) {
     // Load in the light tables, 
-    //  256 byte align tables.
     let lump = W_GetNumForName("COLORMAP\0".as_ptr()); 
-    let length = W_LumpLength (lump) + 255; 
-    colormaps = Z_Malloc (length, PU_STATIC, std::ptr::null_mut()); 
-    let offset = colormaps.align_offset(256);
-    if offset < 256 {
-        colormaps = colormaps.offset(offset as isize);
+    let length = W_LumpLength (lump) as usize;
+    let available_memory = std::mem::size_of::<colormaps_t>();
+    if length > available_memory {
+        panic!("Unable to load COLORMAP (size {}) into vc.colormaps (size {})",
+                length, available_memory);
     }
-    W_ReadLump (lump,colormaps); 
+    W_ReadLump (lump,vc.colormaps.as_mut_ptr()); 
 }
 
 
@@ -451,14 +458,14 @@ unsafe fn R_InitColormaps () {
 //  that will be used by all views
 // Must be called after W_Init.
 //
-pub unsafe fn R_InitData () {
+pub unsafe fn R_InitData (vc: &mut VideoContext_t) {
     R_InitTextures ();
     print!("\nInitTextures");
     R_InitFlats ();
     print!("\nInitFlats");
     R_InitSpriteLumps ();
     print!("\nInitSprites");
-    R_InitColormaps ();
+    R_InitColormaps (vc);
     print!("\nInitColormaps");
 }
 

@@ -44,7 +44,7 @@ use crate::r_main::viewz;
 use crate::r_main::viewangle;
 use crate::r_main::scalelight;
 use crate::r_main::extralight;
-use crate::r_main::fixedcolormap;
+use crate::r_main::fixedcolormap_index;
 use crate::r_main::xtoviewangle;
 use crate::r_main::colfunc;
 use crate::r_plane::ceilingclip;
@@ -57,6 +57,8 @@ use crate::r_things::screenheightarray;
 use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::VideoContext_t;
+use crate::r_draw::NULL_COLORMAP;
+use crate::r_draw::colormap_index_t;
 
 static mut markceiling: boolean = c_false;
 static mut markfloor: boolean = c_false;
@@ -67,7 +69,7 @@ static mut toptexture: i32 = 0;
 static mut bottomtexture: i32 = 0;
 pub static mut rw_normalangle: angle_t = 0;
 pub static mut rw_angle1: i32 = 0;
-pub static mut walllights: *mut *mut lighttable_t = std::ptr::null_mut();
+pub static mut walllights: *mut colormap_index_t = std::ptr::null_mut();
 pub static mut maskedtexturecol: *mut i16 = std::ptr::null_mut();
 
 struct R_RenderSegLoop_params_t {
@@ -153,8 +155,8 @@ pub unsafe fn R_RenderMaskedSegRange
     }
     dmc.dc.dc_texturemid += (*(*curline).sidedef).rowoffset;
             
-    if fixedcolormap != std::ptr::null_mut() {
-        dmc.dc.dc_colormap = fixedcolormap;
+    if fixedcolormap_index != NULL_COLORMAP {
+        dmc.dc.dc_colormap_index = fixedcolormap_index;
     }
     
     // draw the columns
@@ -163,10 +165,10 @@ pub unsafe fn R_RenderMaskedSegRange
         // calculate lighting
         let colnum = *maskedtexturecol.offset(dmc.dc.dc_x as isize);
         if colnum != MAXSHORT {
-            if fixedcolormap == std::ptr::null_mut() {
+            if fixedcolormap_index == NULL_COLORMAP {
                 let index = i32::min((MAXLIGHTSCALE - 1) as i32,
                                     dmc.spryscale>>LIGHTSCALESHIFT);
-                dmc.dc.dc_colormap = *walllights.offset(index as isize);
+                dmc.dc.dc_colormap_index = *walllights.offset(index as isize);
             }
                 
             dmc.sprtopscreen = centeryfrac - FixedMul(dmc.dc.dc_texturemid, dmc.spryscale);
@@ -237,7 +239,7 @@ unsafe fn R_RenderSegLoop (vc: &mut VideoContext_t, rsl: &mut R_RenderSegLoop_pa
             let index = i32::min(rsl.rw_scale>>LIGHTSCALESHIFT,
                                  (MAXLIGHTSCALE-1) as i32);
 
-            rsl.dc.dc_colormap = *walllights.offset(index as isize);
+            rsl.dc.dc_colormap_index = *walllights.offset(index as isize);
             rsl.dc.dc_x = x as i32;
             rsl.dc.dc_iscale = ((0xffffffff as u32) / (rsl.rw_scale as u32)) as i32;
         }
@@ -572,7 +574,7 @@ pub unsafe fn R_StoreWallRange (vc: &mut VideoContext_t, start: i32, stop: i32) 
         //  use different light tables
         //  for horizontal / vertical / diagonal
         // OPTIMIZE: get rid of LIGHTSEGSHIFT globally
-        if fixedcolormap == std::ptr::null_mut() {
+        if fixedcolormap_index == NULL_COLORMAP {
             let mut lightnum = (((*frontsector).lightlevel >> LIGHTSEGSHIFT) as i32) + extralight;
 
             if (*(*curline).v1).y == (*(*curline).v2).y {

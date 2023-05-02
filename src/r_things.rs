@@ -40,12 +40,11 @@ use crate::r_data::lastspritelump;
 use crate::r_data::spriteoffset;
 use crate::r_data::spritewidth;
 use crate::r_data::spritetopoffset;
-use crate::r_data::colormaps;
 use crate::r_draw::VideoContext_t;
 use crate::r_main::scalelight;
 use crate::r_main::viewplayer;
 use crate::r_main::viewangleoffset;
-use crate::r_main::fixedcolormap;
+use crate::r_main::fixedcolormap_index;
 use crate::r_main::extralight;
 use crate::r_main::centerxfrac;
 use crate::r_main::detailshift;
@@ -61,6 +60,8 @@ use crate::r_main::fuzzcolfunc;
 use crate::r_main::centeryfrac;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawColumn_params;
+use crate::r_draw::NULL_COLORMAP;
+use crate::r_draw::colormap_index_t;
 
 static mut numsprites: i32 = 0;
 pub static mut negonearray: [i16; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
@@ -77,6 +78,37 @@ pub struct R_DrawMaskedColumn_params_t {
     pub mceilingclip: *mut i16,
 }
 
+// A vissprite_t is a thing
+//  that will be drawn during a refresh.
+// I.e. a sprite object that is partly visible.
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct vissprite_s {
+    // Doubly linked list.
+    pub prev: *mut vissprite_s,
+    pub next: *mut vissprite_s,
+    pub x1: ::std::os::raw::c_int,
+    pub x2: ::std::os::raw::c_int,
+    // for line side calculation
+    pub gx: fixed_t,
+    pub gy: fixed_t,
+    // global bottom / top for silhouette clipping
+    pub gz: fixed_t,
+    pub gzt: fixed_t,
+    // horizontal position of x1
+    pub startfrac: fixed_t,
+    pub scale: fixed_t,
+    // negative if flipped
+    pub xiscale: fixed_t,
+    pub texturemid: fixed_t,
+    pub patch: ::std::os::raw::c_int,
+    // for color translation and shadow draw,
+    //  maxbright frames as well
+    pub colormap_index: colormap_index_t,
+    pub mobjflags: ::std::os::raw::c_int,
+}
+pub type vissprite_t = vissprite_s;
+
 struct R_DrawVisSprite_params_t {
     vis: *mut vissprite_t,
     mfloorclip: *mut i16,
@@ -92,7 +124,7 @@ struct R_DrawPSprite_params_t {
 const SPRTEMP_SIZE: usize = 29;
 type sprtemp_t = [spriteframe_t; SPRTEMP_SIZE];
 
-const BLANK_VISSPRITE: vissprite_t = vissprite_t {
+const empty_vissprite_t: vissprite_t = vissprite_t {
     prev: std::ptr::null_mut(),
     next: std::ptr::null_mut(),
     gx: 0,
@@ -100,7 +132,7 @@ const BLANK_VISSPRITE: vissprite_t = vissprite_t {
     gz: 0,
     gzt: 0,
     patch: 0,
-    colormap: std::ptr::null_mut(),
+    colormap_index: 0,
     mobjflags: 0,
     texturemid: 0,
     x1: 0,
@@ -109,18 +141,18 @@ const BLANK_VISSPRITE: vissprite_t = vissprite_t {
     xiscale: 0,
     startfrac: 0,
 };
-const BLANK_SPRITEFRAME: spriteframe_t = spriteframe_t {
+const empty_spriteframe: spriteframe_t = spriteframe_t {
     rotate: c_false,
     lump: [0; 8],
     flip: [0; 8],
 };
-static mut spritelights: *mut *mut lighttable_t = std::ptr::null_mut();
-static mut sprtemp: sprtemp_t = [BLANK_SPRITEFRAME; SPRTEMP_SIZE];
+static mut spritelights: *mut colormap_index_t = std::ptr::null_mut();
+static mut sprtemp: sprtemp_t = [empty_spriteframe; SPRTEMP_SIZE];
 static mut maxframe: i32 = 0;
 static mut spritename: *mut u8 = std::ptr::null_mut();
-static mut vissprites: [vissprite_t; MAXVISSPRITES as usize] = [BLANK_VISSPRITE; MAXVISSPRITES as usize];
+static mut vissprites: [vissprite_t; MAXVISSPRITES as usize] = [empty_vissprite_t; MAXVISSPRITES as usize];
 static mut vissprite_p: *mut vissprite_t = std::ptr::null_mut();
-static mut overflowsprite: vissprite_t = BLANK_VISSPRITE;
+static mut overflowsprite: vissprite_t = empty_vissprite_t;
 
 const MINZ: fixed_t = (FRACUNIT*4) as fixed_t;
 //
@@ -389,9 +421,9 @@ unsafe fn R_DrawVisSprite (vc: &mut VideoContext_t, dvs: &mut R_DrawVisSprite_pa
         mceilingclip: dvs.mceilingclip,
     };
 
-    dmc.dc.dc_colormap = (*vis).colormap;
+    dmc.dc.dc_colormap_index = (*vis).colormap_index;
     
-    if dmc.dc.dc_colormap == std::ptr::null() {
+    if dmc.dc.dc_colormap_index == NULL_COLORMAP {
         // NULL colormap = shadow draw
         colfunc = fuzzcolfunc;
     } else if ((*vis).mobjflags & MF_TRANSLATION) != 0 {
@@ -525,19 +557,19 @@ unsafe fn R_ProjectSprite (thing: *mut mobj_t) {
     // get light level
     if ((*thing).flags & MF_SHADOW) != 0 {
         // shadow draw
-        (*vis).colormap = std::ptr::null_mut();
-    } else if fixedcolormap != std::ptr::null_mut() {
+        (*vis).colormap_index = NULL_COLORMAP;
+    } else if fixedcolormap_index != NULL_COLORMAP {
         // fixed map
-        (*vis).colormap = fixedcolormap;
+        (*vis).colormap_index = fixedcolormap_index;
     } else if ((*thing).frame & (FF_FULLBRIGHT as i32)) != 0 {
         // full bright
-        (*vis).colormap = colormaps;
+        (*vis).colormap_index = 0;
     } else {
         // diminished light
         let index = i32::min((MAXLIGHTSCALE - 1) as i32,
                              xscale>>(LIGHTSCALESHIFT-(detailshift as u32)));
 
-        (*vis).colormap = *spritelights.offset(index as isize);
+        (*vis).colormap_index = *spritelights.offset(index as isize);
     }
 } 
 
@@ -620,7 +652,7 @@ unsafe fn R_DrawPSprite (vc: &mut VideoContext_t, dps: &mut R_DrawPSprite_params
         gz: 0,
         gzt: 0,
         patch: lump as i32,
-        colormap: std::ptr::null_mut(),
+        colormap_index: 0,
         mobjflags: 0,
         texturemid: ((BASEYCENTER<<FRACBITS) as i32 + (FRACUNIT/2) as i32).wrapping_sub(
                         (*dps.psp).sy.wrapping_sub(*spritetopoffset.offset(lump as isize))),
@@ -638,16 +670,16 @@ unsafe fn R_DrawPSprite (vc: &mut VideoContext_t, dps: &mut R_DrawPSprite_params
     if ((*viewplayer).powers[pw_invisibility as usize] > 4*32)
     || (((*viewplayer).powers[pw_invisibility as usize] & 8) != 0) {
         // shadow draw
-        (*vis).colormap = std::ptr::null_mut();
-    } else if fixedcolormap != std::ptr::null_mut() {
+        (*vis).colormap_index = NULL_COLORMAP;
+    } else if fixedcolormap_index != NULL_COLORMAP {
         // fixed color
-        (*vis).colormap = fixedcolormap;
+        (*vis).colormap_index = fixedcolormap_index;
     } else if (((*(*dps.psp).state).frame as u32) & FF_FULLBRIGHT) != 0 {
         // full bright
-        (*vis).colormap = colormaps;
+        (*vis).colormap_index = 0;
     } else {
         // local light
-        (*vis).colormap = *spritelights.offset((MAXLIGHTSCALE - 1) as isize);
+        (*vis).colormap_index = *spritelights.offset((MAXLIGHTSCALE - 1) as isize);
     }
     
     let mut dvs = R_DrawVisSprite_params_t {

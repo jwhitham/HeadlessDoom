@@ -2436,44 +2436,6 @@ typedef struct
 
 
 
-// A vissprite_t is a thing
-//  that will be drawn during a refresh.
-// I.e. a sprite object that is partly visible.
-typedef struct vissprite_s
-{
-    // Doubly linked list.
-    struct vissprite_s*	prev;
-    struct vissprite_s*	next;
-    
-    int			x1;
-    int			x2;
-
-    // for line side calculation
-    fixed_t		gx;
-    fixed_t		gy;		
-
-    // global bottom / top for silhouette clipping
-    fixed_t		gz;
-    fixed_t		gzt;
-
-    // horizontal position of x1
-    fixed_t		startfrac;
-    
-    fixed_t		scale;
-    
-    // negative if flipped
-    fixed_t		xiscale;	
-
-    fixed_t		texturemid;
-    int			patch;
-
-    // for color translation and shadow draw,
-    //  maxbright frames as well
-    lighttable_t*	colormap;
-   
-    int			mobjflags;
-    
-} vissprite_t;
 
 
 //	

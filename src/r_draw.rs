@@ -28,8 +28,13 @@
 use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
-use crate::r_data::colormaps;
 use crate::r_main::centery;
+
+pub const COLORMAP_SIZE: usize = 256;
+pub type colormap_index_t = u16;
+pub const NULL_COLORMAP: colormap_index_t = colormap_index_t::MAX;
+pub const WAD_NUMCOLORMAPS: usize = 34; // NUMCOLORMAPS is 32, this is not correct, the WAD has 34.
+pub type colormaps_t = [u8; WAD_NUMCOLORMAPS * COLORMAP_SIZE];
 
 pub struct VideoContext_t {
     pub translationtables: *mut u8,
@@ -37,6 +42,7 @@ pub struct VideoContext_t {
     columnofs: [i32; SCREENWIDTH as usize],
     ylookup: [usize; SCREENWIDTH as usize],
     pub screen: [u8; (SCREENWIDTH * SCREENHEIGHT) as usize],
+    pub colormaps: colormaps_t,
 }
 
 pub const empty_VideoContext: VideoContext_t = VideoContext_t {
@@ -45,6 +51,7 @@ pub const empty_VideoContext: VideoContext_t = VideoContext_t {
     columnofs: [0; SCREENWIDTH as usize],
     ylookup: [0; SCREENWIDTH as usize],
     screen: [0; (SCREENWIDTH * SCREENHEIGHT) as usize],
+    colormaps: [0; WAD_NUMCOLORMAPS * COLORMAP_SIZE],
 };
 
 pub struct R_DrawColumn_params_t {
@@ -52,7 +59,7 @@ pub struct R_DrawColumn_params_t {
     pub dc_yl: i32,
     pub dc_yh: i32,
     pub dc_x: i32,
-    pub dc_colormap: *const u8,
+    pub dc_colormap_index: colormap_index_t,
     pub dc_source: *mut u8,
     pub dc_iscale: fixed_t,
     pub dc_translation: *const u8,
@@ -64,7 +71,7 @@ pub const empty_R_DrawColumn_params: R_DrawColumn_params_t = R_DrawColumn_params
     dc_yl: 0,
     dc_yh: 0,
     dc_x: 0,
-    dc_colormap: std::ptr::null(),
+    dc_colormap_index: 0,
     dc_source: std::ptr::null_mut(),
     dc_iscale: 0,
     dc_translation: std::ptr::null(),
@@ -74,7 +81,7 @@ pub struct R_DrawSpan_params_t {
     pub ds_y: i32,
     pub ds_x1: i32,
     pub ds_x2: i32,
-    pub ds_colormap: *const u8,
+    pub ds_colormap_index: colormap_index_t,
     pub ds_xfrac: fixed_t,
     pub ds_yfrac: fixed_t,
     pub ds_xstep: fixed_t,
@@ -86,7 +93,7 @@ pub const empty_R_DrawSpan_params: R_DrawSpan_params_t = R_DrawSpan_params_t {
     ds_y: 0,
     ds_x1: 0,
     ds_x2: 0,
-    ds_colormap: std::ptr::null(),
+    ds_colormap_index: 0,
     ds_xfrac: 0,
     ds_yfrac: 0,
     ds_xstep: 0,
@@ -144,10 +151,9 @@ pub fn R_DrawColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) {
         for _ in 0 ..= count {
             // Re-map color indices from wall texture column
             //  using a lighting/special effects LUT.
-            //*dest = dc.dc_colormap[dc.dc_source[((frac>>FRACBITS)&127) as usize] as usize];
-            vc.screen[dest] = *dc.dc_colormap.offset(
+            vc.screen[dest] = vc.colormaps[dc.dc_colormap_index as usize + 
                         *dc.dc_source.offset(((frac>>FRACBITS)&127) as isize)
-                            as isize);
+                            as usize];
 
             dest += SCREENWIDTH as usize;
             frac = frac.wrapping_add(fracstep);
@@ -220,8 +226,9 @@ pub unsafe fn R_DrawFuzzColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_p
         //  a pixel that is either one column
         //  left or right of the current one.
         // Add index from colormap to index.
-        vc.screen[dest] = *colormaps.offset((6*256) as isize +
-                    vc.screen[((dest as isize) + (fuzzoffset[vc.fuzzpos] as isize)) as usize] as isize);
+        vc.screen[dest] = vc.colormaps[
+                    (6 * COLORMAP_SIZE) +
+                    vc.screen[((dest as isize) + (fuzzoffset[vc.fuzzpos] as isize)) as usize] as usize];
 
         // Clamp table lookup index.
         vc.fuzzpos += 1;
@@ -271,11 +278,10 @@ pub unsafe fn R_DrawTranslatedColumn (vc: &mut VideoContext_t, dc: &mut R_DrawCo
         //  used with PLAY sprites.
         // Thus the "green" ramp of the player 0 sprite
         //  is mapped to gray, red, black/indigo. 
-        vc.screen[dest] = *dc.dc_colormap.offset(
+        vc.screen[dest] = vc.colormaps[dc.dc_colormap_index as usize +
                     *dc.dc_translation.offset(
                         *dc.dc_source.offset(((frac>>FRACBITS)&127) as isize)
-                            as isize)
-                        as isize);
+                            as isize) as usize];
         dest += SCREENWIDTH as usize;
         frac = frac.wrapping_add(fracstep);
     }
@@ -291,8 +297,7 @@ pub unsafe fn R_DrawTranslatedColumn (vc: &mut VideoContext_t, dc: &mut R_DrawCo
 // Assumes a given structure of the PLAYPAL.
 // Could be read from a lump instead.
 //
-pub unsafe fn R_InitTranslationTables () -> VideoContext_t {
-    let mut vc = empty_VideoContext;
+pub unsafe fn R_InitTranslationTables (vc: &mut VideoContext_t) {
     vc.translationtables = Z_Malloc (256*3+255, PU_STATIC,
                                         std::ptr::null_mut());
     //translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // DSB-3
@@ -312,7 +317,6 @@ pub unsafe fn R_InitTranslationTables () -> VideoContext_t {
             *vc.translationtables.offset(j+512) = i;
         }
     }
-    return vc;
 }
 
 
@@ -347,7 +351,7 @@ pub unsafe fn R_DrawSpan (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t)
 
         // Lookup pixel from flat texture tile,
         //  re-index using light/colormap.
-        vc.screen[dest] = *ds.ds_colormap.offset(*ds.ds_source.offset(spot as isize) as isize);
+        vc.screen[dest] = vc.colormaps[ds.ds_colormap_index as usize + *ds.ds_source.offset(spot as isize) as usize];
         dest += 1;
 
         // Next step in u,v.
@@ -361,7 +365,7 @@ pub unsafe fn R_DrawSpanLow (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params
     R_DrawSpan(vc, ds);
 }
 
-pub fn R_DrawColumnLow(_vc: &mut VideoContext_t, _dc: &mut R_DrawColumn_params_t) { 
+pub fn R_DrawColumnLow(_rc: &mut VideoContext_t, _dc: &mut R_DrawColumn_params_t) { 
     panic!("No implementation for R_DrawColumnLow");
 }
 

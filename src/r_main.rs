@@ -41,6 +41,9 @@ use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::R_DrawSpan_params_t;
 use crate::r_draw::VideoContext_t;
 use crate::r_draw::empty_VideoContext;
+use crate::r_draw::COLORMAP_SIZE;
+use crate::r_draw::NULL_COLORMAP;
+use crate::r_draw::colormap_index_t;
 use crate::r_bsp::R_RenderBSPNode;
 use crate::r_bsp::R_ClearClipSegs;
 use crate::r_bsp::R_ClearDrawSegs;
@@ -54,8 +57,9 @@ use crate::r_plane::R_DrawPlanes;
 use crate::r_plane::R_ClearPlanes;
 use crate::r_plane::R_InitPlanes;
 use crate::r_data::R_InitData;
+use crate::r_data::DataContext_t;
+use crate::r_data::empty_DataContext;
 use crate::r_sky::R_InitSkyMap;
-use crate::r_data::colormaps;
 use crate::r_plane::yslope;
 use crate::r_plane::distscale;
 use crate::r_segs::rw_normalangle;
@@ -65,7 +69,17 @@ use crate::r_things::pspritescale;
 use crate::r_things::pspriteiscale;
 use crate::r_things::screenheightarray;
 
-static mut remove_this_vc_global: VideoContext_t = empty_VideoContext;
+pub struct RenderContext_t {
+    pub dc: DataContext_t,
+    pub vc: VideoContext_t,
+}
+
+const empty_RenderContext: RenderContext_t = RenderContext_t {
+    dc: empty_DataContext,
+    vc: empty_VideoContext,
+};
+
+static mut remove_this_rc_global: RenderContext_t = empty_RenderContext;
 
 pub static mut colfunc: unsafe fn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
 pub static mut fuzzcolfunc: unsafe fn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
@@ -82,26 +96,26 @@ pub static mut viewz: fixed_t = 0;
 pub static mut viewcos: fixed_t = 0;
 pub static mut viewsin: fixed_t = 0;
 pub static mut projection: fixed_t = 0;
-pub static mut fixedcolormap: *mut lighttable_t = std::ptr::null_mut();
+pub static mut fixedcolormap_index: colormap_index_t = NULL_COLORMAP;
 pub static mut extralight: i32 = 0;
 pub static mut viewplayer: *mut player_t = std::ptr::null_mut();
 pub static mut viewangleoffset: i32 = 0;
-pub static mut scalelight: [[*mut lighttable_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize] = [
-    [std::ptr::null_mut(); MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
+pub static mut scalelight: [[colormap_index_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize] = [
+    [NULL_COLORMAP; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
 pub static mut centery: i32 = 0; 
 pub static mut xtoviewangle: [angle_t; (SCREENWIDTH + 1) as usize] = [0; (SCREENWIDTH + 1) as usize];
 pub static mut clipangle: angle_t = 0;
 pub static mut viewangletox: [i32; (FINEANGLES / 2) as usize] = [0; (FINEANGLES / 2) as usize];
 pub static mut sscount: i32 = 0;
-pub static mut zlight: [[*mut lighttable_t; MAXLIGHTZ as usize]; LIGHTLEVELS as usize] = [
-    [std::ptr::null_mut(); MAXLIGHTZ as usize]; LIGHTLEVELS as usize];
+pub static mut zlight: [[colormap_index_t; MAXLIGHTZ as usize]; LIGHTLEVELS as usize] = [
+    [NULL_COLORMAP; MAXLIGHTZ as usize]; LIGHTLEVELS as usize];
 pub static mut viewangle: angle_t = 0;
 static mut centerx: i32 = 0;
 static mut setblocks: i32 = 0;
 static mut setdetail: i32 = 0;
 static mut framecount: i32 = 0;
-static mut scalelightfixed: [*mut lighttable_t; MAXLIGHTSCALE as usize] = 
-    [std::ptr::null_mut(); MAXLIGHTSCALE as usize];
+static mut scalelightfixed: [colormap_index_t; MAXLIGHTSCALE as usize] = 
+    [NULL_COLORMAP; MAXLIGHTSCALE as usize];
 
 // Fineangles in the SCREENWIDTH wide window.
 const FIELDOFVIEW: u32 = 2048;
@@ -426,7 +440,7 @@ unsafe fn R_InitLightTables () {
             
             level = i32::max(0, i32::min((NUMCOLORMAPS - 1) as i32, level));
 
-            zlight[i as usize][j as usize] = colormaps.offset((level*256) as isize);
+            zlight[i as usize][j as usize] = (level * (COLORMAP_SIZE as i32)) as colormap_index_t;
         }
     }
 }
@@ -484,7 +498,7 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
         spanfunc = R_DrawSpanLow;
     }
 
-    R_InitBuffer (&mut remove_this_vc_global, scaledviewwidth, viewheight);
+    R_InitBuffer (&mut remove_this_rc_global.vc, scaledviewwidth, viewheight);
     
     R_InitTextureMapping ();
     
@@ -519,7 +533,7 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
             
             level = i32::max(0, i32::min((NUMCOLORMAPS - 1) as i32, level));
 
-            scalelight[i as usize][j as usize] = colormaps.offset((level*256) as isize);
+            scalelight[i as usize][j as usize] = (level * (COLORMAP_SIZE as i32)) as colormap_index_t;
         }
     }
 }
@@ -529,7 +543,7 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
 //
 #[no_mangle] // called from D_DoomMain
 pub unsafe extern "C" fn R_Init () {
-    R_InitData ();
+    R_InitData (&mut remove_this_rc_global.vc);
     print!("\nR_InitData");
     R_InitPointToAngle ();
     print!("\nR_InitPointToAngle");
@@ -544,7 +558,7 @@ pub unsafe extern "C" fn R_Init () {
     print!("\nR_InitLightTables");
     R_InitSkyMap ();
     print!("\nR_InitSkyMap");
-    remove_this_vc_global = R_InitTranslationTables ();
+    R_InitTranslationTables (&mut remove_this_rc_global.vc);
     print!("\nR_InitTranslationsTables");
     
     framecount = 0;
@@ -589,17 +603,15 @@ unsafe fn R_SetupFrame (player: *mut player_t) {
     sscount = 0;
     
     if (*player).fixedcolormap != 0 {
-        fixedcolormap =
-            colormaps.offset(
-                ((*player).fixedcolormap as isize) * 256); // sizeof(lighttable_t) == sizeof(u8) == 1
+        fixedcolormap_index = ((*player).fixedcolormap * (COLORMAP_SIZE as i32)) as colormap_index_t;
     
         walllights = scalelightfixed.as_mut_ptr();
 
         for i in 0 .. MAXLIGHTSCALE as usize {
-            scalelightfixed[i] = fixedcolormap;
+            scalelightfixed[i] = fixedcolormap_index;
         }
     } else {
-        fixedcolormap = std::ptr::null_mut();
+        fixedcolormap_index = NULL_COLORMAP;
     }
         
     framecount += 1;
@@ -613,7 +625,7 @@ unsafe fn R_SetupFrame (player: *mut player_t) {
 //
 #[no_mangle] // called from D_Display
 pub unsafe extern "C" fn R_RenderPlayerView (player: *mut player_t) {
-    memcpy(remove_this_vc_global.screen.as_mut_ptr(), screens[0],
+    memcpy(remove_this_rc_global.vc.screen.as_mut_ptr(), screens[0],
           (SCREENWIDTH * SCREENHEIGHT) as usize);
     R_SetupFrame (player);
 
@@ -627,19 +639,19 @@ pub unsafe extern "C" fn R_RenderPlayerView (player: *mut player_t) {
     NetUpdate ();
 
     // The head node is the last node output.
-    R_RenderBSPNode (&mut remove_this_vc_global, numnodes-1);
+    R_RenderBSPNode (&mut remove_this_rc_global.vc, numnodes-1);
     
     // Check for new console commands.
     NetUpdate ();
     
-    R_DrawPlanes (&mut remove_this_vc_global);
+    R_DrawPlanes (&mut remove_this_rc_global.vc);
     
     // Check for new console commands.
     NetUpdate ();
     
-    R_DrawMasked (&mut remove_this_vc_global);
+    R_DrawMasked (&mut remove_this_rc_global.vc);
 
-    memcpy(screens[0], remove_this_vc_global.screen.as_ptr(),
+    memcpy(screens[0], remove_this_rc_global.vc.screen.as_ptr(),
           (SCREENWIDTH * SCREENHEIGHT) as usize);
 
     // Check for new console commands.
