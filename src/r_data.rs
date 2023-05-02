@@ -41,7 +41,6 @@ static mut texturecompositesize: *mut i32 = std::ptr::null_mut();
 static mut texturewidthmask: *mut i32 = std::ptr::null_mut();
 static mut texturecolumnlump: *mut *mut i16 = std::ptr::null_mut();
 static mut texturecomposite: *mut *mut u8 = std::ptr::null_mut();
-static mut textures: *mut *mut texture_t = std::ptr::null_mut();
 
 pub const COLORMAP_SIZE: usize = 256;
 pub type colormap_index_t = u16;
@@ -49,12 +48,29 @@ pub const NULL_COLORMAP: colormap_index_t = colormap_index_t::MAX;
 pub const WAD_NUMCOLORMAPS: usize = 34; // NUMCOLORMAPS is 32, this is not correct, the WAD has 34.
 pub type colormaps_t = [u8; WAD_NUMCOLORMAPS * COLORMAP_SIZE];
 
+// A maptexturedef_t describes a rectangular texture,
+//  which is composed of one or more mappatch_t structures
+//  that arrange graphic patches.
+pub struct texture_t {
+    // Keep name for switch changing, etc.
+    pub name: String,
+    pub width: i16,
+    pub height: i16,
+    // All the patches[patchcount]
+    //  are drawn back to front into the cached texture.
+    pub patchcount: i16,
+    pub patch: Vec<texpatch_t>,
+}
+
+
 pub struct RenderData_t {
     pub colormaps: colormaps_t,
+    pub textures: Vec<texture_t>,
 }
 
 pub const empty_RenderData: RenderData_t = RenderData_t {
     colormaps: [0; WAD_NUMCOLORMAPS * COLORMAP_SIZE],
+    textures: Vec::new(),
 };
 
 
@@ -128,9 +144,9 @@ unsafe fn R_DrawColumnInCache(
 //  the composite texture is created from the patches,
 //  and each column is cached.
 //
-unsafe fn R_GenerateComposite (texnum: i32) {
+unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
 
-    let texture: *mut texture_t = *textures.offset(texnum as isize);
+    let texture: &texture_t = rd.textures.get(texnum as usize).unwrap();
 
     const pad_size: i32 = 128;
     let unpadded_size: i32 = *texturecompositesize.offset(texnum as isize);
@@ -179,9 +195,9 @@ unsafe fn R_GenerateComposite (texnum: i32) {
 //
 // R_GenerateLookup
 //
-unsafe fn R_GenerateLookup (texnum: i32) {
+unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
     
-    let texture: *mut texture_t = *textures.offset(texnum as isize);
+    let texture: &texture_t = rd.textures.get(texnum as usize).unwrap();
 
     // Composited texture not created yet.
     *texturecomposite.offset(texnum as isize) = std::ptr::null_mut();
@@ -235,7 +251,7 @@ unsafe fn R_GenerateLookup (texnum: i32) {
 //
 // R_GetColumn
 //
-pub unsafe fn R_GetColumn(tex: i32, pcol: i32) -> *mut u8 {
+pub unsafe fn R_GetColumn(rd: &mut RenderData_t, tex: i32, pcol: i32) -> *mut u8 {
     let col: i32 = pcol & (*texturewidthmask.offset(tex as isize) as i32);
     let collump: *mut i16 = *texturecolumnlump.offset(tex as isize);
     let colofs: *mut u16 = *texturecolumnofs.offset(tex as isize);
@@ -247,7 +263,7 @@ pub unsafe fn R_GetColumn(tex: i32, pcol: i32) -> *mut u8 {
     }
 
     if *texturecomposite.offset(tex as isize) == std::ptr::null_mut() {
-        R_GenerateComposite (tex);
+        R_GenerateComposite (rd, tex);
     }
 
     return (*texturecomposite.offset(tex as isize)).offset(ofs as isize);
@@ -258,7 +274,7 @@ pub unsafe fn R_GetColumn(tex: i32, pcol: i32) -> *mut u8 {
 // Initializes the texture list
 //  with the textures from the world map.
 //
-unsafe fn R_InitTextures () {
+unsafe fn R_InitTextures (rd: &mut RenderData_t) {
     
     // Load the patch names from pnames.lmp.
     let mut name: [u8; 9] = [0; 9];
@@ -292,7 +308,6 @@ unsafe fn R_InitTextures () {
     }
     numtextures = numtextures1 + numtextures2;
 
-    textures = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut texture_t;
     texturecolumnlump = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut i16;
     texturecolumnofs = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut u16;
     texturecomposite = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut u8;
@@ -334,44 +349,42 @@ unsafe fn R_InitTextures () {
         
         let mtexture: *mut maptexture_t = (maptex as *mut u8).offset(offset as isize) as *mut maptexture_t;
 
-        let texture: *mut texture_t = 
-            Z_Malloc ((std::mem::size_of::<texture_t>() as i32)
-                      + ((std::mem::size_of::<texpatch_t>() as i32) *
-                            ((i16::from_le((*mtexture).patchcount) as i32) - 1)),
-                      PU_STATIC, std::ptr::null_mut()) as *mut texture_t;
-        *textures.offset(i as isize) = texture;
-        (*texture).width = i16::from_le((*mtexture).width);
-        (*texture).height = i16::from_le((*mtexture).height);
-        (*texture).patchcount = i16::from_le((*mtexture).patchcount);
+        let mut texture = texture_t {
+            width: i16::from_le((*mtexture).width),
+            height: i16::from_le((*mtexture).height),
+            patchcount: i16::from_le((*mtexture).patchcount),
+            name: W_Name((*mtexture).name.as_mut_ptr() as *const u8).to_uppercase(),
+            patch: Vec::new(),
+        };
 
-        memcpy ((*texture).name.as_mut_ptr() as *mut u8,
-                (*mtexture).name.as_mut_ptr() as *const u8, 8);
         let mut mpatch: *mut mappatch_t = (*mtexture).patches.as_mut_ptr();
-        let mut patch: *mut texpatch_t = (*texture).patches.as_mut_ptr();
 
         for _ in 0 .. (*texture).patchcount {
-            (*patch).originx = i16::from_le((*mpatch).originx) as i32;
-            (*patch).originy = i16::from_le((*mpatch).originy) as i32;
-            (*patch).patch = *patchlookup.get(i16::from_le((*mpatch).patch) as usize).unwrap();
+            let mut patch = patch_t {
+                originx: i16::from_le((*mpatch).originx) as i32,
+                originy: i16::from_le((*mpatch).originy) as i32,
+                patch: *patchlookup.get(i16::from_le((*mpatch).patch) as usize).unwrap(),
+            };
             if (*patch).patch == -1 {
                 panic!("R_InitTextures: Missing patch in texture {}",
                        W_Name((*texture).name.as_ptr()));
             }
             mpatch = mpatch.offset(1);
-            patch = patch.offset(1);
+            texture.patch.push(patch);
         }
         *texturecolumnlump.offset(i as isize) =
-            Z_Malloc (((*texture).width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut i16;
+            Z_Malloc ((texture.width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut i16;
         *texturecolumnofs.offset(i as isize) =
-            Z_Malloc (((*texture).width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut u16;
+            Z_Malloc ((texture.width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut u16;
 
         let mut j: i32 = 1;
-        while (j * 2) <= ((*texture).width as i32) {
+        while (j * 2) <= (texture.width as i32) {
             j<<=1;
         }
 
         *texturewidthmask.offset(i as isize) = j-1;
-        *textureheight.offset(i as isize) = ((*texture).height as i32) << FRACBITS;
+        *textureheight.offset(i as isize) = (texture.height as i32) << FRACBITS;
+        rd.textures.push(texture);
                 
         directory = directory.offset(1);
     }
@@ -383,7 +396,7 @@ unsafe fn R_InitTextures () {
     
     // Precalculate whatever possible.
     for i in 0 .. numtextures {
-        R_GenerateLookup (i);
+        R_GenerateLookup (rd, i);
     }
     
     // Create translation table for global animation.
@@ -465,7 +478,7 @@ unsafe fn R_InitColormaps (rd: &mut RenderData_t) {
 // Must be called after W_Init.
 //
 pub unsafe fn R_InitData (rd: &mut RenderData_t) {
-    R_InitTextures ();
+    R_InitTextures (rd);
     print!("\nInitTextures");
     R_InitFlats ();
     print!("\nInitFlats");
@@ -505,9 +518,11 @@ pub unsafe extern "C" fn R_CheckTextureNumForName (name: *const u8) -> i32 {
     if *name.offset(0) == ('-' as u8) {
         return 0;
     }
+
+    let find = W_Name(name).to_uppercase();
     
     for i in 0 .. numtextures {
-        if 0 == _strnicmp ((*(*textures.offset(i as isize))).name.as_ptr(), name, 8) {
+        if find == name {
             return i;
         }
     }

@@ -357,7 +357,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
                 if dc.dc_yl <= dc.dc_yh {
                     let angle = viewangle.wrapping_add(xtoviewangle[x as usize])>>ANGLETOSKYSHIFT;
                     dc.dc_x = x;
-                    dc.dc_source = R_GetColumn(skytexture, angle as i32);
+                    dc.dc_source = R_GetColumn(&mut rc.rd, skytexture, angle as i32);
                     (rc.colfunc) (rc, &mut dc);
                 }
             }

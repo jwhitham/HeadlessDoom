@@ -172,7 +172,7 @@ pub unsafe fn R_RenderMaskedSegRange
             dmc.dc.dc_iscale = ((0xffffffff as u32) / (dmc.spryscale as u32)) as i32;
             
             // draw the texture
-            dmc.column = (R_GetColumn(texnum, colnum as i32)
+            dmc.column = (R_GetColumn(&mut rc.rd, texnum, colnum as i32)
                             as *mut u8).offset(-3) as *mut column_t;
                 
             r_things::R_DrawMaskedColumn (rc, &mut dmc);
@@ -247,7 +247,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
             rsl.dc.dc_yl = yl;
             rsl.dc.dc_yh = yh;
             rsl.dc.dc_texturemid = rsl.rw_midtexturemid;
-            rsl.dc.dc_source = R_GetColumn(midtexture,texturecolumn);
+            rsl.dc.dc_source = R_GetColumn(&mut rc.rd, midtexture, texturecolumn);
             (rc.colfunc) (rc, &mut rsl.dc);
             ceilingclip[x] = viewheight as i16;
             floorclip[x] = -1;
@@ -263,7 +263,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                     rsl.dc.dc_yl = yl;
                     rsl.dc.dc_yh = mid;
                     rsl.dc.dc_texturemid = rsl.rw_toptexturemid;
-                    rsl.dc.dc_source = R_GetColumn(toptexture,texturecolumn);
+                    rsl.dc.dc_source = R_GetColumn(&mut rc.rd, toptexture, texturecolumn);
                     (rc.colfunc) (rc, &mut rsl.dc);
                     ceilingclip[x] = mid as i16;
                 } else {
@@ -286,8 +286,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                     rsl.dc.dc_yl = mid;
                     rsl.dc.dc_yh = yh;
                     rsl.dc.dc_texturemid = rsl.rw_bottomtexturemid;
-                    rsl.dc.dc_source = R_GetColumn(bottomtexture,
-                                texturecolumn);
+                    rsl.dc.dc_source = R_GetColumn(&mut rc.rd, bottomtexture, texturecolumn);
                     (rc.colfunc) (rc, &mut rsl.dc);
                     floorclip[x] = mid as i16;
                 } else {
