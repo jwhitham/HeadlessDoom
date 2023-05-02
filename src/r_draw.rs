@@ -29,12 +29,9 @@ use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
 use crate::r_main::centery;
-
-pub const COLORMAP_SIZE: usize = 256;
-pub type colormap_index_t = u16;
-pub const NULL_COLORMAP: colormap_index_t = colormap_index_t::MAX;
-pub const WAD_NUMCOLORMAPS: usize = 34; // NUMCOLORMAPS is 32, this is not correct, the WAD has 34.
-pub type colormaps_t = [u8; WAD_NUMCOLORMAPS * COLORMAP_SIZE];
+use crate::r_data::colormap_index_t;
+use crate::r_data::COLORMAP_SIZE;
+use crate::r_main::RenderContext_t;
 
 pub struct VideoContext_t {
     pub translationtables: *mut u8,
@@ -42,7 +39,6 @@ pub struct VideoContext_t {
     columnofs: [i32; SCREENWIDTH as usize],
     ylookup: [usize; SCREENWIDTH as usize],
     pub screen: [u8; (SCREENWIDTH * SCREENHEIGHT) as usize],
-    pub colormaps: colormaps_t,
 }
 
 pub const empty_VideoContext: VideoContext_t = VideoContext_t {
@@ -51,7 +47,6 @@ pub const empty_VideoContext: VideoContext_t = VideoContext_t {
     columnofs: [0; SCREENWIDTH as usize],
     ylookup: [0; SCREENWIDTH as usize],
     screen: [0; (SCREENWIDTH * SCREENHEIGHT) as usize],
-    colormaps: [0; WAD_NUMCOLORMAPS * COLORMAP_SIZE],
 };
 
 pub struct R_DrawColumn_params_t {
@@ -124,7 +119,7 @@ const SBARHEIGHT: i32 = 32;
 // Thus a special case loop for very fast rendering can
 //  be used. It has also been used with Wolfenstein 3D.
 //
-pub fn R_DrawColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) { 
+pub fn R_DrawColumn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) { 
     unsafe {
         let count = dc.dc_yh - dc.dc_yl; 
 
@@ -136,7 +131,7 @@ pub fn R_DrawColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) {
         // Framebuffer destination address.
         // Use ylookup LUT to avoid multiply with ScreenWidth.
         // Use columnofs LUT for subwindows? 
-        let mut dest: usize = vc.ylookup[dc.dc_yl as usize] + (vc.columnofs[dc.dc_x as usize] as usize);
+        let mut dest: usize = rc.vc.ylookup[dc.dc_yl as usize] + (rc.vc.columnofs[dc.dc_x as usize] as usize);
 
         // Determine scaling,
         //  which is the only mapping to be done.
@@ -151,7 +146,7 @@ pub fn R_DrawColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) {
         for _ in 0 ..= count {
             // Re-map color indices from wall texture column
             //  using a lighting/special effects LUT.
-            vc.screen[dest] = vc.colormaps[dc.dc_colormap_index as usize + 
+            rc.vc.screen[dest] = rc.rd.colormaps[dc.dc_colormap_index as usize + 
                         *dc.dc_source.offset(((frac>>FRACBITS)&127) as isize)
                             as usize];
 
@@ -191,7 +186,7 @@ const fuzzoffset: [isize; FUZZTABLE] = [
 //  could create the SHADOW effect,
 //  i.e. spectres and invisible players.
 //
-pub unsafe fn R_DrawFuzzColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) { 
+pub unsafe fn R_DrawFuzzColumn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) { 
     // Adjust borders. Low... 
     if dc.dc_yl == 0 {
         dc.dc_yl = 1;
@@ -210,7 +205,7 @@ pub unsafe fn R_DrawFuzzColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_p
     }
      
     // Does not work with blocky mode.
-    let mut dest: usize = vc.ylookup[dc.dc_yl as usize] + (vc.columnofs[dc.dc_x as usize] as usize);
+    let mut dest: usize = rc.vc.ylookup[dc.dc_yl as usize] + (rc.vc.columnofs[dc.dc_x as usize] as usize);
 
     // Looks familiar.
     let fracstep: fixed_t = dc.dc_iscale; 
@@ -226,14 +221,14 @@ pub unsafe fn R_DrawFuzzColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_p
         //  a pixel that is either one column
         //  left or right of the current one.
         // Add index from colormap to index.
-        vc.screen[dest] = vc.colormaps[
+        rc.vc.screen[dest] = rc.rd.colormaps[
                     (6 * COLORMAP_SIZE) +
-                    vc.screen[((dest as isize) + (fuzzoffset[vc.fuzzpos] as isize)) as usize] as usize];
+                    rc.vc.screen[((dest as isize) + (fuzzoffset[rc.vc.fuzzpos] as isize)) as usize] as usize];
 
         // Clamp table lookup index.
-        vc.fuzzpos += 1;
-        if vc.fuzzpos == FUZZTABLE {
-            vc.fuzzpos = 0;
+        rc.vc.fuzzpos += 1;
+        if rc.vc.fuzzpos == FUZZTABLE {
+            rc.vc.fuzzpos = 0;
         }
         
         dest += SCREENWIDTH as usize;
@@ -255,7 +250,7 @@ pub unsafe fn R_DrawFuzzColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_p
 //  identical sprites, kinda brightened up.
 //
 
-pub unsafe fn R_DrawTranslatedColumn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) { 
+pub unsafe fn R_DrawTranslatedColumn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) { 
     let count = dc.dc_yh - dc.dc_yl; 
 
     // Zero length.
@@ -263,7 +258,7 @@ pub unsafe fn R_DrawTranslatedColumn (vc: &mut VideoContext_t, dc: &mut R_DrawCo
         return; 
     }
      
-    let mut dest: usize = vc.ylookup[dc.dc_yl as usize] + (vc.columnofs[dc.dc_x as usize] as usize);
+    let mut dest: usize = rc.vc.ylookup[dc.dc_yl as usize] + (rc.vc.columnofs[dc.dc_x as usize] as usize);
 
     // Looks familiar.
     let fracstep: fixed_t = dc.dc_iscale; 
@@ -278,7 +273,7 @@ pub unsafe fn R_DrawTranslatedColumn (vc: &mut VideoContext_t, dc: &mut R_DrawCo
         //  used with PLAY sprites.
         // Thus the "green" ramp of the player 0 sprite
         //  is mapped to gray, red, black/indigo. 
-        vc.screen[dest] = vc.colormaps[dc.dc_colormap_index as usize +
+        rc.vc.screen[dest] = rc.rd.colormaps[dc.dc_colormap_index as usize +
                     *dc.dc_translation.offset(
                         *dc.dc_source.offset(((frac>>FRACBITS)&127) as isize)
                             as isize) as usize];
@@ -297,8 +292,8 @@ pub unsafe fn R_DrawTranslatedColumn (vc: &mut VideoContext_t, dc: &mut R_DrawCo
 // Assumes a given structure of the PLAYPAL.
 // Could be read from a lump instead.
 //
-pub unsafe fn R_InitTranslationTables (vc: &mut VideoContext_t) {
-    vc.translationtables = Z_Malloc (256*3+255, PU_STATIC,
+pub unsafe fn R_InitTranslationTables (rc: &mut RenderContext_t) {
+    rc.vc.translationtables = Z_Malloc (256*3+255, PU_STATIC,
                                         std::ptr::null_mut());
     //translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255); // DSB-3
     
@@ -307,14 +302,14 @@ pub unsafe fn R_InitTranslationTables (vc: &mut VideoContext_t) {
         let j: isize = i as isize;
         if i >= 0x70 && i<= 0x7f {
             // map green ramp to gray, brown, red
-            *vc.translationtables.offset(j) = 0x60 + (i&0xf);
-            *vc.translationtables.offset(j+256) = 0x40 + (i&0xf);
-            *vc.translationtables.offset(j+512) = 0x20 + (i&0xf);
+            *rc.vc.translationtables.offset(j) = 0x60 + (i&0xf);
+            *rc.vc.translationtables.offset(j+256) = 0x40 + (i&0xf);
+            *rc.vc.translationtables.offset(j+512) = 0x20 + (i&0xf);
         } else {
             // Keep all other colors as is.
-            *vc.translationtables.offset(j) = i;
-            *vc.translationtables.offset(j+256) = i;
-            *vc.translationtables.offset(j+512) = i;
+            *rc.vc.translationtables.offset(j) = i;
+            *rc.vc.translationtables.offset(j+256) = i;
+            *rc.vc.translationtables.offset(j+512) = i;
         }
     }
 }
@@ -335,12 +330,12 @@ pub unsafe fn R_InitTranslationTables (vc: &mut VideoContext_t) {
 
 //
 // Draws the actual span.
-pub unsafe fn R_DrawSpan (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t) { 
+pub unsafe fn R_DrawSpan (rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t) { 
    
     let mut xfrac: fixed_t = ds.ds_xfrac;
     let mut yfrac: fixed_t = ds.ds_yfrac;
      
-    let mut dest: usize = vc.ylookup[ds.ds_y as usize] + (vc.columnofs[ds.ds_x1 as usize] as usize);
+    let mut dest: usize = rc.vc.ylookup[ds.ds_y as usize] + (rc.vc.columnofs[ds.ds_x1 as usize] as usize);
 
     // We do not check for zero spans here?
     let count = ds.ds_x2 - ds.ds_x1; 
@@ -351,7 +346,7 @@ pub unsafe fn R_DrawSpan (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t)
 
         // Lookup pixel from flat texture tile,
         //  re-index using light/colormap.
-        vc.screen[dest] = vc.colormaps[ds.ds_colormap_index as usize + *ds.ds_source.offset(spot as isize) as usize];
+        rc.vc.screen[dest] = rc.rd.colormaps[ds.ds_colormap_index as usize + *ds.ds_source.offset(spot as isize) as usize];
         dest += 1;
 
         // Next step in u,v.
@@ -361,11 +356,11 @@ pub unsafe fn R_DrawSpan (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t)
 } 
 
 
-pub unsafe fn R_DrawSpanLow (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t) { 
-    R_DrawSpan(vc, ds);
+pub unsafe fn R_DrawSpanLow (rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t) { 
+    R_DrawSpan(rc, ds);
 }
 
-pub fn R_DrawColumnLow(_rc: &mut VideoContext_t, _dc: &mut R_DrawColumn_params_t) { 
+pub fn R_DrawColumnLow(_rc: &mut RenderContext_t, _dc: &mut R_DrawColumn_params_t) { 
     panic!("No implementation for R_DrawColumnLow");
 }
 
@@ -376,7 +371,7 @@ pub fn R_DrawColumnLow(_rc: &mut VideoContext_t, _dc: &mut R_DrawColumn_params_t
 //  for getting the framebuffer address
 //  of a pixel to draw.
 //
-pub fn R_InitBuffer(vc: &mut VideoContext_t, width: i32, height: i32) {
+pub fn R_InitBuffer(rc: &mut RenderContext_t, width: i32, height: i32) {
     unsafe {
         // Handle resize,
         //  e.g. smaller view windows
@@ -385,7 +380,7 @@ pub fn R_InitBuffer(vc: &mut VideoContext_t, width: i32, height: i32) {
 
         // Column offset. For windows.
         for i in 0 .. width {
-            vc.columnofs[i as usize] = viewwindowx + i;
+            rc.vc.columnofs[i as usize] = viewwindowx + i;
         }
 
         // Samw with base row offset.
@@ -397,7 +392,7 @@ pub fn R_InitBuffer(vc: &mut VideoContext_t, width: i32, height: i32) {
 
         // Preclaculate all row offsets.
         for i in 0 .. height {
-            vc.ylookup[i as usize] = ((i + viewwindowy) as usize) * (SCREENWIDTH as usize);
+            rc.vc.ylookup[i as usize] = ((i + viewwindowy) as usize) * (SCREENWIDTH as usize);
         }
     }
 } 

@@ -41,9 +41,6 @@ use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::R_DrawSpan_params_t;
 use crate::r_draw::VideoContext_t;
 use crate::r_draw::empty_VideoContext;
-use crate::r_draw::COLORMAP_SIZE;
-use crate::r_draw::NULL_COLORMAP;
-use crate::r_draw::colormap_index_t;
 use crate::r_bsp::R_RenderBSPNode;
 use crate::r_bsp::R_ClearClipSegs;
 use crate::r_bsp::R_ClearDrawSegs;
@@ -57,8 +54,11 @@ use crate::r_plane::R_DrawPlanes;
 use crate::r_plane::R_ClearPlanes;
 use crate::r_plane::R_InitPlanes;
 use crate::r_data::R_InitData;
-use crate::r_data::DataContext_t;
-use crate::r_data::empty_DataContext;
+use crate::r_data::RenderData_t;
+use crate::r_data::empty_RenderData;
+use crate::r_data::COLORMAP_SIZE;
+use crate::r_data::NULL_COLORMAP;
+use crate::r_data::colormap_index_t;
 use crate::r_sky::R_InitSkyMap;
 use crate::r_plane::yslope;
 use crate::r_plane::distscale;
@@ -70,22 +70,22 @@ use crate::r_things::pspriteiscale;
 use crate::r_things::screenheightarray;
 
 pub struct RenderContext_t {
-    pub dc: DataContext_t,
+    pub rd: RenderData_t,
     pub vc: VideoContext_t,
 }
 
 const empty_RenderContext: RenderContext_t = RenderContext_t {
-    dc: empty_DataContext,
+    rd: empty_RenderData,
     vc: empty_VideoContext,
 };
 
 static mut remove_this_rc_global: RenderContext_t = empty_RenderContext;
 
-pub static mut colfunc: unsafe fn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-pub static mut fuzzcolfunc: unsafe fn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-pub static mut basecolfunc: unsafe fn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-static mut transcolfunc: unsafe fn (vc: &mut VideoContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
-pub static mut spanfunc: unsafe fn (vc: &mut VideoContext_t, ds: &mut R_DrawSpan_params_t) = R_DrawSpan;
+pub static mut colfunc: unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+pub static mut fuzzcolfunc: unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+pub static mut basecolfunc: unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+static mut transcolfunc: unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t) = R_DrawColumn;
+pub static mut spanfunc: unsafe fn (rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t) = R_DrawSpan;
 
 pub static mut detailshift: i32 = 0;
 pub static mut centerxfrac: fixed_t = 0;
@@ -498,7 +498,7 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
         spanfunc = R_DrawSpanLow;
     }
 
-    R_InitBuffer (&mut remove_this_rc_global.vc, scaledviewwidth, viewheight);
+    R_InitBuffer (&mut remove_this_rc_global, scaledviewwidth, viewheight);
     
     R_InitTextureMapping ();
     
@@ -543,7 +543,7 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
 //
 #[no_mangle] // called from D_DoomMain
 pub unsafe extern "C" fn R_Init () {
-    R_InitData (&mut remove_this_rc_global.vc);
+    R_InitData (&mut remove_this_rc_global.rd);
     print!("\nR_InitData");
     R_InitPointToAngle ();
     print!("\nR_InitPointToAngle");
@@ -558,7 +558,7 @@ pub unsafe extern "C" fn R_Init () {
     print!("\nR_InitLightTables");
     R_InitSkyMap ();
     print!("\nR_InitSkyMap");
-    R_InitTranslationTables (&mut remove_this_rc_global.vc);
+    R_InitTranslationTables (&mut remove_this_rc_global);
     print!("\nR_InitTranslationsTables");
     
     framecount = 0;
@@ -639,17 +639,17 @@ pub unsafe extern "C" fn R_RenderPlayerView (player: *mut player_t) {
     NetUpdate ();
 
     // The head node is the last node output.
-    R_RenderBSPNode (&mut remove_this_rc_global.vc, numnodes-1);
+    R_RenderBSPNode (&mut remove_this_rc_global, numnodes-1);
     
     // Check for new console commands.
     NetUpdate ();
     
-    R_DrawPlanes (&mut remove_this_rc_global.vc);
+    R_DrawPlanes (&mut remove_this_rc_global);
     
     // Check for new console commands.
     NetUpdate ();
     
-    R_DrawMasked (&mut remove_this_rc_global.vc);
+    R_DrawMasked (&mut remove_this_rc_global);
 
     memcpy(screens[0], remove_this_rc_global.vc.screen.as_ptr(),
           (SCREENWIDTH * SCREENHEIGHT) as usize);
