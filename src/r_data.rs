@@ -58,7 +58,6 @@ pub struct texture_t {
     pub height: i16,
     // All the patches[patchcount]
     //  are drawn back to front into the cached texture.
-    pub patchcount: i16,
     pub patches: Vec<texpatch_t>,
 }
 
@@ -146,7 +145,7 @@ unsafe fn R_DrawColumnInCache(
 //
 unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
 
-    let texture: &mut texture_t = rd.textures.get_mut(texnum as usize).unwrap();
+    let texture: &texture_t = rd.textures.get(texnum as usize).unwrap();
 
     const pad_size: i32 = 128;
     let unpadded_size: i32 = *texturecompositesize.offset(texnum as isize);
@@ -160,13 +159,11 @@ unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
     let colofs: *mut u16 = *texturecolumnofs.offset(texnum as isize);
 
     // Composite the columns together.
-    let mut patch: *mut texpatch_t = texture.patches.as_mut_ptr();
-
-    for _ in 0 .. (*texture).patchcount {
-        let realpatch: *mut patch_t = W_CacheLumpNum ((*patch).patch, PU_CACHE) as *mut patch_t;
-        let x1: i32 = (*patch).originx;
+    for patch in texture.patches.iter() {
+        let realpatch: *mut patch_t = W_CacheLumpNum (patch.patch, PU_CACHE) as *mut patch_t;
+        let x1: i32 = patch.originx;
         let x2: i32 = i32::min(x1 + i16::from_le((*realpatch).width) as i32,
-                               (*texture).width as i32);
+                               texture.width as i32);
 
         for x in i32::max(0, x1) .. x2 {
             // Column does not have multiple patches?
@@ -181,10 +178,9 @@ unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
                         as *mut column_t;
             R_DrawColumnInCache (patchcol,
                      block.offset(*colofs.offset(x as isize) as isize),
-                     (*patch).originy,
-                     (*texture).height as i32);
+                     patch.originy,
+                     texture.height as i32);
         }
-        patch = patch.offset(1);
     }
 
     // Now that the texture has been built in column cache,
@@ -212,25 +208,23 @@ unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
     //  with only a single patch are all done.
     let mut patchcount = [0 as u8; 256];
     assert!((*texture).width <= 256);
-    let mut patch: *mut texpatch_t = (*texture).patches.as_mut_ptr();
 
-    for _ in 0 .. (*texture).patchcount {
-        let realpatch: *mut patch_t = W_CacheLumpNum ((*patch).patch, PU_CACHE) as *mut patch_t;
-        let x1: i32 = (*patch).originx;
+    for patch in texture.patches.iter() {
+        let realpatch: *mut patch_t = W_CacheLumpNum (patch.patch, PU_CACHE) as *mut patch_t;
+        let x1: i32 = patch.originx;
         let x2: i32 = i32::min(x1 + i16::from_le((*realpatch).width) as i32,
-                               (*texture).width as i32);
+                               texture.width as i32);
 
         for x in i32::max(0, x1) .. x2 {
             patchcount[x as usize] += 1;
-            *collump.offset(x as isize) = (*patch).patch as i16;
+            *collump.offset(x as isize) = patch.patch as i16;
             *colofs.offset(x as isize) = i32::from_le(*(*realpatch).columnofs.as_ptr().
                                     offset((x - x1) as isize)) as u16 + 3;
         }
-        patch = patch.offset(1);
     }
-    for x in 0 .. (*texture).width {
+    for x in 0 .. texture.width {
         if patchcount[x as usize] == 0 {
-            panic!("R_GenerateLookup: column without a patch ({})\n", W_Name((*texture).name.as_ptr()));
+            panic!("R_GenerateLookup: column without a patch ({})\n", texture.name);
         }
         // I_Error ("R_GenerateLookup: column without a patch");
 
@@ -238,7 +232,7 @@ unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
             // Use the cached block.
             *collump.offset(x as isize) = -1;
             *colofs.offset(x as isize) = size as u16;
-            size += (*texture).height as i32;
+            size += texture.height as i32;
 
             if size > 0x10000 {
                 panic!("R_GenerateLookup: texture {} is >64k", texnum);
@@ -348,18 +342,18 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
         }
         
         let mtexture: *mut maptexture_t = (maptex as *mut u8).offset(offset as isize) as *mut maptexture_t;
+        let patchcount = i16::from_le((*mtexture).patchcount);
 
         let mut texture = texture_t {
             width: i16::from_le((*mtexture).width),
             height: i16::from_le((*mtexture).height),
-            patchcount: i16::from_le((*mtexture).patchcount),
             name: W_Name((*mtexture).name.as_mut_ptr() as *const u8).to_uppercase(),
             patches: Vec::new(),
         };
 
         let mut mpatch: *mut mappatch_t = (*mtexture).patches.as_mut_ptr();
 
-        for _ in 0 .. texture.patchcount {
+        for _ in 0 .. patchcount {
             let patch = texpatch_t {
                 originx: i16::from_le((*mpatch).originx) as i32,
                 originy: i16::from_le((*mpatch).originy) as i32,
