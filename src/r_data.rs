@@ -46,26 +46,26 @@ pub type colormaps_t = [u8; WAD_NUMCOLORMAPS * COLORMAP_SIZE];
 // A maptexturedef_t describes a rectangular texture,
 //  which is composed of one or more mappatch_t structures
 //  that arrange graphic patches.
-pub struct texture_t {
+struct texture_t {
     // Keep name for switch changing, etc.
-    pub name: String,
-    pub width: i16,
-    pub height: i16,
+    name: String,
+    width: i16,
+    height: i16,
     // All the patches[patchcount]
     //  are drawn back to front into the cached texture.
-    pub patches: Vec<texpatch_t>,
+    patches: Vec<texpatch_t>,
     // These were previously in separate arrays
-    pub texturecompositesize: i32,
-    pub texturewidthmask: i32,
-    pub texturecolumnlump: *mut i16,
-    pub texturecomposite: [*mut u8; 1],
-    pub texturecolumnofs: *mut u16,
+    texturecompositesize: i32,
+    texturewidthmask: i32,
+    texturecolumnlump: Vec<i16>,    // Lump containing each column (if not generated)
+    texturecolumnofs: Vec<u16>,     // Offset of each column in texturecolumnofs or lump
+    texturecomposite: Vec<u8>,      // Contains a patched texture once generated
 }
 
 
 pub struct RenderData_t {
     pub colormaps: colormaps_t,
-    pub textures: Vec<texture_t>,
+    textures: Vec<texture_t>,
 }
 
 pub const empty_RenderData: RenderData_t = RenderData_t {
@@ -148,16 +148,9 @@ unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
 
     let texture: &mut texture_t = rd.textures.get_mut(texnum as usize).unwrap();
 
-    const pad_size: i32 = 128;
-    let unpadded_size: i32 = texture.texturecompositesize;
-    let block: *mut u8 = Z_Malloc
-        (unpadded_size + pad_size, // DSB-21
-          PU_STATIC,
-          texture.texturecomposite.as_mut_ptr().offset(0).as_mut().unwrap());
-    memset (block.offset(unpadded_size as isize), 0, pad_size as usize);
-    assert!(*texture.texturecomposite.as_mut_ptr().offset(0) == block);
-    let collump: *mut i16 = texture.texturecolumnlump;
-    let colofs: *mut u16 = texture.texturecolumnofs;
+    assert!(texture.texturecomposite.is_empty());
+    let collump = &mut texture.texturecolumnlump;
+    let colofs = &mut texture.texturecolumnofs;
 
     // Composite the columns together.
     for patch in texture.patches.iter() {
@@ -166,9 +159,15 @@ unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
         let x2: i32 = i32::min(x1 + i16::from_le((*realpatch).width) as i32,
                                texture.width as i32);
 
+        // Ensure there is enough space in the texturecomposite vector
+        let end = (x2 as usize) * (texture.height as usize);
+        if texture.texturecomposite.len() < end {
+            texture.texturecomposite.resize(end, 0);
+        }
+
         for x in i32::max(0, x1) .. x2 {
             // Column does not have multiple patches?
-            if *collump.offset(x as isize) >= 0 {
+            if *collump.get(x as usize).unwrap() >= 0 {
                 continue;
             }
 
@@ -177,16 +176,13 @@ unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
                     i32::from_le(*(*realpatch).columnofs.as_ptr().
                                     offset((x - x1) as isize)) as isize)
                         as *mut column_t;
+            let ofs = *colofs.get(x as usize).unwrap();
             R_DrawColumnInCache (patchcol,
-                     block.offset(*colofs.offset(x as isize) as isize),
+                     texture.texturecomposite.as_mut_ptr().offset(ofs as isize),
                      patch.originy,
                      texture.height as i32);
         }
     }
-
-    // Now that the texture has been built in column cache,
-    //  it is purgable from zone memory.
-    Z_ChangeTag2 (block, PU_CACHE);
 }
 
 //
@@ -197,12 +193,12 @@ unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
     let texture: &mut texture_t = rd.textures.get_mut(texnum as usize).unwrap();
 
     // Composited texture not created yet.
-    texture.texturecomposite[0] = std::ptr::null_mut();
+    texture.texturecomposite.clear();
     
     let mut size: i32 = 0;
-    let collump: *mut i16 = texture.texturecolumnlump;
-    let colofs: *mut u16 = texture.texturecolumnofs;
-    
+    let collump = &mut texture.texturecolumnlump;
+    let colofs = &mut texture.texturecolumnofs;
+
     // Now count the number of columns
     //  that are covered by more than one patch.
     // Fill in the lump / offset, so columns
@@ -218,8 +214,8 @@ unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
 
         for x in i32::max(0, x1) .. x2 {
             patchcount[x as usize] += 1;
-            *collump.offset(x as isize) = patch.patch as i16;
-            *colofs.offset(x as isize) = i32::from_le(*(*realpatch).columnofs.as_ptr().
+            *collump.get_mut(x as usize).unwrap() = patch.patch as i16;
+            *colofs.get_mut(x as usize).unwrap() = i32::from_le(*(*realpatch).columnofs.as_ptr().
                                     offset((x - x1) as isize)) as u16 + 3;
         }
     }
@@ -231,8 +227,8 @@ unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
 
         if patchcount[x as usize] > 1 {
             // Use the cached block.
-            *collump.offset(x as isize) = -1;
-            *colofs.offset(x as isize) = size as u16;
+            *collump.get_mut(x as usize).unwrap() = -1;
+            *colofs.get_mut(x as usize).unwrap() = size as u16;
             size += texture.height as i32;
 
             if size > 0x10000 {
@@ -250,20 +246,20 @@ pub unsafe fn R_GetColumn(rd: &mut RenderData_t, tex: i32, pcol: i32) -> *mut u8
     let texture: &texture_t = rd.textures.get(tex as usize).unwrap();
 
     let col: i32 = pcol & texture.texturewidthmask;
-    let collump: *mut i16 = texture.texturecolumnlump;
-    let colofs: *mut u16 = texture.texturecolumnofs;
-    let lump: i16 = *collump.offset(col as isize);
-    let ofs: u16 = *colofs.offset(col as isize);
+    let collump = &texture.texturecolumnlump;
+    let colofs = &texture.texturecolumnofs;
+    let lump: i16 = *collump.get(col as usize).unwrap();
+    let ofs: u16 = *colofs.get(col as usize).unwrap();
 
     if lump > 0 {
         return (W_CacheLumpNum(lump as i32, PU_CACHE) as *mut u8).offset(ofs as isize);
     }
 
-    if texture.texturecomposite[0] == std::ptr::null_mut() {
+    if texture.texturecomposite.is_empty() {
         R_GenerateComposite (rd, tex);
     }
 
-    return (rd.textures.get(tex as usize).unwrap().texturecomposite[0]).offset(ofs as isize);
+    return rd.textures.get_mut(tex as usize).unwrap().texturecomposite.as_mut_ptr().offset(ofs as isize);
 }
 
 //
@@ -349,9 +345,9 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
             patches: Vec::new(),
             texturecompositesize: 0,
             texturewidthmask: 0,
-            texturecolumnlump: std::ptr::null_mut(),
-            texturecomposite: [std::ptr::null_mut()],
-            texturecolumnofs: std::ptr::null_mut(),
+            texturecolumnlump: Vec::new(),
+            texturecomposite: Vec::new(),
+            texturecolumnofs: Vec::new(),
         };
 
         let mut mpatch: *mut mappatch_t = (*mtexture).patches.as_mut_ptr();
@@ -368,8 +364,6 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
             mpatch = mpatch.offset(1);
             texture.patches.push(patch);
         }
-        texture.texturecolumnlump =
-            Z_Malloc ((texture.width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut i16;
 
         let mut j: i32 = 1;
         while (j * 2) <= (texture.width as i32) {
@@ -378,6 +372,8 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
 
         texture.texturewidthmask = j-1;
         *textureheight.offset(i as isize) = (texture.height as i32) << FRACBITS;
+        texture.texturecolumnlump.resize(texture.width as usize, 0);
+        texture.texturecolumnofs.resize(texture.width as usize, 0);
         rd.textures.push(texture);
                 
         directory = directory.offset(1);
