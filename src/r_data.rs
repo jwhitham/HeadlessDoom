@@ -32,15 +32,10 @@ pub static mut lastspritelump: i32 = 0;
 pub static mut spriteoffset: *mut fixed_t = std::ptr::null_mut();
 pub static mut spritetopoffset: *mut fixed_t = std::ptr::null_mut();
 pub static mut spritewidth: *mut fixed_t = std::ptr::null_mut();
-static mut texturecolumnofs: *mut *mut u16 = std::ptr::null_mut();
 pub static mut firstflat: i32 = 0;
 static mut lastflat: i32 = 0;
 static mut numflats: i32 = 0;
 static mut numspritelumps: i32 = 0;
-static mut texturecompositesize: *mut i32 = std::ptr::null_mut();
-static mut texturewidthmask: *mut i32 = std::ptr::null_mut();
-static mut texturecolumnlump: *mut *mut i16 = std::ptr::null_mut();
-static mut texturecomposite: *mut *mut u8 = std::ptr::null_mut();
 
 pub const COLORMAP_SIZE: usize = 256;
 pub type colormap_index_t = u16;
@@ -59,6 +54,12 @@ pub struct texture_t {
     // All the patches[patchcount]
     //  are drawn back to front into the cached texture.
     pub patches: Vec<texpatch_t>,
+    // These were previously in separate arrays
+    pub texturecompositesize: i32,
+    pub texturewidthmask: i32,
+    pub texturecolumnlump: *mut i16,
+    pub texturecomposite: [*mut u8; 1],
+    pub texturecolumnofs: *mut u16,
 }
 
 
@@ -145,18 +146,18 @@ unsafe fn R_DrawColumnInCache(
 //
 unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
 
-    let texture: &texture_t = rd.textures.get(texnum as usize).unwrap();
+    let texture: &mut texture_t = rd.textures.get_mut(texnum as usize).unwrap();
 
     const pad_size: i32 = 128;
-    let unpadded_size: i32 = *texturecompositesize.offset(texnum as isize);
+    let unpadded_size: i32 = texture.texturecompositesize;
     let block: *mut u8 = Z_Malloc
         (unpadded_size + pad_size, // DSB-21
           PU_STATIC,
-          texturecomposite.offset(texnum as isize).as_mut().unwrap());
+          texture.texturecomposite.as_mut_ptr().offset(0).as_mut().unwrap());
     memset (block.offset(unpadded_size as isize), 0, pad_size as usize);
-    assert!(*texturecomposite.offset(texnum as isize) == block);
-    let collump: *mut i16 = *texturecolumnlump.offset(texnum as isize);
-    let colofs: *mut u16 = *texturecolumnofs.offset(texnum as isize);
+    assert!(*texture.texturecomposite.as_mut_ptr().offset(0) == block);
+    let collump: *mut i16 = texture.texturecolumnlump;
+    let colofs: *mut u16 = texture.texturecolumnofs;
 
     // Composite the columns together.
     for patch in texture.patches.iter() {
@@ -196,11 +197,11 @@ unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
     let texture: &mut texture_t = rd.textures.get_mut(texnum as usize).unwrap();
 
     // Composited texture not created yet.
-    *texturecomposite.offset(texnum as isize) = std::ptr::null_mut();
+    texture.texturecomposite[0] = std::ptr::null_mut();
     
     let mut size: i32 = 0;
-    let collump: *mut i16 = *texturecolumnlump.offset(texnum as isize);
-    let colofs: *mut u16 = *texturecolumnofs.offset(texnum as isize);
+    let collump: *mut i16 = texture.texturecolumnlump;
+    let colofs: *mut u16 = texture.texturecolumnofs;
     
     // Now count the number of columns
     //  that are covered by more than one patch.
@@ -239,16 +240,18 @@ unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
             }
         }
     }        
-    *texturecompositesize.offset(texnum as isize) = size;
+    texture.texturecompositesize = size;
 }
 
 //
 // R_GetColumn
 //
 pub unsafe fn R_GetColumn(rd: &mut RenderData_t, tex: i32, pcol: i32) -> *mut u8 {
-    let col: i32 = pcol & (*texturewidthmask.offset(tex as isize) as i32);
-    let collump: *mut i16 = *texturecolumnlump.offset(tex as isize);
-    let colofs: *mut u16 = *texturecolumnofs.offset(tex as isize);
+    let texture: &texture_t = rd.textures.get(tex as usize).unwrap();
+
+    let col: i32 = pcol & texture.texturewidthmask;
+    let collump: *mut i16 = texture.texturecolumnlump;
+    let colofs: *mut u16 = texture.texturecolumnofs;
     let lump: i16 = *collump.offset(col as isize);
     let ofs: u16 = *colofs.offset(col as isize);
 
@@ -256,11 +259,11 @@ pub unsafe fn R_GetColumn(rd: &mut RenderData_t, tex: i32, pcol: i32) -> *mut u8
         return (W_CacheLumpNum(lump as i32, PU_CACHE) as *mut u8).offset(ofs as isize);
     }
 
-    if *texturecomposite.offset(tex as isize) == std::ptr::null_mut() {
+    if texture.texturecomposite[0] == std::ptr::null_mut() {
         R_GenerateComposite (rd, tex);
     }
 
-    return (*texturecomposite.offset(tex as isize)).offset(ofs as isize);
+    return (rd.textures.get(tex as usize).unwrap().texturecomposite[0]).offset(ofs as isize);
 }
 
 //
@@ -302,11 +305,6 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
     }
     let numtextures = numtextures1 + numtextures2;
 
-    texturecolumnlump = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut i16;
-    texturecolumnofs = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut u16;
-    texturecomposite = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut *mut u8;
-    texturecompositesize = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
-    texturewidthmask = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
     textureheight = Z_Malloc (numtextures * sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
 
     //        Really complex printing shit...
@@ -349,6 +347,11 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
             height: i16::from_le((*mtexture).height),
             name: W_Name((*mtexture).name.as_mut_ptr() as *const u8).to_uppercase(),
             patches: Vec::new(),
+            texturecompositesize: 0,
+            texturewidthmask: 0,
+            texturecolumnlump: std::ptr::null_mut(),
+            texturecomposite: [std::ptr::null_mut()],
+            texturecolumnofs: std::ptr::null_mut(),
         };
 
         let mut mpatch: *mut mappatch_t = (*mtexture).patches.as_mut_ptr();
@@ -365,17 +368,15 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
             mpatch = mpatch.offset(1);
             texture.patches.push(patch);
         }
-        *texturecolumnlump.offset(i as isize) =
+        texture.texturecolumnlump =
             Z_Malloc ((texture.width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut i16;
-        *texturecolumnofs.offset(i as isize) =
-            Z_Malloc ((texture.width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut u16;
 
         let mut j: i32 = 1;
         while (j * 2) <= (texture.width as i32) {
             j<<=1;
         }
 
-        *texturewidthmask.offset(i as isize) = j-1;
+        texture.texturewidthmask = j-1;
         *textureheight.offset(i as isize) = (texture.height as i32) << FRACBITS;
         rd.textures.push(texture);
                 
