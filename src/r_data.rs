@@ -28,14 +28,6 @@ use crate::globals::*;
 use crate::funcs::*;
 use crate::r_main;
 
-pub static mut lastspritelump: i32 = 0;
-pub static mut spriteoffset: *mut fixed_t = std::ptr::null_mut();
-pub static mut spritetopoffset: *mut fixed_t = std::ptr::null_mut();
-pub static mut spritewidth: *mut fixed_t = std::ptr::null_mut();
-pub static mut firstflat: i32 = 0;
-static mut lastflat: i32 = 0;
-static mut numflats: i32 = 0;
-static mut numspritelumps: i32 = 0;
 
 pub const COLORMAP_SIZE: usize = 256;
 pub type colormap_index_t = u16;
@@ -65,12 +57,28 @@ struct texture_t {
 
 pub struct RenderData_t {
     pub colormaps: colormaps_t,
+    pub firstflat: i32,
+    lastflat: i32,
+    numflats: i32,
     textures: Vec<texture_t>,
+    pub lastspritelump: i32,
+    pub spriteoffset: *mut fixed_t,
+    pub spritetopoffset: *mut fixed_t,
+    pub spritewidth: *mut fixed_t,
+    numspritelumps: i32,
 }
 
 pub const empty_RenderData: RenderData_t = RenderData_t {
     colormaps: [0; WAD_NUMCOLORMAPS * COLORMAP_SIZE],
     textures: Vec::new(),
+    firstflat: 0,
+    lastflat: 0,
+    numflats: 0,
+    lastspritelump: 0,
+    spriteoffset: std::ptr::null_mut(),
+    spritetopoffset: std::ptr::null_mut(),
+    spritewidth: std::ptr::null_mut(),
+    numspritelumps: 0,
 };
 
 
@@ -401,16 +409,16 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
 //
 // R_InitFlats
 //
-unsafe fn R_InitFlats () {
+unsafe fn R_InitFlats (rd: &mut RenderData_t) {
         
-    firstflat = W_GetNumForName ("F_START\0".as_ptr()) + 1;
-    lastflat = W_GetNumForName ("F_END\0".as_ptr()) - 1;
-    numflats = lastflat - firstflat + 1;
+    rd.firstflat = W_GetNumForName ("F_START\0".as_ptr()) + 1;
+    rd.lastflat = W_GetNumForName ("F_END\0".as_ptr()) - 1;
+    rd.numflats = rd.lastflat - rd.firstflat + 1;
         
     // Create translation table for global animation.
-    flattranslation = Z_Malloc ((numflats+1)*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    flattranslation = Z_Malloc ((rd.numflats+1)*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
    
-    for i in 0 .. numflats {
+    for i in 0 .. rd.numflats {
         *flattranslation.offset(i as isize) = i;
     }
 }
@@ -422,25 +430,25 @@ unsafe fn R_InitFlats () {
 //  so the sprite does not need to be cached completely
 //  just for having the header info ready during rendering.
 //
-unsafe fn R_InitSpriteLumps() {
+unsafe fn R_InitSpriteLumps (rd: &mut RenderData_t) {
         
     firstspritelump = W_GetNumForName ("S_START\0".as_ptr()) + 1;
-    lastspritelump = W_GetNumForName ("S_END\0".as_ptr()) - 1;
+    rd.lastspritelump = W_GetNumForName ("S_END\0".as_ptr()) - 1;
     
-    numspritelumps = lastspritelump - firstspritelump + 1;
-    spritewidth = Z_Malloc (numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
-    spriteoffset = Z_Malloc (numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
-    spritetopoffset = Z_Malloc (numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    rd.numspritelumps = rd.lastspritelump - firstspritelump + 1;
+    rd.spritewidth = Z_Malloc (rd.numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    rd.spriteoffset = Z_Malloc (rd.numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    rd.spritetopoffset = Z_Malloc (rd.numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
         
-    for i in 0 .. numspritelumps {
+    for i in 0 .. rd.numspritelumps {
         if 0 == (i&63) {
             print!(".");
         }
 
         let patch: *mut patch_t = W_CacheLumpNum (firstspritelump + i, PU_CACHE) as *mut patch_t;
-        *spritewidth.offset(i as isize) = (i16::from_le((*patch).width) as i32) << FRACBITS;
-        *spriteoffset.offset(i as isize) = (i16::from_le((*patch).leftoffset) as i32) << FRACBITS;
-        *spritetopoffset.offset(i as isize) = (i16::from_le((*patch).topoffset) as i32) << FRACBITS;
+        *rd.spritewidth.offset(i as isize) = (i16::from_le((*patch).width) as i32) << FRACBITS;
+        *rd.spriteoffset.offset(i as isize) = (i16::from_le((*patch).leftoffset) as i32) << FRACBITS;
+        *rd.spritetopoffset.offset(i as isize) = (i16::from_le((*patch).topoffset) as i32) << FRACBITS;
     }
 }
 
@@ -470,9 +478,9 @@ unsafe fn R_InitColormaps (rd: &mut RenderData_t) {
 pub unsafe fn R_InitData (rd: &mut RenderData_t) {
     R_InitTextures (rd);
     print!("\nInitTextures");
-    R_InitFlats ();
+    R_InitFlats (rd);
     print!("\nInitFlats");
-    R_InitSpriteLumps ();
+    R_InitSpriteLumps (rd);
     print!("\nInitSprites");
     R_InitColormaps (rd);
     print!("\nInitColormaps");
@@ -485,12 +493,13 @@ pub unsafe fn R_InitData (rd: &mut RenderData_t) {
 //
 #[no_mangle] // called from P_LoadSectors
 pub unsafe extern "C" fn R_FlatNumForName (name: *const u8) -> i32 {
+    let rd = &mut r_main::remove_this_rc_global.rd;
     let i = W_CheckNumForName (name);
 
     if i == -1 {
         panic!("R_FlatNumForName: {} not found", W_Name(name));
     }
-    return i - firstflat;
+    return i - rd.firstflat;
 }
 
 

@@ -32,7 +32,6 @@ use crate::tables::finesine;
 use crate::r_bsp::ds_p;
 use crate::r_bsp::drawsegs;
 use crate::r_data::R_GetColumn;
-use crate::r_data::firstflat;
 use crate::r_data::NULL_COLORMAP;
 use crate::r_data::colormap_index_t;
 use crate::r_draw::empty_R_DrawColumn_params;
@@ -365,7 +364,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
         }
     
         // regular flat
-        ds.ds_source = W_CacheLumpNum(firstflat +
+        ds.ds_source = W_CacheLumpNum(rc.rd.firstflat +
                        *flattranslation.offset((*pl).picnum as isize),
                        PU_STATIC) as *mut u8;
         
