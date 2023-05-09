@@ -54,6 +54,11 @@ struct texture_t {
     texturecomposite: Vec<u8>,      // Contains a patched texture once generated
 }
 
+pub struct sprite_t {
+    pub offset: fixed_t,
+    pub topoffset: fixed_t,
+    pub width: fixed_t,
+}
 
 pub struct RenderData_t {
     pub colormaps: colormaps_t,
@@ -62,10 +67,7 @@ pub struct RenderData_t {
     numflats: i32,
     textures: Vec<texture_t>,
     pub lastspritelump: i32,
-    pub spriteoffset: *mut fixed_t,
-    pub spritetopoffset: *mut fixed_t,
-    pub spritewidth: *mut fixed_t,
-    numspritelumps: i32,
+    pub sprite: Vec<sprite_t>,
 }
 
 pub const empty_RenderData: RenderData_t = RenderData_t {
@@ -75,10 +77,7 @@ pub const empty_RenderData: RenderData_t = RenderData_t {
     lastflat: 0,
     numflats: 0,
     lastspritelump: 0,
-    spriteoffset: std::ptr::null_mut(),
-    spritetopoffset: std::ptr::null_mut(),
-    spritewidth: std::ptr::null_mut(),
-    numspritelumps: 0,
+    sprite: Vec::new(),
 };
 
 
@@ -435,20 +434,19 @@ unsafe fn R_InitSpriteLumps (rd: &mut RenderData_t) {
     firstspritelump = W_GetNumForName ("S_START\0".as_ptr()) + 1;
     rd.lastspritelump = W_GetNumForName ("S_END\0".as_ptr()) - 1;
     
-    rd.numspritelumps = rd.lastspritelump - firstspritelump + 1;
-    rd.spritewidth = Z_Malloc (rd.numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
-    rd.spriteoffset = Z_Malloc (rd.numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
-    rd.spritetopoffset = Z_Malloc (rd.numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    let numspritelumps = rd.lastspritelump - firstspritelump + 1;
         
-    for i in 0 .. rd.numspritelumps {
+    for i in 0 .. numspritelumps {
         if 0 == (i&63) {
             print!(".");
         }
 
         let patch: *mut patch_t = W_CacheLumpNum (firstspritelump + i, PU_CACHE) as *mut patch_t;
-        *rd.spritewidth.offset(i as isize) = (i16::from_le((*patch).width) as i32) << FRACBITS;
-        *rd.spriteoffset.offset(i as isize) = (i16::from_le((*patch).leftoffset) as i32) << FRACBITS;
-        *rd.spritetopoffset.offset(i as isize) = (i16::from_le((*patch).topoffset) as i32) << FRACBITS;
+        rd.sprite.push(sprite_t {
+            width: (i16::from_le((*patch).width) as i32) << FRACBITS,
+            offset: (i16::from_le((*patch).leftoffset) as i32) << FRACBITS,
+            topoffset: (i16::from_le((*patch).topoffset) as i32) << FRACBITS,
+        });
     }
 }
 

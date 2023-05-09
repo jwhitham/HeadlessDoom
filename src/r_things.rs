@@ -505,7 +505,7 @@ unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
     }
     
     // calculate edges of the shape
-    tx -= *rc.rd.spriteoffset.offset(lump as isize); 
+    tx -= rc.rd.sprite.get(lump as usize).unwrap().offset;
     let x1 = (rc.centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS;
 
     // off the right side?
@@ -513,7 +513,7 @@ unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
         return;
     }
     
-    tx +=  *rc.rd.spritewidth.offset(lump as isize);
+    tx += rc.rd.sprite.get(lump as usize).unwrap().width;
     let x2 = ((rc.centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS) - 1;
 
     // off the left side
@@ -528,14 +528,14 @@ unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
     (*vis).gx = (*thing).x;
     (*vis).gy = (*thing).y;
     (*vis).gz = (*thing).z;
-    (*vis).gzt = (*thing).z + *rc.rd.spritetopoffset.offset(lump as isize);
+    (*vis).gzt = (*thing).z + rc.rd.sprite.get(lump as usize).unwrap().topoffset;
     (*vis).texturemid = (*vis).gzt - viewz;
     (*vis).x1 = i32::max(0, x1);
     (*vis).x2 = i32::min(viewwidth - 1, x2);
     let iscale = FixedDiv (FRACUNIT as fixed_t, xscale);
 
     if flip != c_false {
-        (*vis).startfrac = *rc.rd.spritewidth.offset(lump as isize)-1;
+        (*vis).startfrac = rc.rd.sprite.get(lump as usize).unwrap().width - 1;
         (*vis).xiscale = -iscale;
     } else {
         (*vis).startfrac = 0;
@@ -620,7 +620,7 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
     // calculate edges of the shape
     let mut tx = (*dps.psp).sx.wrapping_sub((160 * FRACUNIT) as i32);
     
-    tx -= *rc.rd.spriteoffset.offset(lump as isize); 
+    tx -= rc.rd.sprite.get(lump as usize).unwrap().offset;
     let x1 = (rc.centerxfrac + FixedMul (tx,pspritescale) ) >>FRACBITS;
 
     // off the right side
@@ -628,7 +628,7 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
         return;  
     }
 
-    tx += *rc.rd.spritewidth.offset(lump as isize);
+    tx += rc.rd.sprite.get(lump as usize).unwrap().width;
     let x2 = ((rc.centerxfrac + FixedMul (tx, pspritescale) ) >>FRACBITS) - 1;
 
     // off the left side
@@ -648,12 +648,12 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
         colormap_index: 0,
         mobjflags: 0,
         texturemid: ((BASEYCENTER<<FRACBITS) as i32 + (FRACUNIT/2) as i32).wrapping_sub(
-                        (*dps.psp).sy.wrapping_sub(*rc.rd.spritetopoffset.offset(lump as isize))),
+                        (*dps.psp).sy.wrapping_sub(rc.rd.sprite.get(lump as usize).unwrap().topoffset)),
         x1: i32::max(x1, 0),
         x2: i32::min(x2, viewwidth - 1),
         scale: pspritescale<<detailshift,
         xiscale: if flip != c_false { -pspriteiscale } else { pspriteiscale },
-        startfrac: if flip != c_false { *rc.rd.spritewidth.offset(lump as isize) - 1 } else { 0 },
+        startfrac: if flip != c_false { rc.rd.sprite.get(lump as usize).unwrap().width - 1 } else { 0 },
     }];
     let mut vis = avis.as_mut_ptr();
     if (*vis).x1 > x1 {
