@@ -63,8 +63,10 @@ const empty_cliprange: cliprange_t = cliprange_t {
     last: 0,
 };
 
+pub type drawseg_index_t = i16;
+
 pub struct BspContext_t {
-    pub ds_p: *mut drawseg_t,
+    pub ds_index: drawseg_index_t,
     pub drawsegs: [drawseg_t; MAXDRAWSEGS as usize],
     pub curline: *mut seg_t,
     pub frontsector: *mut sector_t,
@@ -76,7 +78,7 @@ pub struct BspContext_t {
 }
 
 pub const empty_BspContext: BspContext_t = BspContext_t {
-    ds_p: std::ptr::null_mut(),
+    ds_index: 0,
     drawsegs: [empty_drawseg; MAXDRAWSEGS as usize],
     curline: std::ptr::null_mut(),
     frontsector: std::ptr::null_mut(),
@@ -91,7 +93,7 @@ pub const empty_BspContext: BspContext_t = BspContext_t {
 // R_ClearDrawSegs
 //
 pub unsafe fn R_ClearDrawSegs (bc: &mut BspContext_t) {
-    bc.ds_p = bc.drawsegs.as_mut_ptr();
+    bc.ds_index = 0;
 }
 
 

@@ -29,6 +29,7 @@ use crate::defs::powertype_t::*;
 use crate::defs::psprnum_t::*;
 use crate::globals::*;
 use crate::funcs::*;
+use crate::r_bsp::drawseg_index_t;
 use crate::r_main::R_PointToAngle;
 use crate::r_main::R_PointOnSegSide;
 use crate::r_main::RenderContext_t;
@@ -720,38 +721,38 @@ unsafe fn R_DrawSprite (rc: &mut RenderContext_t, spr: *mut vissprite_t) {
     // Scan drawsegs from end to start for obscuring segs.
     // The first drawseg that has a greater scale
     //  is the clip seg.
-    let mut ds: *mut drawseg_t = rc.bc.ds_p;
+    let mut ds: drawseg_index_t = rc.bc.ds_index;
     loop {
-        ds = ds.offset(-1);
-        if ds < rc.bc.drawsegs.as_mut_ptr() {
+        ds -= 1;
+        if ds < 0 {
             break;
         }
 
         // determine if the drawseg obscures the sprite
-        if ((*ds).x1 > (*spr).x2)
-        || ((*ds).x2 < (*spr).x1)
-        || (((*ds).silhouette == 0) && ((*ds).maskedtexturecol == std::ptr::null_mut())) {
+        if (rc.bc.drawsegs[ds as usize].x1 > (*spr).x2)
+        || (rc.bc.drawsegs[ds as usize].x2 < (*spr).x1)
+        || ((rc.bc.drawsegs[ds as usize].silhouette == 0) && (rc.bc.drawsegs[ds as usize].maskedtexturecol == std::ptr::null_mut())) {
             // does not cover sprite
             continue;
         }
                 
-        let r1 = i32::max((*ds).x1, (*spr).x1) as usize;
-        let r2 = i32::min((*ds).x2, (*spr).x2) as usize;
+        let r1 = i32::max(rc.bc.drawsegs[ds as usize].x1, (*spr).x1) as usize;
+        let r2 = i32::min(rc.bc.drawsegs[ds as usize].x2, (*spr).x2) as usize;
         let scale: fixed_t;
         let lowscale: fixed_t;
 
-        if (*ds).scale1 > (*ds).scale2 {
-            lowscale = (*ds).scale2;
-            scale = (*ds).scale1;
+        if rc.bc.drawsegs[ds as usize].scale1 > rc.bc.drawsegs[ds as usize].scale2 {
+            lowscale = rc.bc.drawsegs[ds as usize].scale2;
+            scale = rc.bc.drawsegs[ds as usize].scale1;
         } else {
-            lowscale = (*ds).scale1;
-            scale = (*ds).scale2;
+            lowscale = rc.bc.drawsegs[ds as usize].scale1;
+            scale = rc.bc.drawsegs[ds as usize].scale2;
         }
             
         if (scale < (*spr).scale)
-        || ((lowscale < (*spr).scale) && 0 == R_PointOnSegSide ((*spr).gx, (*spr).gy, (*ds).curline)) {
+        || ((lowscale < (*spr).scale) && 0 == R_PointOnSegSide ((*spr).gx, (*spr).gy, rc.bc.drawsegs[ds as usize].curline)) {
             // masked mid texture?
-            if (*ds).maskedtexturecol != std::ptr::null_mut() {
+            if rc.bc.drawsegs[ds as usize].maskedtexturecol != std::ptr::null_mut() {
                 R_RenderMaskedSegRange (rc, ds, r1 as i32, r2 as i32);
             }
             // seg is behind sprite
@@ -760,13 +761,13 @@ unsafe fn R_DrawSprite (rc: &mut RenderContext_t, spr: *mut vissprite_t) {
 
         
         // clip this piece of the sprite
-        let mut silhouette = (*ds).silhouette;
+        let mut silhouette = rc.bc.drawsegs[ds as usize].silhouette;
         
-        if (*spr).gz >= (*ds).bsilheight {
+        if (*spr).gz >= rc.bc.drawsegs[ds as usize].bsilheight {
             silhouette &= !SIL_BOTTOM as i32;
         }
 
-        if (*spr).gzt <= (*ds).tsilheight {
+        if (*spr).gzt <= rc.bc.drawsegs[ds as usize].tsilheight {
             silhouette &= !SIL_TOP as i32;
         }
                 
@@ -774,24 +775,24 @@ unsafe fn R_DrawSprite (rc: &mut RenderContext_t, spr: *mut vissprite_t) {
             // bottom sil
             for x in r1 ..= r2 {
                 if clipbot[x] == -2 {
-                    clipbot[x] = *(*ds).sprbottomclip.offset(x as isize);
+                    clipbot[x] = *rc.bc.drawsegs[ds as usize].sprbottomclip.offset(x as isize);
                 }
             }
         } else if silhouette == 2 {
             // top sil
             for x in r1 ..= r2 {
                 if cliptop[x] == -2 {
-                    cliptop[x] = *(*ds).sprtopclip.offset(x as isize);
+                    cliptop[x] = *rc.bc.drawsegs[ds as usize].sprtopclip.offset(x as isize);
                 }
             }
         } else if silhouette == 3 {
             // both
             for x in r1 ..= r2 {
                 if clipbot[x] == -2 {
-                    clipbot[x] = *(*ds).sprbottomclip.offset(x as isize);
+                    clipbot[x] = *rc.bc.drawsegs[ds as usize].sprbottomclip.offset(x as isize);
                 }
                 if cliptop[x] == -2 {
-                    cliptop[x] = *(*ds).sprtopclip.offset(x as isize);
+                    cliptop[x] = *rc.bc.drawsegs[ds as usize].sprtopclip.offset(x as isize);
                 }
             }
         }
@@ -841,12 +842,15 @@ pub unsafe fn R_DrawMasked (rc: &mut RenderContext_t) {
     }
     
     // render any remaining masked mid textures
-    let mut ds: *mut drawseg_t = rc.bc.ds_p.offset(-1);
-    while ds >= rc.bc.drawsegs.as_mut_ptr() {
-        if (*ds).maskedtexturecol != std::ptr::null_mut() {
-            R_RenderMaskedSegRange (rc, ds, (*ds).x1, (*ds).x2);
+    let mut ds: drawseg_index_t = rc.bc.ds_index - 1;
+    while ds >= 0 {
+        if rc.bc.drawsegs[ds as usize].maskedtexturecol != std::ptr::null_mut() {
+            R_RenderMaskedSegRange (rc, 
+                ds,
+                rc.bc.drawsegs[ds as usize].x1,
+                rc.bc.drawsegs[ds as usize].x2);
         }
-        ds = ds.offset(-1);
+        ds -= 1;
     }
 
     // draw the psprites on top of everything
