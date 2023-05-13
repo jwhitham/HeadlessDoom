@@ -43,6 +43,26 @@ use crate::r_plane::ceilingplane;
 use crate::r_plane::floorplane;
 use crate::r_segs::rw_angle1;
 
+pub struct drawseg_t {
+    pub curline: *mut seg_t,
+    pub x1: i32,
+    pub x2: i32,
+    pub scale1: fixed_t,
+    pub scale2: fixed_t,
+    pub scalestep: fixed_t,
+    // 0=none, 1=bottom, 2=top, 3=both
+    pub silhouette: ::std::os::raw::c_int,
+    // do not clip sprites above this
+    pub bsilheight: fixed_t,
+    // do not clip sprites below this
+    pub tsilheight: fixed_t,
+    // Pointers to lists for sprite clipping,
+    //  all three adjusted so [x1] is first value.
+    pub sprtopclip: *mut i16,
+    pub sprbottomclip: *mut i16,
+    pub maskedtexturecol: *mut i16,
+}
+
 const empty_drawseg: drawseg_t = drawseg_t {
     curline: std::ptr::null_mut(),
     x1: 0,
@@ -57,6 +77,17 @@ const empty_drawseg: drawseg_t = drawseg_t {
     sprbottomclip: std::ptr::null_mut(),
     maskedtexturecol: std::ptr::null_mut(),
 };
+
+//
+// ClipWallSegment
+// Clips the given range of columns
+// and includes it in the new clip list.
+//
+#[derive(Debug, Copy, Clone)]
+pub struct cliprange_t {
+    pub first: i32,
+    pub last: i32,
+}
 
 const empty_cliprange: cliprange_t = cliprange_t {
     first: 0,
