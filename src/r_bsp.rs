@@ -63,10 +63,10 @@ const empty_cliprange: cliprange_t = cliprange_t {
     last: 0,
 };
 
-pub type drawseg_index_t = i16;
+pub type drawsegs_index_t = i16;
 
 pub struct BspContext_t {
-    pub ds_index: drawseg_index_t,
+    pub ds_index: drawsegs_index_t,
     pub drawsegs: [drawseg_t; MAXDRAWSEGS as usize],
     pub curline: *mut seg_t,
     pub frontsector: *mut sector_t,

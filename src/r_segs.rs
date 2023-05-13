@@ -28,7 +28,7 @@ use crate::r_things;
 use crate::tables::finetangent;
 use crate::tables::finesine;
 use crate::m_fixed::FixedMul;
-use crate::r_bsp::drawseg_index_t;
+use crate::r_bsp::drawsegs_index_t;
 use crate::r_data::R_GetColumn;
 use crate::r_data::NULL_COLORMAP;
 use crate::r_data::colormap_index_t;
@@ -90,7 +90,7 @@ struct R_RenderSegLoop_params_t {
 // R_RenderMaskedSegRange
 //
 pub unsafe fn R_RenderMaskedSegRange
-        (rc: &mut RenderContext_t, ds: drawseg_index_t, x1: i32, x2: i32) {
+        (rc: &mut RenderContext_t, ds: drawsegs_index_t, x1: i32, x2: i32) {
     // Calculate light table.
     // Use different light tables
     //   for horizontal / vertical / diagonal. Diagonal?
@@ -313,7 +313,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
 //
 pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32) {
     // don't overflow and crash
-    if rc.bc.ds_index >= (MAXDRAWSEGS as drawseg_index_t) {
+    if rc.bc.ds_index >= (MAXDRAWSEGS as drawsegs_index_t) {
         return;
     }
         
