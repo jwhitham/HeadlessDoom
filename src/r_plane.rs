@@ -29,10 +29,8 @@ use crate::funcs::*;
 use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
 use crate::tables::finesine;
-use crate::r_bsp::ds_p;
-use crate::r_bsp::drawsegs;
+use crate::r_bsp::drawsegs_index_t;
 use crate::r_data::R_GetColumn;
-use crate::r_data::firstflat;
 use crate::r_data::NULL_COLORMAP;
 use crate::r_data::colormap_index_t;
 use crate::r_draw::empty_R_DrawColumn_params;
@@ -316,7 +314,7 @@ unsafe fn R_MakeSpans(rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t, x:
 // At the end of each frame.
 //
 pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
-    if ds_p > drawsegs.as_mut_ptr().offset(MAXDRAWSEGS as isize) {
+    if rc.bc.ds_index > (MAXDRAWSEGS as drawsegs_index_t) {
         panic!("R_DrawPlanes: drawsegs overflow");
     }
     
@@ -365,7 +363,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
         }
     
         // regular flat
-        ds.ds_source = W_CacheLumpNum(firstflat +
+        ds.ds_source = W_CacheLumpNum(rc.rd.firstflat +
                        *flattranslation.offset((*pl).picnum as isize),
                        PU_STATIC) as *mut u8;
         

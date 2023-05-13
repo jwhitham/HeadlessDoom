@@ -26,35 +26,14 @@
 use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
-use crate::r_main::remove_this_rc_global;
+use crate::r_main;
 
-pub static mut lastspritelump: i32 = 0;
-pub static mut spriteoffset: *mut fixed_t = std::ptr::null_mut();
-pub static mut spritetopoffset: *mut fixed_t = std::ptr::null_mut();
-pub static mut spritewidth: *mut fixed_t = std::ptr::null_mut();
-pub static mut firstflat: i32 = 0;
-static mut lastflat: i32 = 0;
-static mut numflats: i32 = 0;
-static mut numspritelumps: i32 = 0;
 
 pub const COLORMAP_SIZE: usize = 256;
 pub type colormap_index_t = u16;
 pub const NULL_COLORMAP: colormap_index_t = colormap_index_t::MAX;
 pub const WAD_NUMCOLORMAPS: usize = 34; // NUMCOLORMAPS is 32, this is not correct, the WAD has 34.
 pub type colormaps_t = [u8; WAD_NUMCOLORMAPS * COLORMAP_SIZE];
-
-// A single patch from a texture definition,
-//  basically a rectangular area within
-//  the texture rectangle.
-struct texpatch_t {
-    // Block origin (allways UL),
-    // which has allready accounted
-    // for the internal origin of the patch.
-    originx: i32,
-    originy: i32,
-    patch: i32,
-}
-
 
 // A maptexturedef_t describes a rectangular texture,
 //  which is composed of one or more mappatch_t structures
@@ -66,26 +45,39 @@ struct texture_t {
     height: i16,
     // All the patches[patchcount]
     //  are drawn back to front into the cached texture.
-    patchcount: i16,
     patches: Vec<texpatch_t>,
-
-    // Doom originally kept these in separate arrays
-    texturecolumnofs: *mut u16,
+    // These were previously in separate arrays
     texturecompositesize: i32,
     texturewidthmask: i32,
-    texturecomposite: [*mut u8; 1],
-    texturecolumnlump: *mut i16,
+    texturecolumnlump: Vec<i16>,    // Lump containing each column (if not generated)
+    texturecolumnofs: Vec<u16>,     // Offset of each column in texturecolumnofs or lump
+    texturecomposite: Vec<u8>,      // Contains a patched texture once generated
 }
 
+pub struct sprite_t {
+    pub offset: fixed_t,
+    pub topoffset: fixed_t,
+    pub width: fixed_t,
+}
 
 pub struct RenderData_t {
     pub colormaps: colormaps_t,
+    pub firstflat: i32,
+    lastflat: i32,
+    numflats: i32,
     textures: Vec<texture_t>,
+    pub lastspritelump: i32,
+    pub sprite: Vec<sprite_t>,
 }
 
 pub const empty_RenderData: RenderData_t = RenderData_t {
     colormaps: [0; WAD_NUMCOLORMAPS * COLORMAP_SIZE],
     textures: Vec::new(),
+    firstflat: 0,
+    lastflat: 0,
+    numflats: 0,
+    lastspritelump: 0,
+    sprite: Vec::new(),
 };
 
 
@@ -163,29 +155,26 @@ unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
 
     let texture: &mut texture_t = rd.textures.get_mut(texnum as usize).unwrap();
 
-    const pad_size: i32 = 128;
-    let unpadded_size: i32 = texture.texturecompositesize;
-    let block: *mut u8 = Z_Malloc
-        (unpadded_size + pad_size, // DSB-21
-          PU_STATIC,
-          texture.texturecomposite.as_mut_ptr().as_mut().unwrap());
-    memset (block.offset(unpadded_size as isize), 0, pad_size as usize);
-    assert!(texture.texturecomposite[0] == block);
-    let collump: *mut i16 = texture.texturecolumnlump;
-    let colofs: *mut u16 = texture.texturecolumnofs;
+    assert!(texture.texturecomposite.is_empty());
+    let collump = &mut texture.texturecolumnlump;
+    let colofs = &mut texture.texturecolumnofs;
 
     // Composite the columns together.
-    let mut patch: *mut texpatch_t = (*texture).patches.as_mut_ptr();
-
-    for _ in 0 .. (*texture).patchcount {
-        let realpatch: *mut patch_t = W_CacheLumpNum ((*patch).patch, PU_CACHE) as *mut patch_t;
-        let x1: i32 = (*patch).originx;
+    for patch in texture.patches.iter() {
+        let realpatch: *mut patch_t = W_CacheLumpNum (patch.patch, PU_CACHE) as *mut patch_t;
+        let x1: i32 = patch.originx;
         let x2: i32 = i32::min(x1 + i16::from_le((*realpatch).width) as i32,
-                               (*texture).width as i32);
+                               texture.width as i32);
+
+        // Ensure there is enough space in the texturecomposite vector
+        let end = (x2 as usize) * (texture.height as usize);
+        if texture.texturecomposite.len() < end {
+            texture.texturecomposite.resize(end, 0);
+        }
 
         for x in i32::max(0, x1) .. x2 {
             // Column does not have multiple patches?
-            if *collump.offset(x as isize) >= 0 {
+            if *collump.get(x as usize).unwrap() >= 0 {
                 continue;
             }
 
@@ -194,17 +183,13 @@ unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
                     i32::from_le(*(*realpatch).columnofs.as_ptr().
                                     offset((x - x1) as isize)) as isize)
                         as *mut column_t;
+            let ofs = *colofs.get(x as usize).unwrap();
             R_DrawColumnInCache (patchcol,
-                     block.offset(*colofs.offset(x as isize) as isize),
-                     (*patch).originy,
-                     (*texture).height as i32);
+                     texture.texturecomposite.as_mut_ptr().offset(ofs as isize),
+                     patch.originy,
+                     texture.height as i32);
         }
-        patch = patch.offset(1);
     }
-
-    // Now that the texture has been built in column cache,
-    //  it is purgable from zone memory.
-    Z_ChangeTag2 (block, PU_CACHE);
 }
 
 //
@@ -215,45 +200,43 @@ unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
     let texture: &mut texture_t = rd.textures.get_mut(texnum as usize).unwrap();
 
     // Composited texture not created yet.
-    texture.texturecomposite[0] = std::ptr::null_mut();
+    texture.texturecomposite.clear();
     
     let mut size: i32 = 0;
-    let collump: *mut i16 = texture.texturecolumnlump;
-    let colofs: *mut u16 = texture.texturecolumnofs;
-    
+    let collump = &mut texture.texturecolumnlump;
+    let colofs = &mut texture.texturecolumnofs;
+
     // Now count the number of columns
     //  that are covered by more than one patch.
     // Fill in the lump / offset, so columns
     //  with only a single patch are all done.
     let mut patchcount = [0 as u8; 256];
     assert!((*texture).width <= 256);
-    let mut patch: *mut texpatch_t = (*texture).patches.as_mut_ptr();
 
-    for _ in 0 .. (*texture).patchcount {
-        let realpatch: *mut patch_t = W_CacheLumpNum ((*patch).patch, PU_CACHE) as *mut patch_t;
-        let x1: i32 = (*patch).originx;
+    for patch in texture.patches.iter() {
+        let realpatch: *mut patch_t = W_CacheLumpNum (patch.patch, PU_CACHE) as *mut patch_t;
+        let x1: i32 = patch.originx;
         let x2: i32 = i32::min(x1 + i16::from_le((*realpatch).width) as i32,
-                               (*texture).width as i32);
+                               texture.width as i32);
 
         for x in i32::max(0, x1) .. x2 {
             patchcount[x as usize] += 1;
-            *collump.offset(x as isize) = (*patch).patch as i16;
-            *colofs.offset(x as isize) = i32::from_le(*(*realpatch).columnofs.as_ptr().
+            *collump.get_mut(x as usize).unwrap() = patch.patch as i16;
+            *colofs.get_mut(x as usize).unwrap() = i32::from_le(*(*realpatch).columnofs.as_ptr().
                                     offset((x - x1) as isize)) as u16 + 3;
         }
-        patch = patch.offset(1);
     }
-    for x in 0 .. (*texture).width {
+    for x in 0 .. texture.width {
         if patchcount[x as usize] == 0 {
-            panic!("R_GenerateLookup: column without a patch ({})\n", W_Name((*texture).name.as_ptr()));
+            panic!("R_GenerateLookup: column without a patch ({})\n", texture.name);
         }
         // I_Error ("R_GenerateLookup: column without a patch");
 
         if patchcount[x as usize] > 1 {
             // Use the cached block.
-            *collump.offset(x as isize) = -1;
-            *colofs.offset(x as isize) = size as u16;
-            size += (*texture).height as i32;
+            *collump.get_mut(x as usize).unwrap() = -1;
+            *colofs.get_mut(x as usize).unwrap() = size as u16;
+            size += texture.height as i32;
 
             if size > 0x10000 {
                 panic!("R_GenerateLookup: texture {} is >64k", texnum);
@@ -267,27 +250,23 @@ unsafe fn R_GenerateLookup (rd: &mut RenderData_t, texnum: i32) {
 // R_GetColumn
 //
 pub unsafe fn R_GetColumn(rd: &mut RenderData_t, tex: i32, pcol: i32) -> *mut u8 {
-    let ofs: u16;
-    {
-        let texture: &mut texture_t = rd.textures.get_mut(tex as usize).unwrap();
-        let col: i32 = pcol & texture.texturewidthmask;
-        let collump: *mut i16 = texture.texturecolumnlump;
-        let colofs: *mut u16 = texture.texturecolumnofs;
-        let lump: i16 = *collump.offset(col as isize);
-        ofs = *colofs.offset(col as isize);
+    let texture: &texture_t = rd.textures.get(tex as usize).unwrap();
 
-        if lump > 0 {
-            return (W_CacheLumpNum(lump as i32, PU_CACHE) as *mut u8).offset(ofs as isize);
-        }
-        if texture.texturecomposite[0] != std::ptr::null_mut() {
-            return texture.texturecomposite[0].offset(ofs as isize);
-        }
+    let col: i32 = pcol & texture.texturewidthmask;
+    let collump = &texture.texturecolumnlump;
+    let colofs = &texture.texturecolumnofs;
+    let lump: i16 = *collump.get(col as usize).unwrap();
+    let ofs: u16 = *colofs.get(col as usize).unwrap();
+
+    if lump > 0 {
+        return (W_CacheLumpNum(lump as i32, PU_CACHE) as *mut u8).offset(ofs as isize);
     }
-    R_GenerateComposite (rd, tex);
-    {
-        let texture: &mut texture_t = rd.textures.get_mut(tex as usize).unwrap();
-        return texture.texturecomposite[0].offset(ofs as isize);
+
+    if texture.texturecomposite.is_empty() {
+        R_GenerateComposite (rd, tex);
     }
+
+    return rd.textures.get_mut(tex as usize).unwrap().texturecomposite.as_mut_ptr().offset(ofs as isize);
 }
 
 //
@@ -364,47 +343,44 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
         }
         
         let mtexture: *mut maptexture_t = (maptex as *mut u8).offset(offset as isize) as *mut maptexture_t;
+        let patchcount = i16::from_le((*mtexture).patchcount);
 
         let mut texture = texture_t {
             width: i16::from_le((*mtexture).width),
             height: i16::from_le((*mtexture).height),
-            patchcount: i16::from_le((*mtexture).patchcount),
             name: W_Name((*mtexture).name.as_mut_ptr() as *const u8).to_uppercase(),
             patches: Vec::new(),
-            texturecolumnofs: std::ptr::null_mut(),
             texturecompositesize: 0,
             texturewidthmask: 0,
-            texturecomposite: [std::ptr::null_mut(); 1],
-            texturecolumnlump: std::ptr::null_mut(),
+            texturecolumnlump: Vec::new(),
+            texturecomposite: Vec::new(),
+            texturecolumnofs: Vec::new(),
         };
 
         let mut mpatch: *mut mappatch_t = (*mtexture).patches.as_mut_ptr();
 
-        for _ in 0 .. texture.patchcount {
+        for _ in 0 .. patchcount {
             let patch = texpatch_t {
                 originx: i16::from_le((*mpatch).originx) as i32,
                 originy: i16::from_le((*mpatch).originy) as i32,
                 patch: *patchlookup.get(i16::from_le((*mpatch).patch) as usize).unwrap(),
             };
             if patch.patch == -1 {
-                panic!("R_InitTextures: Missing patch in texture {}",
-                       texture.name);
+                panic!("R_InitTextures: Missing patch in texture {}", texture.name);
             }
             mpatch = mpatch.offset(1);
             texture.patches.push(patch);
         }
-        texture.texturecolumnlump =
-            Z_Malloc ((texture.width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut i16;
-        texture.texturecolumnofs =
-            Z_Malloc ((texture.width as i32) * 2, PU_STATIC, std::ptr::null_mut()) as *mut u16;
 
         let mut j: i32 = 1;
         while (j * 2) <= (texture.width as i32) {
             j<<=1;
         }
 
-        texture.texturewidthmask = j - 1;
+        texture.texturewidthmask = j-1;
         *textureheight.offset(i as isize) = (texture.height as i32) << FRACBITS;
+        texture.texturecolumnlump.resize(texture.width as usize, 0);
+        texture.texturecolumnofs.resize(texture.width as usize, 0);
         rd.textures.push(texture);
                 
         directory = directory.offset(1);
@@ -432,16 +408,16 @@ unsafe fn R_InitTextures (rd: &mut RenderData_t) {
 //
 // R_InitFlats
 //
-unsafe fn R_InitFlats () {
+unsafe fn R_InitFlats (rd: &mut RenderData_t) {
         
-    firstflat = W_GetNumForName ("F_START\0".as_ptr()) + 1;
-    lastflat = W_GetNumForName ("F_END\0".as_ptr()) - 1;
-    numflats = lastflat - firstflat + 1;
+    rd.firstflat = W_GetNumForName ("F_START\0".as_ptr()) + 1;
+    rd.lastflat = W_GetNumForName ("F_END\0".as_ptr()) - 1;
+    rd.numflats = rd.lastflat - rd.firstflat + 1;
         
     // Create translation table for global animation.
-    flattranslation = Z_Malloc ((numflats+1)*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    flattranslation = Z_Malloc ((rd.numflats+1)*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
    
-    for i in 0 .. numflats {
+    for i in 0 .. rd.numflats {
         *flattranslation.offset(i as isize) = i;
     }
 }
@@ -453,15 +429,12 @@ unsafe fn R_InitFlats () {
 //  so the sprite does not need to be cached completely
 //  just for having the header info ready during rendering.
 //
-unsafe fn R_InitSpriteLumps() {
+unsafe fn R_InitSpriteLumps (rd: &mut RenderData_t) {
         
     firstspritelump = W_GetNumForName ("S_START\0".as_ptr()) + 1;
-    lastspritelump = W_GetNumForName ("S_END\0".as_ptr()) - 1;
+    rd.lastspritelump = W_GetNumForName ("S_END\0".as_ptr()) - 1;
     
-    numspritelumps = lastspritelump - firstspritelump + 1;
-    spritewidth = Z_Malloc (numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
-    spriteoffset = Z_Malloc (numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
-    spritetopoffset = Z_Malloc (numspritelumps*sizeof_ptr, PU_STATIC, std::ptr::null_mut()) as *mut i32;
+    let numspritelumps = rd.lastspritelump - firstspritelump + 1;
         
     for i in 0 .. numspritelumps {
         if 0 == (i&63) {
@@ -469,9 +442,11 @@ unsafe fn R_InitSpriteLumps() {
         }
 
         let patch: *mut patch_t = W_CacheLumpNum (firstspritelump + i, PU_CACHE) as *mut patch_t;
-        *spritewidth.offset(i as isize) = (i16::from_le((*patch).width) as i32) << FRACBITS;
-        *spriteoffset.offset(i as isize) = (i16::from_le((*patch).leftoffset) as i32) << FRACBITS;
-        *spritetopoffset.offset(i as isize) = (i16::from_le((*patch).topoffset) as i32) << FRACBITS;
+        rd.sprite.push(sprite_t {
+            width: (i16::from_le((*patch).width) as i32) << FRACBITS,
+            offset: (i16::from_le((*patch).leftoffset) as i32) << FRACBITS,
+            topoffset: (i16::from_le((*patch).topoffset) as i32) << FRACBITS,
+        });
     }
 }
 
@@ -501,9 +476,9 @@ unsafe fn R_InitColormaps (rd: &mut RenderData_t) {
 pub unsafe fn R_InitData (rd: &mut RenderData_t) {
     R_InitTextures (rd);
     print!("\nInitTextures");
-    R_InitFlats ();
+    R_InitFlats (rd);
     print!("\nInitFlats");
-    R_InitSpriteLumps ();
+    R_InitSpriteLumps (rd);
     print!("\nInitSprites");
     R_InitColormaps (rd);
     print!("\nInitColormaps");
@@ -516,12 +491,13 @@ pub unsafe fn R_InitData (rd: &mut RenderData_t) {
 //
 #[no_mangle] // called from P_LoadSectors
 pub unsafe extern "C" fn R_FlatNumForName (name: *const u8) -> i32 {
+    let rd = &mut r_main::remove_this_rc_global.rd;
     let i = W_CheckNumForName (name);
 
     if i == -1 {
         panic!("R_FlatNumForName: {} not found", W_Name(name));
     }
-    return i - firstflat;
+    return i - rd.firstflat;
 }
 
 
@@ -535,13 +511,14 @@ pub unsafe extern "C" fn R_FlatNumForName (name: *const u8) -> i32 {
 #[no_mangle] // called from P_InitPicAnims
 pub unsafe extern "C" fn R_CheckTextureNumForName (name: *const u8) -> i32 {
 
-    let rd = &mut remove_this_rc_global.rd;
-    let find = W_Name(name).to_uppercase();
+    let rd = &mut r_main::remove_this_rc_global.rd;
 
     // "NoTexture" marker.
-    if find.starts_with("-") {
+    if *name.offset(0) == ('-' as u8) {
         return 0;
     }
+
+    let find = W_Name(name).to_uppercase();
     
     for i in 0 .. rd.textures.len() {
         if find == rd.textures.get(i).unwrap().name {

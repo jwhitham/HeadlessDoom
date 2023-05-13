@@ -2806,17 +2806,6 @@ typedef struct
 
 } wbstartstruct_t;
 
-//
-// ClipWallSegment
-// Clips the given range of columns
-// and includes it in the new clip list.
-//
-typedef	struct
-{
-    int	first;
-    int last;
-    
-} cliprange_t;
 
 #define MAXSEGS 32
 
@@ -2873,5 +2862,19 @@ typedef struct
     short		patchcount;
     mappatch_t	patches[1];
 } maptexture_t;
+
+
+// A single patch from a texture definition,
+//  basically a rectangular area within
+//  the texture rectangle.
+typedef struct
+{
+    // Block origin (allways UL),
+    // which has allready accounted
+    // for the internal origin of the patch.
+    int		originx;	
+    int		originy;
+    int		patch;
+} texpatch_t;
 
 

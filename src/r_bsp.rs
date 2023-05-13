@@ -43,8 +43,31 @@ use crate::r_plane::ceilingplane;
 use crate::r_plane::floorplane;
 use crate::r_segs::rw_angle1;
 
+
+pub type seg_index_t = u16;
+
+pub struct drawseg_t {
+    pub curline: seg_index_t,
+    pub x1: i32,
+    pub x2: i32,
+    pub scale1: fixed_t,
+    pub scale2: fixed_t,
+    pub scalestep: fixed_t,
+    // 0=none, 1=bottom, 2=top, 3=both
+    pub silhouette: ::std::os::raw::c_int,
+    // do not clip sprites above this
+    pub bsilheight: fixed_t,
+    // do not clip sprites below this
+    pub tsilheight: fixed_t,
+    // Pointers to lists for sprite clipping,
+    //  all three adjusted so [x1] is first value.
+    pub sprtopclip: *mut i16,
+    pub sprbottomclip: *mut i16,
+    pub maskedtexturecol: *mut i16,
+}
+
 const empty_drawseg: drawseg_t = drawseg_t {
-    curline: std::ptr::null_mut(),
+    curline: 0,
     x1: 0,
     x2: 0,
     scale1: 0,
@@ -58,28 +81,54 @@ const empty_drawseg: drawseg_t = drawseg_t {
     maskedtexturecol: std::ptr::null_mut(),
 };
 
+//
+// ClipWallSegment
+// Clips the given range of columns
+// and includes it in the new clip list.
+//
+#[derive(Debug, Copy, Clone)]
+pub struct cliprange_t {
+    pub first: i32,
+    pub last: i32,
+}
+
 const empty_cliprange: cliprange_t = cliprange_t {
     first: 0,
     last: 0,
 };
 
-pub static mut ds_p: *mut drawseg_t = std::ptr::null_mut();
-pub static mut drawsegs: [drawseg_t; MAXDRAWSEGS as usize] = [
-                            empty_drawseg; MAXDRAWSEGS as usize];
-pub static mut curline: *mut seg_t = std::ptr::null_mut();
-pub static mut frontsector: *mut sector_t = std::ptr::null_mut();
-pub static mut backsector: *mut sector_t = std::ptr::null_mut();
-pub static mut sidedef: *mut side_t = std::ptr::null_mut();
-pub static mut linedef: *mut line_t = std::ptr::null_mut();
-static mut newend: *mut cliprange_t = std::ptr::null_mut();
-static mut solidsegs: [cliprange_t; MAXSEGS as usize] = [
-                            empty_cliprange; MAXSEGS as usize];
+pub type drawsegs_index_t = i16;
+pub type solidsegs_index_t = u16;
+
+pub struct BspContext_t {
+    pub ds_index: drawsegs_index_t,
+    pub drawsegs: [drawseg_t; MAXDRAWSEGS as usize],
+    pub curline: seg_index_t,
+    pub frontsector: *mut sector_t,
+    pub backsector: *mut sector_t,
+    pub sidedef: *mut side_t,
+    pub linedef: *mut line_t,
+    newend: solidsegs_index_t,
+    solidsegs: [cliprange_t; MAXSEGS as usize],
+}
+
+pub const empty_BspContext: BspContext_t = BspContext_t {
+    ds_index: 0,
+    drawsegs: [empty_drawseg; MAXDRAWSEGS as usize],
+    curline: 0,
+    frontsector: std::ptr::null_mut(),
+    backsector: std::ptr::null_mut(),
+    sidedef: std::ptr::null_mut(),
+    linedef: std::ptr::null_mut(),
+    newend: 0,
+    solidsegs: [empty_cliprange; MAXSEGS as usize],
+};
 
 //
 // R_ClearDrawSegs
 //
-pub unsafe fn R_ClearDrawSegs () {
-    ds_p = drawsegs.as_mut_ptr();
+pub unsafe fn R_ClearDrawSegs (bc: &mut BspContext_t) {
+    bc.ds_index = 0;
 }
 
 
@@ -93,50 +142,51 @@ pub unsafe fn R_ClearDrawSegs () {
 unsafe fn R_ClipSolidWallSegment(rc: &mut RenderContext_t, first: i32, last: i32) {
     // Find the first range that touches the range
     //  (adjacent pixels are touching).
-    let mut start: *mut cliprange_t = solidsegs.as_mut_ptr();
-    while (*start).last < (first - 1) {
-        start = start.offset(1);
+    let mut start: solidsegs_index_t = 0;
+    while rc.bc.solidsegs[start as usize].last < (first - 1) {
+        start += 1;
     }
 
-    if first < (*start).first {
-        if last < ((*start).first - 1) {
+    if first < rc.bc.solidsegs[start as usize].first {
+        if last < (rc.bc.solidsegs[start as usize].first - 1) {
             // Post is entirely visible (above start),
             //  so insert a new clippost.
             R_StoreWallRange (rc, first, last);
-            let mut next: *mut cliprange_t = newend;
-            newend = newend.offset(1);
+            let mut next: solidsegs_index_t = rc.bc.newend;
+            rc.bc.newend += 1;
             
             while next != start {
-                *next = *(next.offset(-1));
-                next = next.offset(-1);
+                rc.bc.solidsegs[next as usize] = rc.bc.solidsegs[(next - 1) as usize];
+                next -= 1;
             }
-            (*next).first = first;
-            (*next).last = last;
+            rc.bc.solidsegs[next as usize].first = first;
+            rc.bc.solidsegs[next as usize].last = last;
             return;
         }
             
         // There is a fragment above *start.
-        R_StoreWallRange (rc, first, (*start).first - 1);
+        R_StoreWallRange (rc, first, rc.bc.solidsegs[start as usize].first - 1);
         // Now adjust the clip size.
-        (*start).first = first;
+        rc.bc.solidsegs[start as usize].first = first;
     }
 
     // Bottom contained in start?
-    if last <= (*start).last {
+    if last <= rc.bc.solidsegs[start as usize].last {
         return;
     }
         
-    let mut next: *mut cliprange_t = start;
+    let mut next: solidsegs_index_t = start;
     let mut crunch = false;
-    while last >= ((*next.offset(1)).first - 1) {
+    while last >= (rc.bc.solidsegs[(next + 1) as usize].first - 1) {
         // There is a fragment between two posts.
-        R_StoreWallRange (rc, (*next).last + 1, (*next.offset(1)).first - 1);
-        next = next.offset(1);
+        R_StoreWallRange (rc, rc.bc.solidsegs[next as usize].last + 1,
+                          rc.bc.solidsegs[(next + 1) as usize].first - 1);
+        next += 1;
         
-        if last <= (*next).last {
+        if last <= rc.bc.solidsegs[next as usize].last {
             // Bottom is contained in next.
             // Adjust the clip size.
-            (*start).last = (*next).last;
+            rc.bc.solidsegs[start as usize].last = rc.bc.solidsegs[next as usize].last;
             crunch = true;
             break;
         }
@@ -144,9 +194,9 @@ unsafe fn R_ClipSolidWallSegment(rc: &mut RenderContext_t, first: i32, last: i32
    
     if !crunch {
         // There is a fragment after *next.
-        R_StoreWallRange (rc, (*next).last + 1, last);
+        R_StoreWallRange (rc, rc.bc.solidsegs[next as usize].last + 1, last);
         // Adjust the clip size.
-        (*start).last = last;
+        rc.bc.solidsegs[start as usize].last = last;
     }
     
     // Remove start+1 to next from the clip list,
@@ -156,14 +206,14 @@ unsafe fn R_ClipSolidWallSegment(rc: &mut RenderContext_t, first: i32, last: i32
         return;
     }
     
-    while next != newend {
-        next = next.offset(1);
-        start = start.offset(1);
+    while next != rc.bc.newend {
+        next += 1;
+        start += 1;
         // Remove a post.
-        *start = *next;
+        rc.bc.solidsegs[start as usize] = rc.bc.solidsegs[next as usize];
     }
 
-    newend = start.offset(1);
+    rc.bc.newend = start + 1;
 }
 
 //
@@ -176,39 +226,40 @@ unsafe fn R_ClipSolidWallSegment(rc: &mut RenderContext_t, first: i32, last: i32
 unsafe fn R_ClipPassWallSegment(rc: &mut RenderContext_t, first: i32, last: i32) {
     // Find the first range that touches the range
     //  (adjacent pixels are touching).
-    let mut start: *mut cliprange_t = solidsegs.as_mut_ptr();
-    while (*start).last < (first - 1) {
-        start = start.offset(1);
+    let mut start: solidsegs_index_t = 0;
+    while rc.bc.solidsegs[start as usize].last < (first - 1) {
+        start += 1;
     }
 
-    if first < (*start).first {
-        if last < ((*start).first - 1) {
+    if first < rc.bc.solidsegs[start as usize].first {
+        if last < (rc.bc.solidsegs[start as usize].first - 1) {
             // Post is entirely visible (above start).
             R_StoreWallRange (rc, first, last);
             return;
         }
         
         // There is a fragment above *start.
-        R_StoreWallRange (rc, first, (*start).first - 1);
+        R_StoreWallRange (rc, first, rc.bc.solidsegs[start as usize].first - 1);
     }
 
     // Bottom contained in start?
-    if last <= (*start).last {
+    if last <= rc.bc.solidsegs[start as usize].last {
         return;
     }
         
-    while last >= ((*start.offset(1)).first - 1) {
+    while last >= (rc.bc.solidsegs[(start + 1) as usize].first - 1) {
         // There is a fragment between two posts.
-        R_StoreWallRange (rc, (*start).last + 1, (*start.offset(1)).first - 1);
-        start = start.offset(1);
+        R_StoreWallRange (rc, rc.bc.solidsegs[start as usize].last + 1,
+                            rc.bc.solidsegs[(start + 1) as usize].first - 1);
+        start += 1;
         
-        if last <= (*start).last {
+        if last <= rc.bc.solidsegs[start as usize].last {
             return;
         }
     }
     
     // There is a fragment after *next.
-    R_StoreWallRange (rc, (*start).last + 1, last);
+    R_StoreWallRange (rc, rc.bc.solidsegs[start as usize].last + 1, last);
 }
 
 
@@ -217,12 +268,12 @@ unsafe fn R_ClipPassWallSegment(rc: &mut RenderContext_t, first: i32, last: i32)
 //
 // R_ClearClipSegs
 //
-pub unsafe fn R_ClearClipSegs () {
-    solidsegs[0].first = -0x7fffffff;
-    solidsegs[0].last = -1;
-    solidsegs[1].first = viewwidth;
-    solidsegs[1].last = 0x7fffffff;
-    newend = solidsegs.as_mut_ptr().offset(2);
+pub unsafe fn R_ClearClipSegs (bc: &mut BspContext_t) {
+    bc.solidsegs[0].first = -0x7fffffff;
+    bc.solidsegs[0].last = -1;
+    bc.solidsegs[1].first = viewwidth;
+    bc.solidsegs[1].last = 0x7fffffff;
+    bc.newend = 2;
 }
 
 // R_ClipAngles has common code from R_AddLine and R_CheckBBox
@@ -276,12 +327,12 @@ unsafe fn R_ClipAngles(angle1_param: angle_t, angle2_param: angle_t) -> Option<R
 // Clips the given segment
 // and adds any visible pieces to the line list.
 //
-unsafe fn R_AddLine (rc: &mut RenderContext_t, line: *mut seg_t) {
-    curline = line;
+unsafe fn R_AddLine (rc: &mut RenderContext_t, line: seg_index_t) {
+    rc.bc.curline = line;
 
     // OPTIMIZE: quickly reject orthogonal back sides.
-    let mut angle1 = R_PointToAngle ((*(*line).v1).x, (*(*line).v1).y);
-    let mut angle2 = R_PointToAngle ((*(*line).v2).x, (*(*line).v2).y);
+    let mut angle1 = R_PointToAngle ((*(*segs.offset(line as isize)).v1).x, (*(*segs.offset(line as isize)).v1).y);
+    let mut angle2 = R_PointToAngle ((*(*segs.offset(line as isize)).v2).x, (*(*segs.offset(line as isize)).v2).y);
     
     // Clip to view edges.
     // OPTIMIZE: make constant out of 2*clipangle (FIELDOFVIEW).
@@ -303,21 +354,21 @@ unsafe fn R_AddLine (rc: &mut RenderContext_t, line: *mut seg_t) {
     }
     let ca = car.unwrap();
     
-    backsector = (*line).backsector;
+    rc.bc.backsector = (*segs.offset(line as isize)).backsector;
     let mut clipsolid = false;
 
     // Single sided line?
-    if backsector == std::ptr::null_mut() {
+    if rc.bc.backsector == std::ptr::null_mut() {
         clipsolid = true;
 
     // Closed door.
-    } else if ((*backsector).ceilingheight <= (*frontsector).floorheight)
-    || ((*backsector).floorheight >= (*frontsector).ceilingheight) {
+    } else if ((*rc.bc.backsector).ceilingheight <= (*rc.bc.frontsector).floorheight)
+    || ((*rc.bc.backsector).floorheight >= (*rc.bc.frontsector).ceilingheight) {
         clipsolid = true;
 
     // Window.
-    } else if ((*backsector).ceilingheight != (*frontsector).ceilingheight)
-    || ((*backsector).floorheight != (*frontsector).floorheight) {
+    } else if ((*rc.bc.backsector).ceilingheight != (*rc.bc.frontsector).ceilingheight)
+    || ((*rc.bc.backsector).floorheight != (*rc.bc.frontsector).floorheight) {
         clipsolid = false;
         
     // Reject empty lines used for triggers
@@ -325,10 +376,10 @@ unsafe fn R_AddLine (rc: &mut RenderContext_t, line: *mut seg_t) {
     // Identical floor and ceiling on both sides,
     // identical light levels on both sides,
     // and no middle texture.
-    } else if ((*backsector).ceilingpic == (*frontsector).ceilingpic)
-    && ((*backsector).floorpic == (*frontsector).floorpic)
-    && ((*backsector).lightlevel == (*frontsector).lightlevel)
-    && ((*(*curline).sidedef).midtexture == 0) {
+    } else if ((*rc.bc.backsector).ceilingpic == (*rc.bc.frontsector).ceilingpic)
+    && ((*rc.bc.backsector).floorpic == (*rc.bc.frontsector).floorpic)
+    && ((*rc.bc.backsector).lightlevel == (*rc.bc.frontsector).lightlevel)
+    && ((*(*segs.offset(rc.bc.curline as isize)).sidedef).midtexture == 0) {
         return;
     }
 
@@ -362,7 +413,7 @@ const checkcoord: [[i32; 4]; 12] =
 ];
 
 
-unsafe fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
+unsafe fn R_CheckBBox (bc: &mut BspContext_t, bspcoord: *mut fixed_t) -> boolean {
     // Find the corners of the box
     // that define the edges from current viewpoint.
     let boxx =
@@ -405,13 +456,13 @@ unsafe fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
     let mut sx2 = ca.x2;
     sx2 -= 1;
     
-    let mut start = solidsegs.as_mut_ptr();
-    while (*start).last < sx2 {
-        start = start.offset(1);
+    let mut start: solidsegs_index_t = 0;
+    while bc.solidsegs[start as usize].last < sx2 {
+        start += 1;
     }
     
-    if (sx1 >= (*start).first)
-    && (sx2 <= (*start).last) {
+    if (sx1 >= bc.solidsegs[start as usize].first)
+    && (sx2 <= bc.solidsegs[start as usize].last) {
         // The clippost contains the new span.
         return c_false;
     }
@@ -434,32 +485,32 @@ unsafe fn R_Subsector (rc: &mut RenderContext_t, num: i32) {
 
     sscount += 1;
     let sub: *mut subsector_t = subsectors.offset(num as isize);
-    frontsector = (*sub).sector;
+    rc.bc.frontsector = (*sub).sector;
     let count = (*sub).numlines;
-    let mut line: *mut seg_t = segs.offset((*sub).firstline as isize);
+    let mut line: seg_index_t = (*sub).firstline as seg_index_t;
 
-    if (*frontsector).floorheight < viewz {
-        floorplane = R_FindPlane ((*frontsector).floorheight,
-                      (*frontsector).floorpic as i32,
-                      (*frontsector).lightlevel as i32);
+    if (*rc.bc.frontsector).floorheight < viewz {
+        floorplane = R_FindPlane ((*rc.bc.frontsector).floorheight,
+                      (*rc.bc.frontsector).floorpic as i32,
+                      (*rc.bc.frontsector).lightlevel as i32);
     } else {
         floorplane = std::ptr::null_mut();
     }
         
-    if ((*frontsector).ceilingheight > viewz)
-    || (((*frontsector).ceilingpic as i32) == skyflatnum) {
-        ceilingplane = R_FindPlane ((*frontsector).ceilingheight,
-                        (*frontsector).ceilingpic as i32,
-                        (*frontsector).lightlevel as i32);
+    if ((*rc.bc.frontsector).ceilingheight > viewz)
+    || (((*rc.bc.frontsector).ceilingpic as i32) == skyflatnum) {
+        ceilingplane = R_FindPlane ((*rc.bc.frontsector).ceilingheight,
+                        (*rc.bc.frontsector).ceilingpic as i32,
+                        (*rc.bc.frontsector).lightlevel as i32);
     } else {
         ceilingplane = std::ptr::null_mut();
     }
         
-    R_AddSprites (rc, frontsector);
+    R_AddSprites (rc, rc.bc.frontsector);
 
     for _ in 0 .. count {
         R_AddLine (rc, line);
-        line = line.offset(1);
+        line += 1;
     }
 }
 
@@ -488,7 +539,7 @@ pub unsafe fn R_RenderBSPNode (rc: &mut RenderContext_t, bspnum: i32) {
     R_RenderBSPNode (rc, (*bsp).children[side as usize] as i32); 
 
     // Possibly divide back space.
-    if R_CheckBBox ((*bsp).bbox[(side^1) as usize].as_mut_ptr()) != 0 {
+    if R_CheckBBox (&mut rc.bc, (*bsp).bbox[(side^1) as usize].as_mut_ptr()) != 0 {
         R_RenderBSPNode (rc, (*bsp).children[(side^1) as usize] as i32);
     }
 }

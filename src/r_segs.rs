@@ -28,6 +28,7 @@ use crate::r_things;
 use crate::tables::finetangent;
 use crate::tables::finesine;
 use crate::m_fixed::FixedMul;
+use crate::r_bsp::drawsegs_index_t;
 use crate::r_data::R_GetColumn;
 use crate::r_data::NULL_COLORMAP;
 use crate::r_data::colormap_index_t;
@@ -35,13 +36,6 @@ use crate::r_main::R_PointToDist;
 use crate::r_main::R_ScaleFromGlobalAngle;
 use crate::r_main::RenderContext_t;
 use crate::r_plane::R_CheckPlane;
-use crate::r_bsp::curline;
-use crate::r_bsp::frontsector;
-use crate::r_bsp::backsector;
-use crate::r_bsp::ds_p;
-use crate::r_bsp::drawsegs;
-use crate::r_bsp::sidedef;
-use crate::r_bsp::linedef;
 use crate::r_main::viewz;
 use crate::r_main::viewangle;
 use crate::r_main::scalelight;
@@ -96,61 +90,61 @@ struct R_RenderSegLoop_params_t {
 // R_RenderMaskedSegRange
 //
 pub unsafe fn R_RenderMaskedSegRange
-        (rc: &mut RenderContext_t, ds: *mut drawseg_t, x1: i32, x2: i32) {
+        (rc: &mut RenderContext_t, ds: drawsegs_index_t, x1: i32, x2: i32) {
     // Calculate light table.
     // Use different light tables
     //   for horizontal / vertical / diagonal. Diagonal?
     // OPTIMIZE: get rid of LIGHTSEGSHIFT globally
-    curline = (*ds).curline;
-    frontsector = (*curline).frontsector;
-    backsector = (*curline).backsector;
+    rc.bc.curline = rc.bc.drawsegs[ds as usize].curline;
+    rc.bc.frontsector = (*segs.offset(rc.bc.curline as isize)).frontsector;
+    rc.bc.backsector = (*segs.offset(rc.bc.curline as isize)).backsector;
     let texnum = *texturetranslation.offset(
-        (*(*curline).sidedef).midtexture as isize);
+        (*(*segs.offset(rc.bc.curline as isize)).sidedef).midtexture as isize);
     
-    let mut lightnum = (((*frontsector).lightlevel >> LIGHTSEGSHIFT) as i32)
+    let mut lightnum = (((*rc.bc.frontsector).lightlevel >> LIGHTSEGSHIFT) as i32)
                     + extralight;
 
-    if (*(*curline).v1).y == (*(*curline).v2).y {
+    if (*(*segs.offset(rc.bc.curline as isize)).v1).y == (*(*segs.offset(rc.bc.curline as isize)).v2).y {
         lightnum -= 1;
-    } else if (*(*curline).v1).x == (*(*curline).v2).x {
+    } else if (*(*segs.offset(rc.bc.curline as isize)).v1).x == (*(*segs.offset(rc.bc.curline as isize)).v2).x {
         lightnum += 1;
     }
 
     walllights = scalelight[i32::max(0,
                             i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
 
-    maskedtexturecol = (*ds).maskedtexturecol;
+    maskedtexturecol = rc.bc.drawsegs[ds as usize].maskedtexturecol;
 
-    let rw_scalestep = (*ds).scalestep;
+    let rw_scalestep = rc.bc.drawsegs[ds as usize].scalestep;
     let mut dmc = r_things::R_DrawMaskedColumn_params_t {
         dc: empty_R_DrawColumn_params,
         column: std::ptr::null_mut(),
         sprtopscreen: 0,
-        spryscale: (*ds).scale1 + (x1 - (*ds).x1)*rw_scalestep,
-        mfloorclip: (*ds).sprbottomclip,
-        mceilingclip: (*ds).sprtopclip,
+        spryscale: rc.bc.drawsegs[ds as usize].scale1 + (x1 - rc.bc.drawsegs[ds as usize].x1)*rw_scalestep,
+        mfloorclip: rc.bc.drawsegs[ds as usize].sprbottomclip,
+        mceilingclip: rc.bc.drawsegs[ds as usize].sprtopclip,
     };
     
     // find positioning
-    if (((*(*curline).linedef).flags as u32) & ML_DONTPEGBOTTOM) != 0 {
+    if (((*(*segs.offset(rc.bc.curline as isize)).linedef).flags as u32) & ML_DONTPEGBOTTOM) != 0 {
         dmc.dc.dc_texturemid =
-            if (*frontsector).floorheight > (*backsector).floorheight {
-                (*frontsector).floorheight
+            if (*rc.bc.frontsector).floorheight > (*rc.bc.backsector).floorheight {
+                (*rc.bc.frontsector).floorheight
             } else {
-                (*backsector).floorheight
+                (*rc.bc.backsector).floorheight
             };
         dmc.dc.dc_texturemid = dmc.dc.dc_texturemid +
                 *textureheight.offset(texnum as isize) - viewz;
     } else {
         dmc.dc.dc_texturemid =
-            if (*frontsector).ceilingheight < (*backsector).ceilingheight {
-                (*frontsector).ceilingheight
+            if (*rc.bc.frontsector).ceilingheight < (*rc.bc.backsector).ceilingheight {
+                (*rc.bc.frontsector).ceilingheight
             } else {
-                (*backsector).ceilingheight
+                (*rc.bc.backsector).ceilingheight
             };
         dmc.dc.dc_texturemid = dmc.dc.dc_texturemid - viewz;
     }
-    dmc.dc.dc_texturemid += (*(*curline).sidedef).rowoffset;
+    dmc.dc.dc_texturemid += (*(*segs.offset(rc.bc.curline as isize)).sidedef).rowoffset;
             
     if rc.fixedcolormap_index != NULL_COLORMAP {
         dmc.dc.dc_colormap_index = rc.fixedcolormap_index;
@@ -319,7 +313,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
 //
 pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32) {
     // don't overflow and crash
-    if ds_p == drawsegs.as_mut_ptr().offset(MAXDRAWSEGS as isize) {
+    if rc.bc.ds_index >= (MAXDRAWSEGS as drawsegs_index_t) {
         return;
     }
         
@@ -348,35 +342,35 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         rw_x: start,
         rw_stopx: stop + 1,
     };
-    sidedef = (*curline).sidedef;
-    linedef = (*curline).linedef;
+    rc.bc.sidedef = (*segs.offset(rc.bc.curline as isize)).sidedef;
+    rc.bc.linedef = (*segs.offset(rc.bc.curline as isize)).linedef;
 
     // mark the segment as visible for auto map
-    (*linedef).flags |= ML_MAPPED as i16;
+    (*rc.bc.linedef).flags |= ML_MAPPED as i16;
     
     // calculate rw_distance for scale calculation
-    rw_normalangle = (*curline).angle.wrapping_add(ANG90);
+    rw_normalangle = (*segs.offset(rc.bc.curline as isize)).angle.wrapping_add(ANG90);
     let offsetangle: angle_t = angle_t::min(ANG90,
                 i32::abs(rw_normalangle.wrapping_sub(rw_angle1 as angle_t) as i32) as angle_t);
     
     let distangle: angle_t = ANG90 - offsetangle;
-    let hyp: fixed_t = R_PointToDist ((*(*curline).v1).x, (*(*curline).v1).y);
+    let hyp: fixed_t = R_PointToDist ((*(*segs.offset(rc.bc.curline as isize)).v1).x, (*(*segs.offset(rc.bc.curline as isize)).v1).y);
     let sineval: fixed_t = finesine[(distangle>>ANGLETOFINESHIFT) as usize];
     rw_distance = FixedMul (hyp, sineval);
         
     
-    (*ds_p).x1 = start;
-    (*ds_p).x2 = stop;
-    (*ds_p).curline = curline;
+    rc.bc.drawsegs[rc.bc.ds_index as usize].x1 = start;
+    rc.bc.drawsegs[rc.bc.ds_index as usize].x2 = stop;
+    rc.bc.drawsegs[rc.bc.ds_index as usize].curline = rc.bc.curline;
     
     // calculate scale at both ends and step
     rsl.rw_scale = R_ScaleFromGlobalAngle (viewangle.wrapping_add(xtoviewangle[start as usize]));
-    (*ds_p).scale1 = rsl.rw_scale;
+    rc.bc.drawsegs[rc.bc.ds_index as usize].scale1 = rsl.rw_scale;
     
     if stop > start {
-        (*ds_p).scale2 = R_ScaleFromGlobalAngle (viewangle.wrapping_add(xtoviewangle[stop as usize]));
-        rsl.rw_scalestep = ((*ds_p).scale2 - rsl.rw_scale) / (stop-start);
-        (*ds_p).scalestep = rsl.rw_scalestep;
+        rc.bc.drawsegs[rc.bc.ds_index as usize].scale2 = R_ScaleFromGlobalAngle (viewangle.wrapping_add(xtoviewangle[stop as usize]));
+        rsl.rw_scalestep = (rc.bc.drawsegs[rc.bc.ds_index as usize].scale2 - rsl.rw_scale) / (stop-start);
+        rc.bc.drawsegs[rc.bc.ds_index as usize].scalestep = rsl.rw_scalestep;
     } else {
         // UNUSED: try to fix the stretched line bug
         // #if 0
@@ -393,92 +387,92 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         //         ds_p->scale1 = FixedDiv(projection, gxt-gyt)<<detailshift;
         //     }
         // #endif
-        (*ds_p).scale2 = (*ds_p).scale1;
+        rc.bc.drawsegs[rc.bc.ds_index as usize].scale2 = rc.bc.drawsegs[rc.bc.ds_index as usize].scale1;
     }
     
     // calculate texture boundaries
     //  and decide if floor / ceiling marks are needed
-    let mut worldtop: i32 = (*frontsector).ceilingheight - viewz;
-    let mut worldbottom: i32 = (*frontsector).floorheight - viewz;
+    let mut worldtop: i32 = (*rc.bc.frontsector).ceilingheight - viewz;
+    let mut worldbottom: i32 = (*rc.bc.frontsector).floorheight - viewz;
     let mut worldhigh: i32 = 0;
     let mut worldlow: i32 = 0;
     
     midtexture = 0;
     toptexture = 0;
     bottomtexture = 0;
-    (*ds_p).maskedtexturecol = std::ptr::null_mut();
+    rc.bc.drawsegs[rc.bc.ds_index as usize].maskedtexturecol = std::ptr::null_mut();
     
-    if backsector == std::ptr::null_mut() {
+    if rc.bc.backsector == std::ptr::null_mut() {
         // single sided line
-        midtexture = *texturetranslation.offset((*sidedef).midtexture as isize);
+        midtexture = *texturetranslation.offset((*rc.bc.sidedef).midtexture as isize);
         // a single sided line is terminal, so it must mark ends
         markfloor = c_true;
         markceiling = c_true;
-        if ((*linedef).flags & (ML_DONTPEGBOTTOM as i16)) != 0 {
-            let vtop = (*frontsector).floorheight +
-                *textureheight.offset((*sidedef).midtexture as isize);
+        if ((*rc.bc.linedef).flags & (ML_DONTPEGBOTTOM as i16)) != 0 {
+            let vtop = (*rc.bc.frontsector).floorheight +
+                *textureheight.offset((*rc.bc.sidedef).midtexture as isize);
             // bottom of texture at bottom
             rsl.rw_midtexturemid = vtop - viewz;
         } else {
             // top of texture at top
             rsl.rw_midtexturemid = worldtop;
         }
-        rsl.rw_midtexturemid += (*sidedef).rowoffset;
+        rsl.rw_midtexturemid += (*rc.bc.sidedef).rowoffset;
 
-        (*ds_p).silhouette = SIL_BOTH as i32;
-        (*ds_p).sprtopclip = screenheightarray.as_mut_ptr();
-        (*ds_p).sprbottomclip = negonearray.as_mut_ptr();
-        (*ds_p).bsilheight = MAXINT;
-        (*ds_p).tsilheight = MININT;
+        rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = SIL_BOTH as i32;
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip = screenheightarray.as_mut_ptr();
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = negonearray.as_mut_ptr();
+        rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
+        rc.bc.drawsegs[rc.bc.ds_index as usize].tsilheight = MININT;
     } else {
         // two sided line
-        (*ds_p).sprtopclip = std::ptr::null_mut();
-        (*ds_p).sprbottomclip = std::ptr::null_mut();
-        (*ds_p).silhouette = 0;
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip = std::ptr::null_mut();
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = std::ptr::null_mut();
+        rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = 0;
         
-        if (*frontsector).floorheight > (*backsector).floorheight {
-            (*ds_p).silhouette = SIL_BOTTOM as i32;
-            (*ds_p).bsilheight = (*frontsector).floorheight;
-        } else if (*backsector).floorheight > viewz {
-            (*ds_p).silhouette = SIL_BOTTOM as i32;
-            (*ds_p).bsilheight = MAXINT;
-            // (*ds_p).sprbottomclip = negonearray;
+        if (*rc.bc.frontsector).floorheight > (*rc.bc.backsector).floorheight {
+            rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = SIL_BOTTOM as i32;
+            rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = (*rc.bc.frontsector).floorheight;
+        } else if (*rc.bc.backsector).floorheight > viewz {
+            rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = SIL_BOTTOM as i32;
+            rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
+            // rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = negonearray;
         }
         
-        if (*frontsector).ceilingheight < (*backsector).ceilingheight {
-            (*ds_p).silhouette |= SIL_TOP as i32;
-            (*ds_p).tsilheight = (*frontsector).ceilingheight;
-        } else if (*backsector).ceilingheight < viewz {
-            (*ds_p).silhouette |= SIL_TOP as i32;
-            (*ds_p).tsilheight = MININT;
-            // (*ds_p).sprtopclip = screenheightarray;
+        if (*rc.bc.frontsector).ceilingheight < (*rc.bc.backsector).ceilingheight {
+            rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_TOP as i32;
+            rc.bc.drawsegs[rc.bc.ds_index as usize].tsilheight = (*rc.bc.frontsector).ceilingheight;
+        } else if (*rc.bc.backsector).ceilingheight < viewz {
+            rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_TOP as i32;
+            rc.bc.drawsegs[rc.bc.ds_index as usize].tsilheight = MININT;
+            // rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip = screenheightarray;
         }
             
-        if (*backsector).ceilingheight <= (*frontsector).floorheight {
-            (*ds_p).sprbottomclip = negonearray.as_mut_ptr();
-            (*ds_p).bsilheight = MAXINT;
-            (*ds_p).silhouette |= SIL_BOTTOM as i32;
+        if (*rc.bc.backsector).ceilingheight <= (*rc.bc.frontsector).floorheight {
+            rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = negonearray.as_mut_ptr();
+            rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
+            rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_BOTTOM as i32;
         }
         
-        if (*backsector).floorheight >= (*frontsector).ceilingheight {
-            (*ds_p).sprtopclip = screenheightarray.as_mut_ptr();
-            (*ds_p).tsilheight = MININT;
-            (*ds_p).silhouette |= SIL_TOP as i32;
+        if (*rc.bc.backsector).floorheight >= (*rc.bc.frontsector).ceilingheight {
+            rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip = screenheightarray.as_mut_ptr();
+            rc.bc.drawsegs[rc.bc.ds_index as usize].tsilheight = MININT;
+            rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_TOP as i32;
         }
         
-        worldhigh = (*backsector).ceilingheight - viewz;
-        worldlow = (*backsector).floorheight - viewz;
+        worldhigh = (*rc.bc.backsector).ceilingheight - viewz;
+        worldlow = (*rc.bc.backsector).floorheight - viewz;
             
         // hack to allow height changes in outdoor areas
-        if ((*frontsector).ceilingpic == (skyflatnum as i16))
-        && ((*backsector).ceilingpic == (skyflatnum as i16)) {
+        if ((*rc.bc.frontsector).ceilingpic == (skyflatnum as i16))
+        && ((*rc.bc.backsector).ceilingpic == (skyflatnum as i16)) {
             worldtop = worldhigh;
         }
         
                 
         if (worldlow != worldbottom)
-        || ((*backsector).floorpic != (*frontsector).floorpic)
-        || ((*backsector).lightlevel != (*frontsector).lightlevel) {
+        || ((*rc.bc.backsector).floorpic != (*rc.bc.frontsector).floorpic)
+        || ((*rc.bc.backsector).lightlevel != (*rc.bc.frontsector).lightlevel) {
             markfloor = c_true;
         } else {
             // same plane on both sides
@@ -487,16 +481,16 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         
                 
         if (worldhigh != worldtop)
-        || ((*backsector).ceilingpic != (*frontsector).ceilingpic)
-        || ((*backsector).lightlevel != (*frontsector).lightlevel) {
+        || ((*rc.bc.backsector).ceilingpic != (*rc.bc.frontsector).ceilingpic)
+        || ((*rc.bc.backsector).lightlevel != (*rc.bc.frontsector).lightlevel) {
             markceiling = c_true;
         } else {
             // same plane on both sides
             markceiling = c_false;
         }
         
-        if ((*backsector).ceilingheight <= (*frontsector).floorheight)
-        || ((*backsector).floorheight >= (*frontsector).ceilingheight) {
+        if ((*rc.bc.backsector).ceilingheight <= (*rc.bc.frontsector).floorheight)
+        || ((*rc.bc.backsector).floorheight >= (*rc.bc.frontsector).ceilingheight) {
             // closed door
             markceiling = c_true;
             markfloor = c_true;
@@ -505,13 +499,13 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
 
         if worldhigh < worldtop {
             // top texture
-            toptexture = *texturetranslation.offset((*sidedef).toptexture as isize);
-            if ((*linedef).flags & (ML_DONTPEGTOP as i16)) != 0 {
+            toptexture = *texturetranslation.offset((*rc.bc.sidedef).toptexture as isize);
+            if ((*rc.bc.linedef).flags & (ML_DONTPEGTOP as i16)) != 0 {
                 // top of texture at top
                 rsl.rw_toptexturemid = worldtop;
             } else {
-                let vtop = (*backsector).ceilingheight
-                    + *textureheight.offset((*sidedef).toptexture as isize);
+                let vtop = (*rc.bc.backsector).ceilingheight
+                    + *textureheight.offset((*rc.bc.sidedef).toptexture as isize);
             
                 // bottom of texture
                 rsl.rw_toptexturemid = vtop - viewz;
@@ -519,9 +513,9 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         }
         if worldlow > worldbottom {
             // bottom texture
-            bottomtexture = *texturetranslation.offset((*sidedef).bottomtexture as isize);
+            bottomtexture = *texturetranslation.offset((*rc.bc.sidedef).bottomtexture as isize);
 
-            if ((*linedef).flags & (ML_DONTPEGBOTTOM as i16)) != 0 {
+            if ((*rc.bc.linedef).flags & (ML_DONTPEGBOTTOM as i16)) != 0 {
                 // bottom of texture at bottom
                 // top of texture at top
                 rsl.rw_bottomtexturemid = worldtop;
@@ -529,15 +523,15 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
                 rsl.rw_bottomtexturemid = worldlow;
             }
         }
-        rsl.rw_toptexturemid += (*sidedef).rowoffset;
-        rsl.rw_bottomtexturemid += (*sidedef).rowoffset;
+        rsl.rw_toptexturemid += (*rc.bc.sidedef).rowoffset;
+        rsl.rw_bottomtexturemid += (*rc.bc.sidedef).rowoffset;
         
         // allocate space for masked texture tables
-        if (*sidedef).midtexture != 0 {
+        if (*rc.bc.sidedef).midtexture != 0 {
             // masked midtexture
             rsl.maskedtexture = c_true;
             maskedtexturecol = lastopening.offset(-(rsl.rw_x as isize));
-            (*ds_p).maskedtexturecol = maskedtexturecol;
+            rc.bc.drawsegs[rc.bc.ds_index as usize].maskedtexturecol = maskedtexturecol;
             lastopening = lastopening.offset((rsl.rw_stopx - rsl.rw_x) as isize);
         }
     }
@@ -563,7 +557,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
             rsl.rw_offset = -rsl.rw_offset;
         }
 
-        rsl.rw_offset += (*sidedef).textureoffset + (*curline).offset;
+        rsl.rw_offset += (*rc.bc.sidedef).textureoffset + (*segs.offset(rc.bc.curline as isize)).offset;
         rsl.rw_centerangle = ANG90.wrapping_add(viewangle).wrapping_sub(rw_normalangle);
         
         // calculate light table
@@ -571,11 +565,11 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         //  for horizontal / vertical / diagonal
         // OPTIMIZE: get rid of LIGHTSEGSHIFT globally
         if rc.fixedcolormap_index == NULL_COLORMAP {
-            let mut lightnum = (((*frontsector).lightlevel >> LIGHTSEGSHIFT) as i32) + extralight;
+            let mut lightnum = (((*rc.bc.frontsector).lightlevel >> LIGHTSEGSHIFT) as i32) + extralight;
 
-            if (*(*curline).v1).y == (*(*curline).v2).y {
+            if (*(*segs.offset(rc.bc.curline as isize)).v1).y == (*(*segs.offset(rc.bc.curline as isize)).v2).y {
                 lightnum -= 1;
-            } else if (*(*curline).v1).x == (*(*curline).v2).x {
+            } else if (*(*segs.offset(rc.bc.curline as isize)).v1).x == (*(*segs.offset(rc.bc.curline as isize)).v2).x {
                 lightnum += 1;
             }
 
@@ -588,13 +582,13 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     //  and doesn't need to be marked.
     
   
-    if (*frontsector).floorheight >= viewz {
+    if (*rc.bc.frontsector).floorheight >= viewz {
         // above view plane
         markfloor = c_false;
     }
     
-    if ((*frontsector).ceilingheight <= viewz)
-    && (((*frontsector).ceilingpic as i32) != skyflatnum) {
+    if ((*rc.bc.frontsector).ceilingheight <= viewz)
+    && (((*rc.bc.frontsector).ceilingpic as i32) != skyflatnum) {
         // below view plane
         markceiling = c_false;
     }
@@ -610,7 +604,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     rsl.bottomstep = -FixedMul (rsl.rw_scalestep,worldbottom);
     rsl.bottomfrac = (rc.centeryfrac>>4) - FixedMul (worldbottom, rsl.rw_scale);
     
-    if backsector != std::ptr::null_mut() {
+    if rc.bc.backsector != std::ptr::null_mut() {
         worldhigh >>= 4;
         worldlow >>= 4;
 
@@ -638,36 +632,36 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
 
     
     // save sprite clipping info
-    if ((0 != ((*ds_p).silhouette & (SIL_TOP as i32)))
+    if ((0 != (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_TOP as i32)))
         || (rsl.maskedtexture != c_false))
-    && ((*ds_p).sprtopclip == std::ptr::null_mut()) {
+    && (rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip == std::ptr::null_mut()) {
         memcpy (lastopening as *mut u8,
                 ceilingclip.as_mut_ptr().offset(start as isize) as *const u8,
                 2*(rsl.rw_stopx-start) as usize);
-        (*ds_p).sprtopclip = lastopening.offset(-(start as isize));
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip = lastopening.offset(-(start as isize));
         lastopening = lastopening.offset((rsl.rw_stopx - start) as isize);
     }
     
-    if ((0 != ((*ds_p).silhouette & (SIL_BOTTOM as i32)))
+    if ((0 != (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_BOTTOM as i32)))
         || (rsl.maskedtexture != c_false))
-    && ((*ds_p).sprbottomclip == std::ptr::null_mut()) {
+    && (rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip == std::ptr::null_mut()) {
         memcpy (lastopening as *mut u8,
                 floorclip.as_mut_ptr().offset(start as isize) as *const u8,
                 2*(rsl.rw_stopx-start) as usize);
-        (*ds_p).sprbottomclip = lastopening.offset(-(start as isize));
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = lastopening.offset(-(start as isize));
         lastopening = lastopening.offset((rsl.rw_stopx - start) as isize);
     }
 
     if (rsl.maskedtexture != c_false)
-    && (0 == ((*ds_p).silhouette & (SIL_TOP as i32))) {
-        (*ds_p).silhouette |= SIL_TOP as i32;
-        (*ds_p).tsilheight = MININT;
+    && (0 == (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_TOP as i32))) {
+        rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_TOP as i32;
+        rc.bc.drawsegs[rc.bc.ds_index as usize].tsilheight = MININT;
     }
     if (rsl.maskedtexture != c_false)
-    && (0 == ((*ds_p).silhouette & (SIL_BOTTOM as i32))) {
-        (*ds_p).silhouette |= SIL_BOTTOM as i32;
-        (*ds_p).bsilheight = MAXINT;
+    && (0 == (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_BOTTOM as i32))) {
+        rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_BOTTOM as i32;
+        rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
     }
-    ds_p = ds_p.offset(1);
+    rc.bc.ds_index += 1;
 }
 
