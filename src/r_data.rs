@@ -167,7 +167,8 @@ unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
                                texture.width as i32);
 
         // Ensure there is enough space in the texturecomposite vector
-        let end = (x2 as usize) * (texture.height as usize);
+        // Pad with 128 zero bytes due to DSB-21
+        let end = ((x2 as usize) * (texture.height as usize)) + 128;
         if texture.texturecomposite.len() < end {
             texture.texturecomposite.resize(end, 0);
         }
