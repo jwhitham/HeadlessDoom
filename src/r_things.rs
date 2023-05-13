@@ -36,8 +36,6 @@ use crate::r_main;
 use crate::r_segs::R_RenderMaskedSegRange;
 use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
-use crate::r_bsp::ds_p;
-use crate::r_bsp::drawsegs;
 use crate::r_data::NULL_COLORMAP;
 use crate::r_data::colormap_index_t;
 use crate::r_data::RenderData_t;
@@ -722,10 +720,10 @@ unsafe fn R_DrawSprite (rc: &mut RenderContext_t, spr: *mut vissprite_t) {
     // Scan drawsegs from end to start for obscuring segs.
     // The first drawseg that has a greater scale
     //  is the clip seg.
-    let mut ds: *mut drawseg_t = ds_p;
+    let mut ds: *mut drawseg_t = rc.bc.ds_p;
     loop {
         ds = ds.offset(-1);
-        if ds < drawsegs.as_mut_ptr() {
+        if ds < rc.bc.drawsegs.as_mut_ptr() {
             break;
         }
 
@@ -843,8 +841,8 @@ pub unsafe fn R_DrawMasked (rc: &mut RenderContext_t) {
     }
     
     // render any remaining masked mid textures
-    let mut ds: *mut drawseg_t = ds_p.offset(-1);
-    while ds >= drawsegs.as_mut_ptr() {
+    let mut ds: *mut drawseg_t = rc.bc.ds_p.offset(-1);
+    while ds >= rc.bc.drawsegs.as_mut_ptr() {
         if (*ds).maskedtexturecol != std::ptr::null_mut() {
             R_RenderMaskedSegRange (rc, ds, (*ds).x1, (*ds).x2);
         }

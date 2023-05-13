@@ -63,23 +63,35 @@ const empty_cliprange: cliprange_t = cliprange_t {
     last: 0,
 };
 
-pub static mut ds_p: *mut drawseg_t = std::ptr::null_mut();
-pub static mut drawsegs: [drawseg_t; MAXDRAWSEGS as usize] = [
-                            empty_drawseg; MAXDRAWSEGS as usize];
-pub static mut curline: *mut seg_t = std::ptr::null_mut();
-pub static mut frontsector: *mut sector_t = std::ptr::null_mut();
-pub static mut backsector: *mut sector_t = std::ptr::null_mut();
-pub static mut sidedef: *mut side_t = std::ptr::null_mut();
-pub static mut linedef: *mut line_t = std::ptr::null_mut();
-static mut newend: *mut cliprange_t = std::ptr::null_mut();
-static mut solidsegs: [cliprange_t; MAXSEGS as usize] = [
-                            empty_cliprange; MAXSEGS as usize];
+pub struct BspContext_t {
+    pub ds_p: *mut drawseg_t,
+    pub drawsegs: [drawseg_t; MAXDRAWSEGS as usize],
+    pub curline: *mut seg_t,
+    pub frontsector: *mut sector_t,
+    pub backsector: *mut sector_t,
+    pub sidedef: *mut side_t,
+    pub linedef: *mut line_t,
+    pub newend: *mut cliprange_t,
+    pub solidsegs: [cliprange_t; MAXSEGS as usize],
+}
+
+pub const empty_BspContext: BspContext_t = BspContext_t {
+    ds_p: std::ptr::null_mut(),
+    drawsegs: [empty_drawseg; MAXDRAWSEGS as usize],
+    curline: std::ptr::null_mut(),
+    frontsector: std::ptr::null_mut(),
+    backsector: std::ptr::null_mut(),
+    sidedef: std::ptr::null_mut(),
+    linedef: std::ptr::null_mut(),
+    newend: std::ptr::null_mut(),
+    solidsegs: [empty_cliprange; MAXSEGS as usize],
+};
 
 //
 // R_ClearDrawSegs
 //
-pub unsafe fn R_ClearDrawSegs () {
-    ds_p = drawsegs.as_mut_ptr();
+pub unsafe fn R_ClearDrawSegs (bc: &mut BspContext_t) {
+    bc.ds_p = bc.drawsegs.as_mut_ptr();
 }
 
 
@@ -93,7 +105,7 @@ pub unsafe fn R_ClearDrawSegs () {
 unsafe fn R_ClipSolidWallSegment(rc: &mut RenderContext_t, first: i32, last: i32) {
     // Find the first range that touches the range
     //  (adjacent pixels are touching).
-    let mut start: *mut cliprange_t = solidsegs.as_mut_ptr();
+    let mut start: *mut cliprange_t = rc.bc.solidsegs.as_mut_ptr();
     while (*start).last < (first - 1) {
         start = start.offset(1);
     }
@@ -103,8 +115,8 @@ unsafe fn R_ClipSolidWallSegment(rc: &mut RenderContext_t, first: i32, last: i32
             // Post is entirely visible (above start),
             //  so insert a new clippost.
             R_StoreWallRange (rc, first, last);
-            let mut next: *mut cliprange_t = newend;
-            newend = newend.offset(1);
+            let mut next: *mut cliprange_t = rc.bc.newend;
+            rc.bc.newend = rc.bc.newend.offset(1);
             
             while next != start {
                 *next = *(next.offset(-1));
@@ -156,14 +168,14 @@ unsafe fn R_ClipSolidWallSegment(rc: &mut RenderContext_t, first: i32, last: i32
         return;
     }
     
-    while next != newend {
+    while next != rc.bc.newend {
         next = next.offset(1);
         start = start.offset(1);
         // Remove a post.
         *start = *next;
     }
 
-    newend = start.offset(1);
+    rc.bc.newend = start.offset(1);
 }
 
 //
@@ -176,7 +188,7 @@ unsafe fn R_ClipSolidWallSegment(rc: &mut RenderContext_t, first: i32, last: i32
 unsafe fn R_ClipPassWallSegment(rc: &mut RenderContext_t, first: i32, last: i32) {
     // Find the first range that touches the range
     //  (adjacent pixels are touching).
-    let mut start: *mut cliprange_t = solidsegs.as_mut_ptr();
+    let mut start: *mut cliprange_t = rc.bc.solidsegs.as_mut_ptr();
     while (*start).last < (first - 1) {
         start = start.offset(1);
     }
@@ -217,12 +229,12 @@ unsafe fn R_ClipPassWallSegment(rc: &mut RenderContext_t, first: i32, last: i32)
 //
 // R_ClearClipSegs
 //
-pub unsafe fn R_ClearClipSegs () {
-    solidsegs[0].first = -0x7fffffff;
-    solidsegs[0].last = -1;
-    solidsegs[1].first = viewwidth;
-    solidsegs[1].last = 0x7fffffff;
-    newend = solidsegs.as_mut_ptr().offset(2);
+pub unsafe fn R_ClearClipSegs (bc: &mut BspContext_t) {
+    bc.solidsegs[0].first = -0x7fffffff;
+    bc.solidsegs[0].last = -1;
+    bc.solidsegs[1].first = viewwidth;
+    bc.solidsegs[1].last = 0x7fffffff;
+    bc.newend = bc.solidsegs.as_mut_ptr().offset(2);
 }
 
 // R_ClipAngles has common code from R_AddLine and R_CheckBBox
@@ -277,7 +289,7 @@ unsafe fn R_ClipAngles(angle1_param: angle_t, angle2_param: angle_t) -> Option<R
 // and adds any visible pieces to the line list.
 //
 unsafe fn R_AddLine (rc: &mut RenderContext_t, line: *mut seg_t) {
-    curline = line;
+    rc.bc.curline = line;
 
     // OPTIMIZE: quickly reject orthogonal back sides.
     let mut angle1 = R_PointToAngle ((*(*line).v1).x, (*(*line).v1).y);
@@ -303,21 +315,21 @@ unsafe fn R_AddLine (rc: &mut RenderContext_t, line: *mut seg_t) {
     }
     let ca = car.unwrap();
     
-    backsector = (*line).backsector;
+    rc.bc.backsector = (*line).backsector;
     let mut clipsolid = false;
 
     // Single sided line?
-    if backsector == std::ptr::null_mut() {
+    if rc.bc.backsector == std::ptr::null_mut() {
         clipsolid = true;
 
     // Closed door.
-    } else if ((*backsector).ceilingheight <= (*frontsector).floorheight)
-    || ((*backsector).floorheight >= (*frontsector).ceilingheight) {
+    } else if ((*rc.bc.backsector).ceilingheight <= (*rc.bc.frontsector).floorheight)
+    || ((*rc.bc.backsector).floorheight >= (*rc.bc.frontsector).ceilingheight) {
         clipsolid = true;
 
     // Window.
-    } else if ((*backsector).ceilingheight != (*frontsector).ceilingheight)
-    || ((*backsector).floorheight != (*frontsector).floorheight) {
+    } else if ((*rc.bc.backsector).ceilingheight != (*rc.bc.frontsector).ceilingheight)
+    || ((*rc.bc.backsector).floorheight != (*rc.bc.frontsector).floorheight) {
         clipsolid = false;
         
     // Reject empty lines used for triggers
@@ -325,10 +337,10 @@ unsafe fn R_AddLine (rc: &mut RenderContext_t, line: *mut seg_t) {
     // Identical floor and ceiling on both sides,
     // identical light levels on both sides,
     // and no middle texture.
-    } else if ((*backsector).ceilingpic == (*frontsector).ceilingpic)
-    && ((*backsector).floorpic == (*frontsector).floorpic)
-    && ((*backsector).lightlevel == (*frontsector).lightlevel)
-    && ((*(*curline).sidedef).midtexture == 0) {
+    } else if ((*rc.bc.backsector).ceilingpic == (*rc.bc.frontsector).ceilingpic)
+    && ((*rc.bc.backsector).floorpic == (*rc.bc.frontsector).floorpic)
+    && ((*rc.bc.backsector).lightlevel == (*rc.bc.frontsector).lightlevel)
+    && ((*(*rc.bc.curline).sidedef).midtexture == 0) {
         return;
     }
 
@@ -362,7 +374,7 @@ const checkcoord: [[i32; 4]; 12] =
 ];
 
 
-unsafe fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
+unsafe fn R_CheckBBox (bc: &mut BspContext_t, bspcoord: *mut fixed_t) -> boolean {
     // Find the corners of the box
     // that define the edges from current viewpoint.
     let boxx =
@@ -405,7 +417,7 @@ unsafe fn R_CheckBBox (bspcoord: *mut fixed_t) -> boolean {
     let mut sx2 = ca.x2;
     sx2 -= 1;
     
-    let mut start = solidsegs.as_mut_ptr();
+    let mut start = bc.solidsegs.as_mut_ptr();
     while (*start).last < sx2 {
         start = start.offset(1);
     }
@@ -434,28 +446,28 @@ unsafe fn R_Subsector (rc: &mut RenderContext_t, num: i32) {
 
     sscount += 1;
     let sub: *mut subsector_t = subsectors.offset(num as isize);
-    frontsector = (*sub).sector;
+    rc.bc.frontsector = (*sub).sector;
     let count = (*sub).numlines;
     let mut line: *mut seg_t = segs.offset((*sub).firstline as isize);
 
-    if (*frontsector).floorheight < viewz {
-        floorplane = R_FindPlane ((*frontsector).floorheight,
-                      (*frontsector).floorpic as i32,
-                      (*frontsector).lightlevel as i32);
+    if (*rc.bc.frontsector).floorheight < viewz {
+        floorplane = R_FindPlane ((*rc.bc.frontsector).floorheight,
+                      (*rc.bc.frontsector).floorpic as i32,
+                      (*rc.bc.frontsector).lightlevel as i32);
     } else {
         floorplane = std::ptr::null_mut();
     }
         
-    if ((*frontsector).ceilingheight > viewz)
-    || (((*frontsector).ceilingpic as i32) == skyflatnum) {
-        ceilingplane = R_FindPlane ((*frontsector).ceilingheight,
-                        (*frontsector).ceilingpic as i32,
-                        (*frontsector).lightlevel as i32);
+    if ((*rc.bc.frontsector).ceilingheight > viewz)
+    || (((*rc.bc.frontsector).ceilingpic as i32) == skyflatnum) {
+        ceilingplane = R_FindPlane ((*rc.bc.frontsector).ceilingheight,
+                        (*rc.bc.frontsector).ceilingpic as i32,
+                        (*rc.bc.frontsector).lightlevel as i32);
     } else {
         ceilingplane = std::ptr::null_mut();
     }
         
-    R_AddSprites (rc, frontsector);
+    R_AddSprites (rc, rc.bc.frontsector);
 
     for _ in 0 .. count {
         R_AddLine (rc, line);
@@ -488,7 +500,7 @@ pub unsafe fn R_RenderBSPNode (rc: &mut RenderContext_t, bspnum: i32) {
     R_RenderBSPNode (rc, (*bsp).children[side as usize] as i32); 
 
     // Possibly divide back space.
-    if R_CheckBBox ((*bsp).bbox[(side^1) as usize].as_mut_ptr()) != 0 {
+    if R_CheckBBox (&mut rc.bc, (*bsp).bbox[(side^1) as usize].as_mut_ptr()) != 0 {
         R_RenderBSPNode (rc, (*bsp).children[(side^1) as usize] as i32);
     }
 }
