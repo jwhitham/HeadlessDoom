@@ -96,17 +96,17 @@ pub unsafe fn R_RenderMaskedSegRange
     //   for horizontal / vertical / diagonal. Diagonal?
     // OPTIMIZE: get rid of LIGHTSEGSHIFT globally
     rc.bc.curline = rc.bc.drawsegs[ds as usize].curline;
-    rc.bc.frontsector = (*rc.bc.curline).frontsector;
-    rc.bc.backsector = (*rc.bc.curline).backsector;
+    rc.bc.frontsector = (*segs.offset(rc.bc.curline as isize)).frontsector;
+    rc.bc.backsector = (*segs.offset(rc.bc.curline as isize)).backsector;
     let texnum = *texturetranslation.offset(
-        (*(*rc.bc.curline).sidedef).midtexture as isize);
+        (*(*segs.offset(rc.bc.curline as isize)).sidedef).midtexture as isize);
     
     let mut lightnum = (((*rc.bc.frontsector).lightlevel >> LIGHTSEGSHIFT) as i32)
                     + extralight;
 
-    if (*(*rc.bc.curline).v1).y == (*(*rc.bc.curline).v2).y {
+    if (*(*segs.offset(rc.bc.curline as isize)).v1).y == (*(*segs.offset(rc.bc.curline as isize)).v2).y {
         lightnum -= 1;
-    } else if (*(*rc.bc.curline).v1).x == (*(*rc.bc.curline).v2).x {
+    } else if (*(*segs.offset(rc.bc.curline as isize)).v1).x == (*(*segs.offset(rc.bc.curline as isize)).v2).x {
         lightnum += 1;
     }
 
@@ -126,7 +126,7 @@ pub unsafe fn R_RenderMaskedSegRange
     };
     
     // find positioning
-    if (((*(*rc.bc.curline).linedef).flags as u32) & ML_DONTPEGBOTTOM) != 0 {
+    if (((*(*segs.offset(rc.bc.curline as isize)).linedef).flags as u32) & ML_DONTPEGBOTTOM) != 0 {
         dmc.dc.dc_texturemid =
             if (*rc.bc.frontsector).floorheight > (*rc.bc.backsector).floorheight {
                 (*rc.bc.frontsector).floorheight
@@ -144,7 +144,7 @@ pub unsafe fn R_RenderMaskedSegRange
             };
         dmc.dc.dc_texturemid = dmc.dc.dc_texturemid - viewz;
     }
-    dmc.dc.dc_texturemid += (*(*rc.bc.curline).sidedef).rowoffset;
+    dmc.dc.dc_texturemid += (*(*segs.offset(rc.bc.curline as isize)).sidedef).rowoffset;
             
     if rc.fixedcolormap_index != NULL_COLORMAP {
         dmc.dc.dc_colormap_index = rc.fixedcolormap_index;
@@ -342,19 +342,19 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         rw_x: start,
         rw_stopx: stop + 1,
     };
-    rc.bc.sidedef = (*rc.bc.curline).sidedef;
-    rc.bc.linedef = (*rc.bc.curline).linedef;
+    rc.bc.sidedef = (*segs.offset(rc.bc.curline as isize)).sidedef;
+    rc.bc.linedef = (*segs.offset(rc.bc.curline as isize)).linedef;
 
     // mark the segment as visible for auto map
     (*rc.bc.linedef).flags |= ML_MAPPED as i16;
     
     // calculate rw_distance for scale calculation
-    rw_normalangle = (*rc.bc.curline).angle.wrapping_add(ANG90);
+    rw_normalangle = (*segs.offset(rc.bc.curline as isize)).angle.wrapping_add(ANG90);
     let offsetangle: angle_t = angle_t::min(ANG90,
                 i32::abs(rw_normalangle.wrapping_sub(rw_angle1 as angle_t) as i32) as angle_t);
     
     let distangle: angle_t = ANG90 - offsetangle;
-    let hyp: fixed_t = R_PointToDist ((*(*rc.bc.curline).v1).x, (*(*rc.bc.curline).v1).y);
+    let hyp: fixed_t = R_PointToDist ((*(*segs.offset(rc.bc.curline as isize)).v1).x, (*(*segs.offset(rc.bc.curline as isize)).v1).y);
     let sineval: fixed_t = finesine[(distangle>>ANGLETOFINESHIFT) as usize];
     rw_distance = FixedMul (hyp, sineval);
         
@@ -557,7 +557,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
             rsl.rw_offset = -rsl.rw_offset;
         }
 
-        rsl.rw_offset += (*rc.bc.sidedef).textureoffset + (*rc.bc.curline).offset;
+        rsl.rw_offset += (*rc.bc.sidedef).textureoffset + (*segs.offset(rc.bc.curline as isize)).offset;
         rsl.rw_centerangle = ANG90.wrapping_add(viewangle).wrapping_sub(rw_normalangle);
         
         // calculate light table
@@ -567,9 +567,9 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         if rc.fixedcolormap_index == NULL_COLORMAP {
             let mut lightnum = (((*rc.bc.frontsector).lightlevel >> LIGHTSEGSHIFT) as i32) + extralight;
 
-            if (*(*rc.bc.curline).v1).y == (*(*rc.bc.curline).v2).y {
+            if (*(*segs.offset(rc.bc.curline as isize)).v1).y == (*(*segs.offset(rc.bc.curline as isize)).v2).y {
                 lightnum -= 1;
-            } else if (*(*rc.bc.curline).v1).x == (*(*rc.bc.curline).v2).x {
+            } else if (*(*segs.offset(rc.bc.curline as isize)).v1).x == (*(*segs.offset(rc.bc.curline as isize)).v2).x {
                 lightnum += 1;
             }
 

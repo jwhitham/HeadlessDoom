@@ -45,6 +45,7 @@ use crate::r_bsp::R_ClearClipSegs;
 use crate::r_bsp::R_ClearDrawSegs;
 use crate::r_bsp::BspContext_t;
 use crate::r_bsp::empty_BspContext;
+use crate::r_bsp::seg_index_t;
 use crate::r_things::R_ClearSprites;
 use crate::r_things::R_DrawMasked;
 use crate::tables::tantoangle;
@@ -189,11 +190,11 @@ pub unsafe fn R_PointOnSide(x: fixed_t, y: fixed_t,
 
 
 pub unsafe fn R_PointOnSegSide(x: fixed_t, y: fixed_t,
-                               line: *mut seg_t) -> i32 {
-    let lx = (*(*line).v1).x;
-    let ly = (*(*line).v1).y;
-    let ldx = (*(*line).v2).x - lx;
-    let ldy = (*(*line).v2).y - ly;
+                               line: seg_index_t) -> i32 {
+    let lx = (*(*segs.offset(line as isize)).v1).x;
+    let ly = (*(*segs.offset(line as isize)).v1).y;
+    let ldx = (*(*segs.offset(line as isize)).v2).x - lx;
+    let ldy = (*(*segs.offset(line as isize)).v2).y - ly;
     return R_PointOnSide_common(x, y, lx, ly, ldx, ldy);
 }
 

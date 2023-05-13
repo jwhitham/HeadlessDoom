@@ -43,8 +43,11 @@ use crate::r_plane::ceilingplane;
 use crate::r_plane::floorplane;
 use crate::r_segs::rw_angle1;
 
+
+pub type seg_index_t = u16;
+
 pub struct drawseg_t {
-    pub curline: *mut seg_t,
+    pub curline: seg_index_t,
     pub x1: i32,
     pub x2: i32,
     pub scale1: fixed_t,
@@ -64,7 +67,7 @@ pub struct drawseg_t {
 }
 
 const empty_drawseg: drawseg_t = drawseg_t {
-    curline: std::ptr::null_mut(),
+    curline: 0,
     x1: 0,
     x2: 0,
     scale1: 0,
@@ -100,7 +103,7 @@ pub type solidsegs_index_t = u16;
 pub struct BspContext_t {
     pub ds_index: drawsegs_index_t,
     pub drawsegs: [drawseg_t; MAXDRAWSEGS as usize],
-    pub curline: *mut seg_t,
+    pub curline: seg_index_t,
     pub frontsector: *mut sector_t,
     pub backsector: *mut sector_t,
     pub sidedef: *mut side_t,
@@ -112,7 +115,7 @@ pub struct BspContext_t {
 pub const empty_BspContext: BspContext_t = BspContext_t {
     ds_index: 0,
     drawsegs: [empty_drawseg; MAXDRAWSEGS as usize],
-    curline: std::ptr::null_mut(),
+    curline: 0,
     frontsector: std::ptr::null_mut(),
     backsector: std::ptr::null_mut(),
     sidedef: std::ptr::null_mut(),
@@ -324,12 +327,12 @@ unsafe fn R_ClipAngles(angle1_param: angle_t, angle2_param: angle_t) -> Option<R
 // Clips the given segment
 // and adds any visible pieces to the line list.
 //
-unsafe fn R_AddLine (rc: &mut RenderContext_t, line: *mut seg_t) {
+unsafe fn R_AddLine (rc: &mut RenderContext_t, line: seg_index_t) {
     rc.bc.curline = line;
 
     // OPTIMIZE: quickly reject orthogonal back sides.
-    let mut angle1 = R_PointToAngle ((*(*line).v1).x, (*(*line).v1).y);
-    let mut angle2 = R_PointToAngle ((*(*line).v2).x, (*(*line).v2).y);
+    let mut angle1 = R_PointToAngle ((*(*segs.offset(line as isize)).v1).x, (*(*segs.offset(line as isize)).v1).y);
+    let mut angle2 = R_PointToAngle ((*(*segs.offset(line as isize)).v2).x, (*(*segs.offset(line as isize)).v2).y);
     
     // Clip to view edges.
     // OPTIMIZE: make constant out of 2*clipangle (FIELDOFVIEW).
@@ -351,7 +354,7 @@ unsafe fn R_AddLine (rc: &mut RenderContext_t, line: *mut seg_t) {
     }
     let ca = car.unwrap();
     
-    rc.bc.backsector = (*line).backsector;
+    rc.bc.backsector = (*segs.offset(line as isize)).backsector;
     let mut clipsolid = false;
 
     // Single sided line?
@@ -376,7 +379,7 @@ unsafe fn R_AddLine (rc: &mut RenderContext_t, line: *mut seg_t) {
     } else if ((*rc.bc.backsector).ceilingpic == (*rc.bc.frontsector).ceilingpic)
     && ((*rc.bc.backsector).floorpic == (*rc.bc.frontsector).floorpic)
     && ((*rc.bc.backsector).lightlevel == (*rc.bc.frontsector).lightlevel)
-    && ((*(*rc.bc.curline).sidedef).midtexture == 0) {
+    && ((*(*segs.offset(rc.bc.curline as isize)).sidedef).midtexture == 0) {
         return;
     }
 
@@ -484,7 +487,7 @@ unsafe fn R_Subsector (rc: &mut RenderContext_t, num: i32) {
     let sub: *mut subsector_t = subsectors.offset(num as isize);
     rc.bc.frontsector = (*sub).sector;
     let count = (*sub).numlines;
-    let mut line: *mut seg_t = segs.offset((*sub).firstline as isize);
+    let mut line: seg_index_t = (*sub).firstline as seg_index_t;
 
     if (*rc.bc.frontsector).floorheight < viewz {
         floorplane = R_FindPlane ((*rc.bc.frontsector).floorheight,
@@ -507,7 +510,7 @@ unsafe fn R_Subsector (rc: &mut RenderContext_t, num: i32) {
 
     for _ in 0 .. count {
         R_AddLine (rc, line);
-        line = line.offset(1);
+        line += 1;
     }
 }
 
