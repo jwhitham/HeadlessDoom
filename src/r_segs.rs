@@ -36,11 +36,6 @@ use crate::r_main::R_PointToDist;
 use crate::r_main::R_ScaleFromGlobalAngle;
 use crate::r_main::RenderContext_t;
 use crate::r_plane::R_CheckPlane;
-use crate::r_plane::ceilingclip;
-use crate::r_plane::ceilingplane;
-use crate::r_plane::floorclip;
-use crate::r_plane::floorplane;
-use crate::r_plane::lastopening;
 use crate::r_things::negonearray;
 use crate::r_things::screenheightarray;
 use crate::r_draw::empty_R_DrawColumn_params;
@@ -187,26 +182,26 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
     for x in rsl.rw_x as usize .. rsl.rw_stopx as usize {
         // mark floor / ceiling areas
         let yl = i32::max((rsl.topfrac+HEIGHTUNIT-1)>>HEIGHTBITS,
-                          (ceilingclip[x]+1) as i32);
+                          (rc.pc.ceilingclip[x]+1) as i32);
         
         if markceiling != c_false {
-            let top = (ceilingclip[x]+1) as i32;
-            let bottom = i32::min(yl-1, (floorclip[x]-1) as i32);
+            let top = (rc.pc.ceilingclip[x]+1) as i32;
+            let bottom = i32::min(yl-1, (rc.pc.floorclip[x]-1) as i32);
 
             if top <= bottom {
-                (*ceilingplane).top[x] = top as u8;
-                (*ceilingplane).bottom[x] = bottom as u8;
+                (*rc.pc.ceilingplane).top[x] = top as u8;
+                (*rc.pc.ceilingplane).bottom[x] = bottom as u8;
             }
         }
             
-        let yh = i32::min(rsl.bottomfrac>>HEIGHTBITS, (floorclip[x]-1) as i32);
+        let yh = i32::min(rsl.bottomfrac>>HEIGHTBITS, (rc.pc.floorclip[x]-1) as i32);
 
         if markfloor != c_false {
-            let top = i32::max(yh+1, (ceilingclip[x]+1) as i32);
-            let bottom = (floorclip[x]-1) as i32;
+            let top = i32::max(yh+1, (rc.pc.ceilingclip[x]+1) as i32);
+            let bottom = (rc.pc.floorclip[x]-1) as i32;
             if top <= bottom {
-                (*floorplane).top[x] = top as u8;
-                (*floorplane).bottom[x] = bottom as u8;
+                (*rc.pc.floorplane).top[x] = top as u8;
+                (*rc.pc.floorplane).bottom[x] = bottom as u8;
             }
         }
         
@@ -238,14 +233,14 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
             rsl.dc.dc_texturemid = rsl.rw_midtexturemid;
             rsl.dc.dc_source = R_GetColumn(&mut rc.rd, midtexture, texturecolumn);
             (rc.colfunc) (rc, &mut rsl.dc);
-            ceilingclip[x] = viewheight as i16;
-            floorclip[x] = -1;
+            rc.pc.ceilingclip[x] = viewheight as i16;
+            rc.pc.floorclip[x] = -1;
         } else {
             // two sided line
             if toptexture != 0 {
                 // top wall
                 let mid = i32::min(rsl.pixhigh>>HEIGHTBITS,
-                                   (floorclip[x]-1) as i32);
+                                   (rc.pc.floorclip[x]-1) as i32);
                 rsl.pixhigh += rsl.pixhighstep;
 
                 if mid >= yl {
@@ -254,21 +249,21 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                     rsl.dc.dc_texturemid = rsl.rw_toptexturemid;
                     rsl.dc.dc_source = R_GetColumn(&mut rc.rd, toptexture, texturecolumn);
                     (rc.colfunc) (rc, &mut rsl.dc);
-                    ceilingclip[x] = mid as i16;
+                    rc.pc.ceilingclip[x] = mid as i16;
                 } else {
-                    ceilingclip[x] = (yl-1) as i16;
+                    rc.pc.ceilingclip[x] = (yl-1) as i16;
                 }
             } else {
                 // no top wall
                 if markceiling != c_false {
-                    ceilingclip[x] = (yl-1) as i16;
+                    rc.pc.ceilingclip[x] = (yl-1) as i16;
                 }
             }
                     
             if bottomtexture != 0 {
                 // bottom wall
                 let mid = i32::max((rsl.pixlow+HEIGHTUNIT-1)>>HEIGHTBITS,
-                                   (ceilingclip[x]+1) as i32);
+                                   (rc.pc.ceilingclip[x]+1) as i32);
                 rsl.pixlow += rsl.pixlowstep;
 
                 if mid <= yh {
@@ -277,14 +272,14 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                     rsl.dc.dc_texturemid = rsl.rw_bottomtexturemid;
                     rsl.dc.dc_source = R_GetColumn(&mut rc.rd, bottomtexture, texturecolumn);
                     (rc.colfunc) (rc, &mut rsl.dc);
-                    floorclip[x] = mid as i16;
+                    rc.pc.floorclip[x] = mid as i16;
                 } else {
-                    floorclip[x] = (yh+1) as i16;
+                    rc.pc.floorclip[x] = (yh+1) as i16;
                 }
             } else {
                 // no bottom wall
                 if markfloor != c_false {
-                    floorclip[x] = (yh+1) as i16;
+                    rc.pc.floorclip[x] = (yh+1) as i16;
                 }
             }
                     
@@ -528,9 +523,9 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         if (*rc.bc.sidedef).midtexture != 0 {
             // masked midtexture
             rsl.maskedtexture = c_true;
-            maskedtexturecol = lastopening.offset(-(rsl.rw_x as isize));
+            maskedtexturecol = rc.pc.lastopening.offset(-(rsl.rw_x as isize));
             rc.bc.drawsegs[rc.bc.ds_index as usize].maskedtexturecol = maskedtexturecol;
-            lastopening = lastopening.offset((rsl.rw_stopx - rsl.rw_x) as isize);
+            rc.pc.lastopening = rc.pc.lastopening.offset((rsl.rw_stopx - rsl.rw_x) as isize);
         }
     }
     
@@ -619,11 +614,11 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     
     // render it
     if markceiling != c_false {
-        ceilingplane = R_CheckPlane (ceilingplane, rsl.rw_x, rsl.rw_stopx-1);
+        rc.pc.ceilingplane = R_CheckPlane (&mut rc.pc, rc.pc.ceilingplane, rsl.rw_x, rsl.rw_stopx-1);
     }
     
     if markfloor != c_false {
-        floorplane = R_CheckPlane (floorplane, rsl.rw_x, rsl.rw_stopx-1);
+        rc.pc.floorplane = R_CheckPlane (&mut rc.pc, rc.pc.floorplane, rsl.rw_x, rsl.rw_stopx-1);
     }
 
     R_RenderSegLoop (rc, &mut rsl);
@@ -633,21 +628,21 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     if ((0 != (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_TOP as i32)))
         || (rsl.maskedtexture != c_false))
     && (rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip == std::ptr::null_mut()) {
-        memcpy (lastopening as *mut u8,
-                ceilingclip.as_mut_ptr().offset(start as isize) as *const u8,
+        memcpy (rc.pc.lastopening as *mut u8,
+                rc.pc.ceilingclip.as_mut_ptr().offset(start as isize) as *const u8,
                 2*(rsl.rw_stopx-start) as usize);
-        rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip = lastopening.offset(-(start as isize));
-        lastopening = lastopening.offset((rsl.rw_stopx - start) as isize);
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip = rc.pc.lastopening.offset(-(start as isize));
+        rc.pc.lastopening = rc.pc.lastopening.offset((rsl.rw_stopx - start) as isize);
     }
     
     if ((0 != (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_BOTTOM as i32)))
         || (rsl.maskedtexture != c_false))
     && (rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip == std::ptr::null_mut()) {
-        memcpy (lastopening as *mut u8,
-                floorclip.as_mut_ptr().offset(start as isize) as *const u8,
+        memcpy (rc.pc.lastopening as *mut u8,
+                rc.pc.floorclip.as_mut_ptr().offset(start as isize) as *const u8,
                 2*(rsl.rw_stopx-start) as usize);
-        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = lastopening.offset(-(start as isize));
-        lastopening = lastopening.offset((rsl.rw_stopx - start) as isize);
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = rc.pc.lastopening.offset(-(start as isize));
+        rc.pc.lastopening = rc.pc.lastopening.offset((rsl.rw_stopx - start) as isize);
     }
 
     if (rsl.maskedtexture != c_false)

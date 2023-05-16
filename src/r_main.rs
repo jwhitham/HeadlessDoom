@@ -62,8 +62,8 @@ use crate::r_data::COLORMAP_SIZE;
 use crate::r_data::NULL_COLORMAP;
 use crate::r_data::colormap_index_t;
 use crate::r_sky::R_InitSkyMap;
-use crate::r_plane::yslope;
-use crate::r_plane::distscale;
+use crate::r_plane::PlaneContext_t;
+use crate::r_plane::empty_PlaneContext;
 use crate::r_segs::rw_normalangle;
 use crate::r_segs::rw_distance;
 use crate::r_segs::walllights;
@@ -102,6 +102,7 @@ pub struct RenderContext_t {
     pub rd: RenderData_t,
     pub vc: VideoContext_t,
     pub bc: BspContext_t,
+    pub pc: PlaneContext_t,
     pub centerx: i32,
     pub centery: i32,
     pub centerxfrac: fixed_t,
@@ -130,6 +131,7 @@ const empty_RenderContext: RenderContext_t = RenderContext_t {
     rd: empty_RenderData,
     vc: empty_VideoContext,
     bc: empty_BspContext,
+    pc: empty_PlaneContext,
     centerx: 0,
     centery: 0,
     centerxfrac: 0,
@@ -557,12 +559,12 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
     for i in 0 .. viewheight {
         let mut dy: fixed_t = ((i-(viewheight/2))<<FRACBITS) + ((FRACUNIT as fixed_t) / 2);
         dy = fixed_t::abs(dy);
-        yslope[i as usize] = FixedDiv(((viewwidth<<rc.detailshift)/2)*(FRACUNIT as i32), dy);
+        rc.pc.yslope[i as usize] = FixedDiv(((viewwidth<<rc.detailshift)/2)*(FRACUNIT as i32), dy);
     }
     
     for i in 0 .. viewwidth {
         let cosadj: fixed_t = fixed_t::abs(*finecosine.offset((rc.xtoviewangle[i as usize]>>ANGLETOFINESHIFT) as isize));
-        distscale[i as usize] = FixedDiv (FRACUNIT as i32, cosadj);
+        rc.pc.distscale[i as usize] = FixedDiv (FRACUNIT as i32, cosadj);
     }
     
     // Calculate the light levels to use
