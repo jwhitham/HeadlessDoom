@@ -31,14 +31,8 @@ use crate::r_plane::R_FindPlane;
 use crate::r_main::R_PointToAngle;
 use crate::r_main::R_PointOnSide;
 use crate::r_main::RenderContext_t;
+use crate::r_main::ViewContext_t;
 use crate::defs::bbox_t::*;
-use crate::r_main::viewx;
-use crate::r_main::viewy;
-use crate::r_main::viewz;
-use crate::r_main::viewangle;
-use crate::r_main::viewangletox;
-use crate::r_main::sscount;
-use crate::r_main::clipangle;
 use crate::r_plane::ceilingplane;
 use crate::r_plane::floorplane;
 use crate::r_segs::rw_angle1;
@@ -54,7 +48,7 @@ pub struct drawseg_t {
     pub scale2: fixed_t,
     pub scalestep: fixed_t,
     // 0=none, 1=bottom, 2=top, 3=both
-    pub silhouette: ::std::os::raw::c_int,
+    pub silhouette: i32,
     // do not clip sprites above this
     pub bsilheight: fixed_t,
     // do not clip sprites below this
@@ -283,38 +277,38 @@ struct R_ClipAngles_return_t {
     x2: i32,
 }
 
-unsafe fn R_ClipAngles(angle1_param: angle_t, angle2_param: angle_t) -> Option<R_ClipAngles_return_t> {
+unsafe fn R_ClipAngles(view: &mut ViewContext_t, angle1_param: angle_t, angle2_param: angle_t) -> Option<R_ClipAngles_return_t> {
     let mut angle1 = angle1_param;
     let mut angle2 = angle2_param;
     let span = angle1.wrapping_sub(angle2);
-    let mut tspan = angle1.wrapping_add(clipangle);
-    if tspan > (2 * clipangle) {
-        tspan -= 2 * clipangle;
+    let mut tspan = angle1.wrapping_add(view.clipangle);
+    if tspan > (2 * view.clipangle) {
+        tspan -= 2 * view.clipangle;
 
         // Totally off the left edge?
         if tspan >= span {
             return None;
         }
         
-        angle1 = clipangle;
+        angle1 = view.clipangle;
     }
-    tspan = clipangle.wrapping_sub(angle2);
-    if tspan > (2 * clipangle) {
-        tspan -= 2 * clipangle;
+    tspan = view.clipangle.wrapping_sub(angle2);
+    if tspan > (2 * view.clipangle) {
+        tspan -= 2 * view.clipangle;
 
         // Totally off the left edge?
         if tspan >= span {
             return None;
         }
-        angle2 = (0 as angle_t).wrapping_sub(clipangle);
+        angle2 = (0 as angle_t).wrapping_sub(view.clipangle);
     }
     
     // The seg is in the view range,
     // but not necessarily visible.
     angle1 = (angle1.wrapping_add(ANG90))>>ANGLETOFINESHIFT;
     angle2 = (angle2.wrapping_add(ANG90))>>ANGLETOFINESHIFT;
-    let x1 = viewangletox[angle1 as usize];
-    let x2 = viewangletox[angle2 as usize];
+    let x1 = view.viewangletox[angle1 as usize];
+    let x2 = view.viewangletox[angle2 as usize];
 
     // Does not cross a pixel?
     if x1 == x2 {
@@ -331,8 +325,12 @@ unsafe fn R_AddLine (rc: &mut RenderContext_t, line: seg_index_t) {
     rc.bc.curline = line;
 
     // OPTIMIZE: quickly reject orthogonal back sides.
-    let mut angle1 = R_PointToAngle ((*(*segs.offset(line as isize)).v1).x, (*(*segs.offset(line as isize)).v1).y);
-    let mut angle2 = R_PointToAngle ((*(*segs.offset(line as isize)).v2).x, (*(*segs.offset(line as isize)).v2).y);
+    let mut angle1 = R_PointToAngle (&mut rc.view,
+                                     (*(*segs.offset(line as isize)).v1).x,
+                                     (*(*segs.offset(line as isize)).v1).y);
+    let mut angle2 = R_PointToAngle (&mut rc.view,
+                                     (*(*segs.offset(line as isize)).v2).x,
+                                     (*(*segs.offset(line as isize)).v2).y);
     
     // Clip to view edges.
     // OPTIMIZE: make constant out of 2*clipangle (FIELDOFVIEW).
@@ -345,10 +343,10 @@ unsafe fn R_AddLine (rc: &mut RenderContext_t, line: seg_index_t) {
 
     // Global angle needed by segcalc.
     rw_angle1 = angle1 as i32;
-    angle1 = angle1.wrapping_sub(viewangle);
-    angle2 = angle2.wrapping_sub(viewangle);
+    angle1 = angle1.wrapping_sub(rc.view.viewangle);
+    angle2 = angle2.wrapping_sub(rc.view.viewangle);
 
-    let car = R_ClipAngles(angle1, angle2);
+    let car = R_ClipAngles(&mut rc.view, angle1, angle2);
     if car.is_none() {
         return;
     }
@@ -413,17 +411,17 @@ const checkcoord: [[i32; 4]; 12] =
 ];
 
 
-unsafe fn R_CheckBBox (bc: &mut BspContext_t, bspcoord: *mut fixed_t) -> boolean {
+unsafe fn R_CheckBBox (rc: &mut RenderContext_t, bspcoord: *mut fixed_t) -> boolean {
     // Find the corners of the box
     // that define the edges from current viewpoint.
     let boxx =
-        if viewx <= *bspcoord.offset(BOXLEFT as isize) { 0 }
-        else if viewx < *bspcoord.offset(BOXRIGHT as isize) { 1 }
+        if rc.view.viewx <= *bspcoord.offset(BOXLEFT as isize) { 0 }
+        else if rc.view.viewx < *bspcoord.offset(BOXRIGHT as isize) { 1 }
         else { 2 };
     
     let boxy =
-        if viewy >= *bspcoord.offset(BOXTOP as isize) { 0 }
-        else if viewy > *bspcoord.offset(BOXBOTTOM as isize) { 1 }
+        if rc.view.viewy >= *bspcoord.offset(BOXTOP as isize) { 0 }
+        else if rc.view.viewy > *bspcoord.offset(BOXBOTTOM as isize) { 1 }
         else { 2 };
         
     let boxpos = (boxy<<2)+boxx;
@@ -437,8 +435,8 @@ unsafe fn R_CheckBBox (bc: &mut BspContext_t, bspcoord: *mut fixed_t) -> boolean
     let y2 = *bspcoord.offset(checkcoord[boxpos][3] as isize);
     
     // check clip list for an open space
-    let angle1 = R_PointToAngle (x1, y1).wrapping_sub(viewangle);
-    let angle2 = R_PointToAngle (x2, y2).wrapping_sub(viewangle);
+    let angle1 = R_PointToAngle (&mut rc.view, x1, y1).wrapping_sub(rc.view.viewangle);
+    let angle2 = R_PointToAngle (&mut rc.view, x2, y2).wrapping_sub(rc.view.viewangle);
 
     let span = angle1.wrapping_sub(angle2);
 
@@ -447,7 +445,7 @@ unsafe fn R_CheckBBox (bc: &mut BspContext_t, bspcoord: *mut fixed_t) -> boolean
         return c_true;
     }
     
-    let car = R_ClipAngles(angle1, angle2);
+    let car = R_ClipAngles(&mut rc.view, angle1, angle2);
     if car.is_none() {
         return c_false;
     }
@@ -457,12 +455,12 @@ unsafe fn R_CheckBBox (bc: &mut BspContext_t, bspcoord: *mut fixed_t) -> boolean
     sx2 -= 1;
     
     let mut start: solidsegs_index_t = 0;
-    while bc.solidsegs[start as usize].last < sx2 {
+    while rc.bc.solidsegs[start as usize].last < sx2 {
         start += 1;
     }
     
-    if (sx1 >= bc.solidsegs[start as usize].first)
-    && (sx2 <= bc.solidsegs[start as usize].last) {
+    if (sx1 >= rc.bc.solidsegs[start as usize].first)
+    && (sx2 <= rc.bc.solidsegs[start as usize].last) {
         // The clippost contains the new span.
         return c_false;
     }
@@ -483,13 +481,13 @@ unsafe fn R_Subsector (rc: &mut RenderContext_t, num: i32) {
              numsubsectors);
     }
 
-    sscount += 1;
+    rc.sscount += 1;
     let sub: *mut subsector_t = subsectors.offset(num as isize);
     rc.bc.frontsector = (*sub).sector;
     let count = (*sub).numlines;
     let mut line: seg_index_t = (*sub).firstline as seg_index_t;
 
-    if (*rc.bc.frontsector).floorheight < viewz {
+    if (*rc.bc.frontsector).floorheight < rc.view.viewz {
         floorplane = R_FindPlane ((*rc.bc.frontsector).floorheight,
                       (*rc.bc.frontsector).floorpic as i32,
                       (*rc.bc.frontsector).lightlevel as i32);
@@ -497,7 +495,7 @@ unsafe fn R_Subsector (rc: &mut RenderContext_t, num: i32) {
         floorplane = std::ptr::null_mut();
     }
         
-    if ((*rc.bc.frontsector).ceilingheight > viewz)
+    if ((*rc.bc.frontsector).ceilingheight > rc.view.viewz)
     || (((*rc.bc.frontsector).ceilingpic as i32) == skyflatnum) {
         ceilingplane = R_FindPlane ((*rc.bc.frontsector).ceilingheight,
                         (*rc.bc.frontsector).ceilingpic as i32,
@@ -533,13 +531,13 @@ pub unsafe fn R_RenderBSPNode (rc: &mut RenderContext_t, bspnum: i32) {
     let bsp: *mut node_t = nodes.offset(bspnum as isize);
     
     // Decide which side the view point is on.
-    let side: i32 = R_PointOnSide (viewx, viewy, bsp);
+    let side: i32 = R_PointOnSide (rc.view.viewx, rc.view.viewy, bsp);
 
     // Recursively divide front space.
     R_RenderBSPNode (rc, (*bsp).children[side as usize] as i32); 
 
     // Possibly divide back space.
-    if R_CheckBBox (&mut rc.bc, (*bsp).bbox[(side^1) as usize].as_mut_ptr()) != 0 {
+    if R_CheckBBox (rc, (*bsp).bbox[(side^1) as usize].as_mut_ptr()) != 0 {
         R_RenderBSPNode (rc, (*bsp).children[(side^1) as usize] as i32);
     }
 }

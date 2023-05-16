@@ -36,11 +36,6 @@ use crate::r_main::R_PointToDist;
 use crate::r_main::R_ScaleFromGlobalAngle;
 use crate::r_main::RenderContext_t;
 use crate::r_plane::R_CheckPlane;
-use crate::r_main::viewz;
-use crate::r_main::viewangle;
-use crate::r_main::scalelight;
-use crate::r_main::extralight;
-use crate::r_main::xtoviewangle;
 use crate::r_plane::ceilingclip;
 use crate::r_plane::ceilingplane;
 use crate::r_plane::floorclip;
@@ -102,7 +97,7 @@ pub unsafe fn R_RenderMaskedSegRange
         (*(*segs.offset(rc.bc.curline as isize)).sidedef).midtexture as isize);
     
     let mut lightnum = (((*rc.bc.frontsector).lightlevel >> LIGHTSEGSHIFT) as i32)
-                    + extralight;
+                    + rc.extralight;
 
     if (*(*segs.offset(rc.bc.curline as isize)).v1).y == (*(*segs.offset(rc.bc.curline as isize)).v2).y {
         lightnum -= 1;
@@ -110,7 +105,7 @@ pub unsafe fn R_RenderMaskedSegRange
         lightnum += 1;
     }
 
-    walllights = scalelight[i32::max(0,
+    walllights = rc.scalelight[i32::max(0,
                             i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
 
     maskedtexturecol = rc.bc.drawsegs[ds as usize].maskedtexturecol;
@@ -134,7 +129,7 @@ pub unsafe fn R_RenderMaskedSegRange
                 (*rc.bc.backsector).floorheight
             };
         dmc.dc.dc_texturemid = dmc.dc.dc_texturemid +
-                *textureheight.offset(texnum as isize) - viewz;
+                *textureheight.offset(texnum as isize) - rc.view.viewz;
     } else {
         dmc.dc.dc_texturemid =
             if (*rc.bc.frontsector).ceilingheight < (*rc.bc.backsector).ceilingheight {
@@ -142,7 +137,7 @@ pub unsafe fn R_RenderMaskedSegRange
             } else {
                 (*rc.bc.backsector).ceilingheight
             };
-        dmc.dc.dc_texturemid = dmc.dc.dc_texturemid - viewz;
+        dmc.dc.dc_texturemid = dmc.dc.dc_texturemid - rc.view.viewz;
     }
     dmc.dc.dc_texturemid += (*(*segs.offset(rc.bc.curline as isize)).sidedef).rowoffset;
             
@@ -218,7 +213,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
         // texturecolumn and lighting are independent of wall tiers
         if segtextured != c_false {
             // calculate texture offset
-            let mut angle = rsl.rw_centerangle.wrapping_add(xtoviewangle[x])>>ANGLETOFINESHIFT;
+            let mut angle = rsl.rw_centerangle.wrapping_add(rc.xtoviewangle[x])>>ANGLETOFINESHIFT;
 
             if angle >= (FINEANGLES / 2) { // DSB-23
                 angle = 0;
@@ -354,7 +349,9 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
                 i32::abs(rw_normalangle.wrapping_sub(rw_angle1 as angle_t) as i32) as angle_t);
     
     let distangle: angle_t = ANG90 - offsetangle;
-    let hyp: fixed_t = R_PointToDist ((*(*segs.offset(rc.bc.curline as isize)).v1).x, (*(*segs.offset(rc.bc.curline as isize)).v1).y);
+    let hyp: fixed_t = R_PointToDist (&mut rc.view,
+                                      (*(*segs.offset(rc.bc.curline as isize)).v1).x,
+                                      (*(*segs.offset(rc.bc.curline as isize)).v1).y);
     let sineval: fixed_t = finesine[(distangle>>ANGLETOFINESHIFT) as usize];
     rw_distance = FixedMul (hyp, sineval);
         
@@ -364,11 +361,12 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     rc.bc.drawsegs[rc.bc.ds_index as usize].curline = rc.bc.curline;
     
     // calculate scale at both ends and step
-    rsl.rw_scale = R_ScaleFromGlobalAngle (viewangle.wrapping_add(xtoviewangle[start as usize]));
+    rsl.rw_scale = R_ScaleFromGlobalAngle (rc, rc.view.viewangle.wrapping_add(rc.xtoviewangle[start as usize]));
     rc.bc.drawsegs[rc.bc.ds_index as usize].scale1 = rsl.rw_scale;
     
     if stop > start {
-        rc.bc.drawsegs[rc.bc.ds_index as usize].scale2 = R_ScaleFromGlobalAngle (viewangle.wrapping_add(xtoviewangle[stop as usize]));
+        rc.bc.drawsegs[rc.bc.ds_index as usize].scale2 =
+            R_ScaleFromGlobalAngle (rc, rc.view.viewangle.wrapping_add(rc.xtoviewangle[stop as usize]));
         rsl.rw_scalestep = (rc.bc.drawsegs[rc.bc.ds_index as usize].scale2 - rsl.rw_scale) / (stop-start);
         rc.bc.drawsegs[rc.bc.ds_index as usize].scalestep = rsl.rw_scalestep;
     } else {
@@ -392,8 +390,8 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     
     // calculate texture boundaries
     //  and decide if floor / ceiling marks are needed
-    let mut worldtop: i32 = (*rc.bc.frontsector).ceilingheight - viewz;
-    let mut worldbottom: i32 = (*rc.bc.frontsector).floorheight - viewz;
+    let mut worldtop: i32 = (*rc.bc.frontsector).ceilingheight - rc.view.viewz;
+    let mut worldbottom: i32 = (*rc.bc.frontsector).floorheight - rc.view.viewz;
     let mut worldhigh: i32 = 0;
     let mut worldlow: i32 = 0;
     
@@ -412,7 +410,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
             let vtop = (*rc.bc.frontsector).floorheight +
                 *textureheight.offset((*rc.bc.sidedef).midtexture as isize);
             // bottom of texture at bottom
-            rsl.rw_midtexturemid = vtop - viewz;
+            rsl.rw_midtexturemid = vtop - rc.view.viewz;
         } else {
             // top of texture at top
             rsl.rw_midtexturemid = worldtop;
@@ -433,7 +431,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         if (*rc.bc.frontsector).floorheight > (*rc.bc.backsector).floorheight {
             rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = SIL_BOTTOM as i32;
             rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = (*rc.bc.frontsector).floorheight;
-        } else if (*rc.bc.backsector).floorheight > viewz {
+        } else if (*rc.bc.backsector).floorheight > rc.view.viewz {
             rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = SIL_BOTTOM as i32;
             rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
             // rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = negonearray;
@@ -442,7 +440,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         if (*rc.bc.frontsector).ceilingheight < (*rc.bc.backsector).ceilingheight {
             rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_TOP as i32;
             rc.bc.drawsegs[rc.bc.ds_index as usize].tsilheight = (*rc.bc.frontsector).ceilingheight;
-        } else if (*rc.bc.backsector).ceilingheight < viewz {
+        } else if (*rc.bc.backsector).ceilingheight < rc.view.viewz {
             rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_TOP as i32;
             rc.bc.drawsegs[rc.bc.ds_index as usize].tsilheight = MININT;
             // rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip = screenheightarray;
@@ -460,8 +458,8 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
             rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_TOP as i32;
         }
         
-        worldhigh = (*rc.bc.backsector).ceilingheight - viewz;
-        worldlow = (*rc.bc.backsector).floorheight - viewz;
+        worldhigh = (*rc.bc.backsector).ceilingheight - rc.view.viewz;
+        worldlow = (*rc.bc.backsector).floorheight - rc.view.viewz;
             
         // hack to allow height changes in outdoor areas
         if ((*rc.bc.frontsector).ceilingpic == (skyflatnum as i16))
@@ -508,7 +506,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
                     + *textureheight.offset((*rc.bc.sidedef).toptexture as isize);
             
                 // bottom of texture
-                rsl.rw_toptexturemid = vtop - viewz;
+                rsl.rw_toptexturemid = vtop - rc.view.viewz;
             }
         }
         if worldlow > worldbottom {
@@ -558,14 +556,14 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         }
 
         rsl.rw_offset += (*rc.bc.sidedef).textureoffset + (*segs.offset(rc.bc.curline as isize)).offset;
-        rsl.rw_centerangle = ANG90.wrapping_add(viewangle).wrapping_sub(rw_normalangle);
+        rsl.rw_centerangle = ANG90.wrapping_add(rc.view.viewangle).wrapping_sub(rw_normalangle);
         
         // calculate light table
         //  use different light tables
         //  for horizontal / vertical / diagonal
         // OPTIMIZE: get rid of LIGHTSEGSHIFT globally
         if rc.fixedcolormap_index == NULL_COLORMAP {
-            let mut lightnum = (((*rc.bc.frontsector).lightlevel >> LIGHTSEGSHIFT) as i32) + extralight;
+            let mut lightnum = (((*rc.bc.frontsector).lightlevel >> LIGHTSEGSHIFT) as i32) + rc.extralight;
 
             if (*(*segs.offset(rc.bc.curline as isize)).v1).y == (*(*segs.offset(rc.bc.curline as isize)).v2).y {
                 lightnum -= 1;
@@ -573,7 +571,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
                 lightnum += 1;
             }
 
-            walllights = scalelight[i32::max(0, i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
+            walllights = rc.scalelight[i32::max(0, i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
         }
     }
     
@@ -582,12 +580,12 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     //  and doesn't need to be marked.
     
   
-    if (*rc.bc.frontsector).floorheight >= viewz {
+    if (*rc.bc.frontsector).floorheight >= rc.view.viewz {
         // above view plane
         markfloor = c_false;
     }
     
-    if ((*rc.bc.frontsector).ceilingheight <= viewz)
+    if ((*rc.bc.frontsector).ceilingheight <= rc.view.viewz)
     && (((*rc.bc.frontsector).ceilingpic as i32) != skyflatnum) {
         // below view plane
         markceiling = c_false;

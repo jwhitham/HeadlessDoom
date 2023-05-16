@@ -38,14 +38,6 @@ use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawSpan_params;
 use crate::r_draw::R_DrawSpan_params_t;
 use crate::r_main::RenderContext_t;
-use crate::r_main::detailshift;
-use crate::r_main::viewangle;
-use crate::r_main::xtoviewangle;
-use crate::r_main::extralight;
-use crate::r_main::zlight;
-use crate::r_main::viewx;
-use crate::r_main::viewy;
-use crate::r_main::viewz;
 use crate::r_sky::skytexturemid;
 use crate::r_things::pspriteiscale;
 
@@ -131,9 +123,9 @@ unsafe fn R_MapPlane(rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t, y: 
     }
     
     let length: fixed_t = FixedMul (distance,distscale[x1 as usize]);
-    let angle: angle_t = viewangle.wrapping_add(xtoviewangle[x1 as usize])>>ANGLETOFINESHIFT;
-    ds.ds_xfrac = viewx + FixedMul(*finecosine.offset(angle as isize), length);
-    ds.ds_yfrac = -viewy - FixedMul(finesine[angle as usize], length);
+    let angle: angle_t = rc.view.viewangle.wrapping_add(rc.xtoviewangle[x1 as usize])>>ANGLETOFINESHIFT;
+    ds.ds_xfrac = rc.view.viewx + FixedMul(*finecosine.offset(angle as isize), length);
+    ds.ds_yfrac = -rc.view.viewy - FixedMul(finesine[angle as usize], length);
 
     if rc.fixedcolormap_index != NULL_COLORMAP {
         ds.ds_colormap_index = rc.fixedcolormap_index;
@@ -168,7 +160,7 @@ pub unsafe fn R_ClearPlanes (rc: &mut RenderContext_t) {
     cachedheight = [0; SCREENHEIGHT as usize];
 
     // left to right mapping
-    let angle: angle_t = viewangle.wrapping_sub(ANG90)>>ANGLETOFINESHIFT;
+    let angle: angle_t = rc.view.viewangle.wrapping_sub(ANG90)>>ANGLETOFINESHIFT;
     
     // scale will be unit scale at SCREENWIDTH/2 distance
     basexscale = FixedDiv (*finecosine.offset(angle as isize),rc.centerxfrac);
@@ -340,7 +332,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
         // sky flat
         if (*pl).picnum == skyflatnum {
             let mut dc: R_DrawColumn_params_t = empty_R_DrawColumn_params;
-            dc.dc_iscale = pspriteiscale>>detailshift;
+            dc.dc_iscale = pspriteiscale>>rc.detailshift;
             
             // Sky is allways drawn full bright,
             //  i.e. colormaps[0] is used.
@@ -353,7 +345,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
                 dc.dc_yh = (*pl).bottom[x as usize] as i32;
 
                 if dc.dc_yl <= dc.dc_yh {
-                    let angle = viewangle.wrapping_add(xtoviewangle[x as usize])>>ANGLETOSKYSHIFT;
+                    let angle = rc.view.viewangle.wrapping_add(rc.xtoviewangle[x as usize])>>ANGLETOSKYSHIFT;
                     dc.dc_x = x;
                     dc.dc_source = R_GetColumn(&mut rc.rd, skytexture, angle as i32);
                     (rc.colfunc) (rc, &mut dc);
@@ -367,12 +359,12 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
                        *flattranslation.offset((*pl).picnum as isize),
                        PU_STATIC) as *mut u8;
         
-        planeheight = i32::abs((*pl).height-viewz);
+        planeheight = i32::abs((*pl).height-rc.view.viewz);
         let light = i32::max(0, i32::min((LIGHTLEVELS - 1) as i32,
-                                 ((*pl).lightlevel >> LIGHTSEGSHIFT)+extralight));
+                                 ((*pl).lightlevel >> LIGHTSEGSHIFT)+rc.extralight));
 
 
-        planezlight = zlight[light as usize].as_mut_ptr();
+        planezlight = rc.zlight[light as usize].as_mut_ptr();
 
         // top and bottom are arrays but indexes of -1 and SCREENWIDTH need to be valid
         *(*pl).top.as_mut_ptr().offset(((*pl).maxx as isize) + 1) = 0xff;

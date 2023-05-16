@@ -74,6 +74,30 @@ use crate::r_things::screenheightarray;
 type dc_function_t = unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t);
 type ds_function_t = unsafe fn (rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t);
 
+pub struct ViewContext_t {
+    pub viewx: fixed_t,
+    pub viewy: fixed_t,
+    pub viewz: fixed_t,
+    pub viewcos: fixed_t,
+    pub viewsin: fixed_t,
+    pub viewangle: angle_t,
+    pub viewangleoffset: i32,
+    pub clipangle: angle_t,
+    pub viewangletox: [i32; (FINEANGLES / 2) as usize],
+}
+
+pub const empty_ViewContext: ViewContext_t = ViewContext_t {
+    viewx: 0,
+    viewy: 0,
+    viewz: 0,
+    viewcos: 0,
+    viewsin: 0,
+    viewangle: 0,
+    viewangleoffset: 0,
+    clipangle: 0,
+    viewangletox: [0; (FINEANGLES / 2) as usize],
+};
+
 pub struct RenderContext_t {
     pub rd: RenderData_t,
     pub vc: VideoContext_t,
@@ -88,6 +112,18 @@ pub struct RenderContext_t {
     pub fuzzcolfunc: dc_function_t,
     pub basecolfunc: dc_function_t,
     pub spanfunc: ds_function_t,
+    pub detailshift: i32,
+    pub extralight: i32,
+    pub viewplayer: *mut player_t,
+    pub scalelight: [[colormap_index_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize],
+    pub xtoviewangle: [angle_t; (SCREENWIDTH + 1) as usize],
+    pub sscount: i32,
+    pub zlight: [[colormap_index_t; MAXLIGHTZ as usize]; LIGHTLEVELS as usize],
+    setblocks: i32,
+    setdetail: i32,
+    framecount: i32,
+    scalelightfixed: [colormap_index_t; MAXLIGHTSCALE as usize],
+    pub view: ViewContext_t,
 }
 
 const empty_RenderContext: RenderContext_t = RenderContext_t {
@@ -104,34 +140,23 @@ const empty_RenderContext: RenderContext_t = RenderContext_t {
     fuzzcolfunc: R_DrawColumn,
     basecolfunc: R_DrawColumn,
     spanfunc: R_DrawSpan,
+    detailshift: 0,
+    extralight: 0,
+    viewplayer: std::ptr::null_mut(),
+    scalelight: [[NULL_COLORMAP; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize],
+    xtoviewangle: [0; (SCREENWIDTH + 1) as usize],
+    sscount: 0,
+    zlight: [[NULL_COLORMAP; MAXLIGHTZ as usize]; LIGHTLEVELS as usize],
+    setblocks: 0,
+    setdetail: 0,
+    framecount: 0,
+    scalelightfixed: [NULL_COLORMAP; MAXLIGHTSCALE as usize],
+    view: empty_ViewContext,
 };
 
 pub static mut remove_this_rc_global: RenderContext_t = empty_RenderContext;
 
 
-pub static mut detailshift: i32 = 0;
-pub static mut viewx: fixed_t = 0;
-pub static mut viewy: fixed_t = 0;
-pub static mut viewz: fixed_t = 0;
-pub static mut viewcos: fixed_t = 0;
-pub static mut viewsin: fixed_t = 0;
-pub static mut extralight: i32 = 0;
-pub static mut viewplayer: *mut player_t = std::ptr::null_mut();
-pub static mut viewangleoffset: i32 = 0;
-pub static mut scalelight: [[colormap_index_t; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize] = [
-    [NULL_COLORMAP; MAXLIGHTSCALE as usize]; LIGHTLEVELS as usize];
-pub static mut xtoviewangle: [angle_t; (SCREENWIDTH + 1) as usize] = [0; (SCREENWIDTH + 1) as usize];
-pub static mut clipangle: angle_t = 0;
-pub static mut viewangletox: [i32; (FINEANGLES / 2) as usize] = [0; (FINEANGLES / 2) as usize];
-pub static mut sscount: i32 = 0;
-pub static mut zlight: [[colormap_index_t; MAXLIGHTZ as usize]; LIGHTLEVELS as usize] = [
-    [NULL_COLORMAP; MAXLIGHTZ as usize]; LIGHTLEVELS as usize];
-pub static mut viewangle: angle_t = 0;
-static mut setblocks: i32 = 0;
-static mut setdetail: i32 = 0;
-static mut framecount: i32 = 0;
-static mut scalelightfixed: [colormap_index_t; MAXLIGHTSCALE as usize] = 
-    [NULL_COLORMAP; MAXLIGHTSCALE as usize];
 
 // Fineangles in the SCREENWIDTH wide window.
 const FIELDOFVIEW: u32 = 2048;
@@ -270,8 +295,8 @@ fn R_PointToAngle_common(px: fixed_t, py: fixed_t) -> angle_t {
     }
 }
 
-pub unsafe fn R_PointToAngle (x: fixed_t, y: fixed_t) -> angle_t {
-    return R_PointToAngle_common(x - viewx, y - viewy);
+pub unsafe fn R_PointToAngle (view: &mut ViewContext_t, x: fixed_t, y: fixed_t) -> angle_t {
+    return R_PointToAngle_common(x - view.viewx, y - view.viewy);
 }
 
 
@@ -279,14 +304,15 @@ pub unsafe fn R_PointToAngle (x: fixed_t, y: fixed_t) -> angle_t {
 pub unsafe extern "C" fn R_PointToAngle2
         (x1: fixed_t, y1: fixed_t,
          x2: fixed_t, y2: fixed_t) -> angle_t {
-    viewx = x1;
-    viewy = y1;
+    let mut view = &mut remove_this_rc_global.view;
+    view.viewx = x1;
+    view.viewy = y1;
     return R_PointToAngle_common(x2 - x1, y2 - y1);
 }
 
-pub unsafe fn R_PointToDist(x: fixed_t, y: fixed_t) -> fixed_t {
-    let mut dx = i32::abs(x - viewx);
-    let mut dy = i32::abs(y - viewy);
+pub unsafe fn R_PointToDist(view: &mut ViewContext_t, x: fixed_t, y: fixed_t) -> fixed_t {
+    let mut dx = i32::abs(x - view.viewx);
+    let mut dy = i32::abs(y - view.viewy);
 
     if dy > dx {
         let temp = dx;
@@ -330,14 +356,14 @@ fn R_InitPointToAngle () {
 //  at the given angle.
 // rw_distance must be calculated first.
 //
-pub unsafe fn R_ScaleFromGlobalAngle (visangle: angle_t) -> fixed_t {
-    let anglea: u32 = ANG90.wrapping_add(visangle.wrapping_sub(viewangle)) as u32;
+pub unsafe fn R_ScaleFromGlobalAngle (rc: &mut RenderContext_t, visangle: angle_t) -> fixed_t {
+    let anglea: u32 = ANG90.wrapping_add(visangle.wrapping_sub(rc.view.viewangle)) as u32;
     let angleb: u32 = ANG90.wrapping_add(visangle.wrapping_sub(rw_normalangle)) as u32;
 
     // both sines are allways positive
     let sinea: i32 = finesine[(anglea>>ANGLETOFINESHIFT) as usize];
     let sineb: i32 = finesine[(angleb>>ANGLETOFINESHIFT) as usize];
-    let num: fixed_t = FixedMul(remove_this_rc_global.projection,sineb)<<detailshift;
+    let num: fixed_t = FixedMul(rc.projection,sineb)<<rc.detailshift;
     let den: i32 = FixedMul(rw_distance,sinea);
     let mut scale: fixed_t;
 
@@ -408,7 +434,7 @@ unsafe fn R_InitTextureMapping (rc: &mut RenderContext_t) {
             t = (rc.centerxfrac - t + (FRACUNIT - 1) as i32) >> FRACBITS;
             t = i32::max(-1, i32::min(viewwidth + 1, t));
         }
-        viewangletox[i] = t;
+        rc.view.viewangletox[i] = t;
     }
     
     // Scan viewangletox[] to generate xtoviewangle[]:
@@ -416,10 +442,10 @@ unsafe fn R_InitTextureMapping (rc: &mut RenderContext_t) {
     //  that maps to x.	
     for x in 0 ..= viewwidth {
         let mut i: usize = 0;
-        while viewangletox[i] > x {
+        while rc.view.viewangletox[i] > x {
             i += 1;
         }
-        xtoviewangle[x as usize] = ((i as u32) << ANGLETOFINESHIFT).wrapping_sub(ANG90);
+        rc.xtoviewangle[x as usize] = ((i as u32) << ANGLETOFINESHIFT).wrapping_sub(ANG90);
     }
     
     // Take out the fencepost cases from viewangletox.
@@ -427,14 +453,14 @@ unsafe fn R_InitTextureMapping (rc: &mut RenderContext_t) {
         //t = FixedMul (finetangent[i], focallength);
         //t = centerx - t;
         
-        if viewangletox[i] == -1 {
-            viewangletox[i] = 0;
-        } else if viewangletox[i] == (viewwidth+1) {
-            viewangletox[i]  = viewwidth;
+        if rc.view.viewangletox[i] == -1 {
+            rc.view.viewangletox[i] = 0;
+        } else if rc.view.viewangletox[i] == (viewwidth+1) {
+            rc.view.viewangletox[i]  = viewwidth;
         }
     }
     
-    clipangle = xtoviewangle[0];
+    rc.view.clipangle = rc.xtoviewangle[0];
 }
 
 //
@@ -444,7 +470,7 @@ unsafe fn R_InitTextureMapping (rc: &mut RenderContext_t) {
 //
 const DISTMAP: i32 = 2;
 
-unsafe fn R_InitLightTables () {
+unsafe fn R_InitLightTables (rc: &mut RenderContext_t) {
     // Calculate the light levels to use
     //  for each level / distance combination.
     for i in 0 .. LIGHTLEVELS as u32 {
@@ -456,7 +482,7 @@ unsafe fn R_InitLightTables () {
             
             level = i32::max(0, i32::min((NUMCOLORMAPS - 1) as i32, level));
 
-            zlight[i as usize][j as usize] = (level * (COLORMAP_SIZE as i32)) as colormap_index_t;
+            rc.zlight[i as usize][j as usize] = (level * (COLORMAP_SIZE as i32)) as colormap_index_t;
         }
     }
 }
@@ -470,9 +496,10 @@ unsafe fn R_InitLightTables () {
 //
 #[no_mangle] // called from M_StartControlPanel
 pub unsafe extern "C" fn R_SetViewSize(blocks: i32, detail: i32) {
+    let mut rc = &mut remove_this_rc_global;
     setsizeneeded = c_true;
-    setblocks = blocks;
-    setdetail = detail;
+    rc.setblocks = blocks;
+    rc.setdetail = detail;
 }
 
 //
@@ -484,16 +511,16 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
 
     setsizeneeded = c_false;
 
-    if setblocks == 11 {
+    if rc.setblocks == 11 {
         scaledviewwidth = SCREENWIDTH as i32;
         viewheight = SCREENHEIGHT as i32;
     } else {
-        scaledviewwidth = setblocks*32;
-        viewheight = (setblocks*168/10)&!7;
+        scaledviewwidth = rc.setblocks*32;
+        viewheight = (rc.setblocks*168/10)&!7;
     }
     
-    detailshift = setdetail;
-    viewwidth = scaledviewwidth>>detailshift;
+    rc.detailshift = rc.setdetail;
+    viewwidth = scaledviewwidth>>rc.detailshift;
     
     rc.centery = viewheight/2;
     rc.centerx = viewwidth/2;
@@ -501,7 +528,7 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
     rc.centeryfrac = rc.centery<<FRACBITS;
     rc.projection = rc.centerxfrac;
 
-    if detailshift == c_false {
+    if rc.detailshift == c_false {
         rc.basecolfunc = R_DrawColumn;
         rc.colfunc = R_DrawColumn;
         rc.fuzzcolfunc = R_DrawFuzzColumn;
@@ -530,11 +557,11 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
     for i in 0 .. viewheight {
         let mut dy: fixed_t = ((i-(viewheight/2))<<FRACBITS) + ((FRACUNIT as fixed_t) / 2);
         dy = fixed_t::abs(dy);
-        yslope[i as usize] = FixedDiv(((viewwidth<<detailshift)/2)*(FRACUNIT as i32), dy);
+        yslope[i as usize] = FixedDiv(((viewwidth<<rc.detailshift)/2)*(FRACUNIT as i32), dy);
     }
     
     for i in 0 .. viewwidth {
-        let cosadj: fixed_t = fixed_t::abs(*finecosine.offset((xtoviewangle[i as usize]>>ANGLETOFINESHIFT) as isize));
+        let cosadj: fixed_t = fixed_t::abs(*finecosine.offset((rc.xtoviewangle[i as usize]>>ANGLETOFINESHIFT) as isize));
         distscale[i as usize] = FixedDiv (FRACUNIT as i32, cosadj);
     }
     
@@ -544,11 +571,11 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
         let startmap: i32 = (((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS) as i32;
         for j in 0 .. MAXLIGHTSCALE as u32 {
             let mut level: i32 = startmap -
-                ((((j * SCREENWIDTH) as i32) / (viewwidth << detailshift)) / DISTMAP);
+                ((((j * SCREENWIDTH) as i32) / (viewwidth << rc.detailshift)) / DISTMAP);
             
             level = i32::max(0, i32::min((NUMCOLORMAPS - 1) as i32, level));
 
-            scalelight[i as usize][j as usize] = (level * (COLORMAP_SIZE as i32)) as colormap_index_t;
+            rc.scalelight[i as usize][j as usize] = (level * (COLORMAP_SIZE as i32)) as colormap_index_t;
         }
     }
 }
@@ -558,7 +585,8 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
 //
 #[no_mangle] // called from D_DoomMain
 pub unsafe extern "C" fn R_Init () {
-    R_InitData (&mut remove_this_rc_global.rd);
+    let rc = &mut remove_this_rc_global;
+    R_InitData (&mut rc.rd);
     print!("\nR_InitData");
     R_InitPointToAngle ();
     print!("\nR_InitPointToAngle");
@@ -569,14 +597,14 @@ pub unsafe extern "C" fn R_Init () {
     R_SetViewSize (screenblocks, detailLevel);
     R_InitPlanes ();
     print!("\nR_InitPlanes");
-    R_InitLightTables ();
+    R_InitLightTables (rc);
     print!("\nR_InitLightTables");
     R_InitSkyMap ();
     print!("\nR_InitSkyMap");
-    R_InitTranslationTables (&mut remove_this_rc_global);
+    R_InitTranslationTables (rc);
     print!("\nR_InitTranslationsTables");
     
-    framecount = 0;
+    rc.framecount = 0;
 }
 
 //
@@ -604,32 +632,32 @@ pub unsafe extern "C" fn R_PointInSubsector(x: fixed_t, y: fixed_t) -> *mut subs
 // R_SetupFrame
 //
 unsafe fn R_SetupFrame (rc: &mut RenderContext_t, player: *mut player_t) {
-    viewplayer = player;
-    viewx = (*(*player).mo).x;
-    viewy = (*(*player).mo).y;
-    viewangle = (*(*player).mo).angle.wrapping_add(viewangleoffset as u32);
-    extralight = (*player).extralight;
+    rc.viewplayer = player;
+    rc.view.viewx = (*(*player).mo).x;
+    rc.view.viewy = (*(*player).mo).y;
+    rc.view.viewangle = (*(*player).mo).angle.wrapping_add(rc.view.viewangleoffset as u32);
+    rc.extralight = (*player).extralight;
 
-    viewz = (*player).viewz;
+    rc.view.viewz = (*player).viewz;
     
-    viewsin = finesine[(viewangle>>ANGLETOFINESHIFT) as usize];
-    viewcos = *finecosine.offset((viewangle>>ANGLETOFINESHIFT) as isize);
+    rc.view.viewsin = finesine[(rc.view.viewangle>>ANGLETOFINESHIFT) as usize];
+    rc.view.viewcos = *finecosine.offset((rc.view.viewangle>>ANGLETOFINESHIFT) as isize);
     
-    sscount = 0;
+    rc.sscount = 0;
     
     if (*player).fixedcolormap != 0 {
         rc.fixedcolormap_index = ((*player).fixedcolormap * (COLORMAP_SIZE as i32)) as colormap_index_t;
     
-        walllights = scalelightfixed.as_mut_ptr();
+        walllights = rc.scalelightfixed.as_mut_ptr();
 
         for i in 0 .. MAXLIGHTSCALE as usize {
-            scalelightfixed[i] = rc.fixedcolormap_index;
+            rc.scalelightfixed[i] = rc.fixedcolormap_index;
         }
     } else {
         rc.fixedcolormap_index = NULL_COLORMAP;
     }
         
-    framecount += 1;
+    rc.framecount += 1;
     validcount += 1;
 }
 

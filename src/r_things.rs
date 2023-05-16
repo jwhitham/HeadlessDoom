@@ -40,16 +40,6 @@ use crate::m_fixed::FixedDiv;
 use crate::r_data::NULL_COLORMAP;
 use crate::r_data::colormap_index_t;
 use crate::r_data::RenderData_t;
-use crate::r_main::scalelight;
-use crate::r_main::viewplayer;
-use crate::r_main::viewangleoffset;
-use crate::r_main::extralight;
-use crate::r_main::detailshift;
-use crate::r_main::viewsin;
-use crate::r_main::viewcos;
-use crate::r_main::viewx;
-use crate::r_main::viewy;
-use crate::r_main::viewz;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawColumn_params;
 
@@ -425,7 +415,7 @@ unsafe fn R_DrawVisSprite (rc: &mut RenderContext_t, dvs: &mut R_DrawVisSprite_p
             ( ((*vis).mobjflags & MF_TRANSLATION) >> (MF_TRANSSHIFT-8) ) as isize);
     }
     
-    dmc.dc.dc_iscale = i32::abs((*vis).xiscale as i32) >> detailshift;
+    dmc.dc.dc_iscale = i32::abs((*vis).xiscale as i32) >> rc.detailshift;
     dmc.dc.dc_texturemid = (*vis).texturemid;
     let mut frac = (*vis).startfrac;
 
@@ -453,11 +443,11 @@ unsafe fn R_DrawVisSprite (rc: &mut RenderContext_t, dvs: &mut R_DrawVisSprite_p
 //
 unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
     // transform the origin point
-    let tr_x = (* thing).x - viewx;
-    let tr_y = (* thing).y - viewy;
+    let tr_x = (* thing).x - rc.view.viewx;
+    let tr_y = (* thing).y - rc.view.viewy;
  
-    let mut gxt = FixedMul(tr_x,viewcos); 
-    let mut gyt = -FixedMul(tr_y,viewsin);
+    let mut gxt = FixedMul(tr_x,rc.view.viewcos); 
+    let mut gyt = -FixedMul(tr_y,rc.view.viewsin);
     
     let tz = gxt-gyt; 
 
@@ -468,8 +458,8 @@ unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
     
     let xscale = FixedDiv(rc.projection, tz);
  
-    gxt = -FixedMul(tr_x,viewsin); 
-    gyt = FixedMul(tr_y,viewcos); 
+    gxt = -FixedMul(tr_x,rc.view.viewsin); 
+    gyt = FixedMul(tr_y,rc.view.viewcos); 
     let mut tx = -(gyt+gxt); 
 
     // too far off the side?
@@ -493,7 +483,7 @@ unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
     let flip: boolean;
     if (*sprframe).rotate != 0 {
          // choose a different rotation based on player view
-         let ang = R_PointToAngle ((*thing).x, (*thing).y);
+         let ang = R_PointToAngle (&mut rc.view, (*thing).x, (*thing).y);
          let rot = ((ang.wrapping_sub((*thing).angle)).wrapping_add((ANG45/2)*9))>>29;
          lump = (*sprframe).lump[rot as usize];
          flip = (*sprframe).flip[rot as usize] as boolean;
@@ -523,12 +513,12 @@ unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
     // store information in a vissprite
     let vis = R_NewVisSprite ();
     (*vis).mobjflags = (*thing).flags;
-    (*vis).scale = xscale<<detailshift;
+    (*vis).scale = xscale<<rc.detailshift;
     (*vis).gx = (*thing).x;
     (*vis).gy = (*thing).y;
     (*vis).gz = (*thing).z;
     (*vis).gzt = (*thing).z + rc.rd.sprite.get(lump as usize).unwrap().topoffset;
-    (*vis).texturemid = (*vis).gzt - viewz;
+    (*vis).texturemid = (*vis).gzt - rc.view.viewz;
     (*vis).x1 = i32::max(0, x1);
     (*vis).x2 = i32::min(viewwidth - 1, x2);
     let iscale = FixedDiv (FRACUNIT as fixed_t, xscale);
@@ -559,7 +549,7 @@ unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
     } else {
         // diminished light
         let index = i32::min((MAXLIGHTSCALE - 1) as i32,
-                             xscale>>(LIGHTSCALESHIFT-(detailshift as u32)));
+                             xscale>>(LIGHTSCALESHIFT-(rc.detailshift as u32)));
 
         (*vis).colormap_index = *spritelights.offset(index as isize);
     }
@@ -583,8 +573,8 @@ pub unsafe fn R_AddSprites (rc: &mut RenderContext_t, sec: *mut sector_t) {
     (*sec).validcount = validcount;
     
     let lightnum = i32::min((LIGHTLEVELS - 1) as i32,
-            i32::max((((*sec).lightlevel >> LIGHTSEGSHIFT) as i32) + extralight, 0));
-    spritelights = scalelight[lightnum as usize].as_mut_ptr();
+            i32::max((((*sec).lightlevel >> LIGHTSEGSHIFT) as i32) + rc.extralight, 0));
+    spritelights = rc.scalelight[lightnum as usize].as_mut_ptr();
 
     // Handle all things in sector.
     let mut thing = (*sec).thinglist;
@@ -650,7 +640,7 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
                         (*dps.psp).sy.wrapping_sub(rc.rd.sprite.get(lump as usize).unwrap().topoffset)),
         x1: i32::max(x1, 0),
         x2: i32::min(x2, viewwidth - 1),
-        scale: pspritescale<<detailshift,
+        scale: pspritescale<<rc.detailshift,
         xiscale: if flip != c_false { -pspriteiscale } else { pspriteiscale },
         startfrac: if flip != c_false { rc.rd.sprite.get(lump as usize).unwrap().width - 1 } else { 0 },
     }];
@@ -659,8 +649,8 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
         (*vis).startfrac += (*vis).xiscale*((*vis).x1-x1);
     }
 
-    if ((*viewplayer).powers[pw_invisibility as usize] > 4*32)
-    || (((*viewplayer).powers[pw_invisibility as usize] & 8) != 0) {
+    if ((*rc.viewplayer).powers[pw_invisibility as usize] > 4*32)
+    || (((*rc.viewplayer).powers[pw_invisibility as usize] & 8) != 0) {
         // shadow draw
         (*vis).colormap_index = NULL_COLORMAP;
     } else if rc.fixedcolormap_index != NULL_COLORMAP {
@@ -688,17 +678,17 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
 unsafe fn R_DrawPlayerSprites (rc: &mut RenderContext_t) {
     // get light level
     let lightnum =
-    ((*(*(*(*viewplayer).mo).subsector).sector).lightlevel >> LIGHTSEGSHIFT) as i32
-    +extralight;
+    ((*(*(*(*rc.viewplayer).mo).subsector).sector).lightlevel >> LIGHTSEGSHIFT) as i32
+    +rc.extralight;
 
-    spritelights = scalelight[i32::max(0, i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
+    spritelights = rc.scalelight[i32::max(0, i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
     
     let mut dps = R_DrawPSprite_params_t {
         // clip to screen bounds
         mfloorclip: screenheightarray.as_mut_ptr(),
         mceilingclip: negonearray.as_mut_ptr(),
         // add all active psprites
-        psp: (*viewplayer).psprites.as_mut_ptr(),
+        psp: (*rc.viewplayer).psprites.as_mut_ptr(),
     };
  
     
@@ -855,7 +845,7 @@ pub unsafe fn R_DrawMasked (rc: &mut RenderContext_t) {
 
     // draw the psprites on top of everything
     //  but does not draw on side views
-    if viewangleoffset == 0 {
+    if rc.view.viewangleoffset == 0 {
         R_DrawPlayerSprites (rc);
     }
 }
