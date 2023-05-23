@@ -28,6 +28,7 @@ use crate::globals::*;
 use crate::r_segs::R_StoreWallRange;
 use crate::r_things::R_AddSprites;
 use crate::r_plane::R_FindPlane;
+use crate::r_plane::INVALID_PLANE;
 use crate::r_main::R_PointToAngle;
 use crate::r_main::R_PointOnSide;
 use crate::r_main::RenderContext_t;
@@ -486,22 +487,22 @@ unsafe fn R_Subsector (rc: &mut RenderContext_t, num: i32) {
     let mut line: seg_index_t = (*sub).firstline as seg_index_t;
 
     if (*rc.bc.frontsector).floorheight < rc.view.viewz {
-        rc.pc.floorplane = R_FindPlane (&mut rc.pc,
+        rc.pc.floorplane_index = R_FindPlane (&mut rc.pc,
                         (*rc.bc.frontsector).floorheight,
                         (*rc.bc.frontsector).floorpic as i32,
                         (*rc.bc.frontsector).lightlevel as i32);
     } else {
-        rc.pc.floorplane = std::ptr::null_mut();
+        rc.pc.floorplane_index = INVALID_PLANE;
     }
         
     if ((*rc.bc.frontsector).ceilingheight > rc.view.viewz)
     || (((*rc.bc.frontsector).ceilingpic as i32) == skyflatnum) {
-        rc.pc.ceilingplane = R_FindPlane (&mut rc.pc,
+        rc.pc.ceilingplane_index = R_FindPlane (&mut rc.pc,
                         (*rc.bc.frontsector).ceilingheight,
                         (*rc.bc.frontsector).ceilingpic as i32,
                         (*rc.bc.frontsector).lightlevel as i32);
     } else {
-        rc.pc.ceilingplane = std::ptr::null_mut();
+        rc.pc.ceilingplane_index = INVALID_PLANE;
     }
         
     R_AddSprites (rc, rc.bc.frontsector);

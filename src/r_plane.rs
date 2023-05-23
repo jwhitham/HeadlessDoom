@@ -41,18 +41,29 @@ use crate::r_main::RenderContext_t;
 use crate::r_sky::skytexturemid;
 use crate::r_things::pspriteiscale;
 
+type visplane_index_t = u16;
+pub const INVALID_PLANE: visplane_index_t = visplane_index_t::MAX;
+
+pub struct visplane_t {
+    pub height: fixed_t,
+    pub picnum: i32,
+    pub lightlevel: i32,
+    pub minx: i32,
+    pub maxx: i32,
+    // top_pad and bottom_pad have 2 extra elements for padding:
+    // the index for screen column X is actually X+1
+    pub top_pad: [byte; (SCREENWIDTH + 2) as usize],
+    pub bottom_pad: [byte; (SCREENWIDTH + 2) as usize],
+}
+
 const empty_visplane: visplane_t = visplane_t {
-  height: 0,
-  picnum: 0,
-  lightlevel: 0,
-  minx: 0,
-  maxx: 0,
-  pad1: 0,
-  top: [0; SCREENWIDTH as usize],
-  pad2: 0,
-  pad3: 0,
-  bottom: [0; SCREENWIDTH as usize],
-  pad4: 0,
+    height: 0,
+    picnum: 0,
+    lightlevel: 0,
+    minx: 0,
+    maxx: 0,
+    top_pad: [0; (SCREENWIDTH + 2) as usize],
+    bottom_pad: [0; (SCREENWIDTH + 2) as usize],
 };
 
 pub struct PlaneContext_t {
@@ -64,14 +75,14 @@ pub struct PlaneContext_t {
     basexscale: fixed_t,
     baseyscale: fixed_t,
     planezlight: *mut colormap_index_t,
-    visplanes: [visplane_t; MAXVISPLANES as usize],
-    lastvisplane: *mut visplane_t,
+    pub visplanes: [visplane_t; MAXVISPLANES as usize],
+    lastvisplane_index: visplane_index_t,
     openings: [i16; MAXOPENINGS as usize],
     spanstart: [i32; SCREENHEIGHT as usize],
     pub ceilingclip: [i16; SCREENWIDTH as usize],
-    pub ceilingplane: *mut visplane_t,
+    pub ceilingplane_index: visplane_index_t,
     pub floorclip: [i16; SCREENWIDTH as usize],
-    pub floorplane: *mut visplane_t,
+    pub floorplane_index: visplane_index_t,
     pub lastopening: *mut i16,
     pub yslope: [fixed_t; SCREENHEIGHT as usize],
     pub distscale: [fixed_t; SCREENWIDTH as usize],
@@ -87,13 +98,13 @@ pub const empty_PlaneContext: PlaneContext_t = PlaneContext_t {
     baseyscale: 0,
     planezlight: std::ptr::null_mut(),
     visplanes: [empty_visplane; MAXVISPLANES as usize],
-    lastvisplane: std::ptr::null_mut(),
+    lastvisplane_index: 0,
     openings: [0; MAXOPENINGS as usize],
     spanstart: [0; SCREENHEIGHT as usize],
     ceilingclip: [0; SCREENWIDTH as usize],
-    ceilingplane: std::ptr::null_mut(),
+    ceilingplane_index: INVALID_PLANE,
     floorclip: [0; SCREENWIDTH as usize],
-    floorplane: std::ptr::null_mut(),
+    floorplane_index: INVALID_PLANE,
     lastopening: std::ptr::null_mut(),
     yslope: [0; SCREENHEIGHT as usize],
     distscale: [0; SCREENWIDTH as usize],
@@ -176,7 +187,7 @@ pub unsafe fn R_ClearPlanes (rc: &mut RenderContext_t) {
         rc.pc.ceilingclip[i] = -1;
     }
 
-    rc.pc.lastvisplane = rc.pc.visplanes.as_mut_ptr();
+    rc.pc.lastvisplane_index = 0;
     rc.pc.lastopening = rc.pc.openings.as_mut_ptr();
     
     // texture calculation
@@ -193,7 +204,9 @@ pub unsafe fn R_ClearPlanes (rc: &mut RenderContext_t) {
 //
 // R_FindPlane
 //
-pub unsafe fn R_FindPlane(pc: &mut PlaneContext_t, pheight: fixed_t, picnum: i32, plightlevel: i32) -> *mut visplane_t {
+pub unsafe fn R_FindPlane(pc: &mut PlaneContext_t,
+                          pheight: fixed_t, picnum: i32,
+                          plightlevel: i32) -> visplane_index_t {
     
     let mut height = pheight;
     let mut lightlevel = plightlevel;
@@ -203,32 +216,33 @@ pub unsafe fn R_FindPlane(pc: &mut PlaneContext_t, pheight: fixed_t, picnum: i32
         lightlevel = 0;
     }
     
-    let mut check: *mut visplane_t = pc.visplanes.as_mut_ptr();
-    while check < pc.lastvisplane {
-        if (height == (*check).height)
-        && (picnum == (*check).picnum)
-        && (lightlevel == (*check).lightlevel) {
+    let mut check: visplane_index_t = 0;
+    while check < pc.lastvisplane_index {
+        if (height == pc.visplanes.get(check as usize).unwrap().height)
+        && (picnum == pc.visplanes.get(check as usize).unwrap().picnum)
+        && (lightlevel == pc.visplanes.get(check as usize).unwrap().lightlevel) {
             break;
         }
-        check = check.offset(1);
+        check += 1;
     }
 
-    if check < pc.lastvisplane {
+    if check < pc.lastvisplane_index {
         return check;
     }
         
-    if pc.lastvisplane == pc.visplanes.as_mut_ptr().offset(MAXVISPLANES as isize) {
+    if pc.lastvisplane_index >= (MAXVISPLANES as visplane_index_t) {
         panic!("R_FindPlane: no more visplanes");
     }
         
-    pc.lastvisplane = pc.lastvisplane.offset(1);
+    pc.lastvisplane_index += 1;
 
-    (*check).height = height;
-    (*check).picnum = picnum;
-    (*check).lightlevel = lightlevel;
-    (*check).minx = SCREENWIDTH as i32;
-    (*check).maxx = -1;
-    (*check).top = [0xff; SCREENWIDTH as usize];
+    let mut last = &mut pc.visplanes.get_mut(check as usize).unwrap();
+    last.height = height;
+    last.picnum = picnum;
+    last.lightlevel = lightlevel;
+    last.minx = SCREENWIDTH as i32;
+    last.maxx = -1;
+    last.top_pad = [0xff; (SCREENWIDTH + 2) as usize];
     return check;
 }
 
@@ -236,63 +250,68 @@ pub unsafe fn R_FindPlane(pc: &mut PlaneContext_t, pheight: fixed_t, picnum: i32
 //
 // R_CheckPlane
 //
-pub unsafe fn R_CheckPlane (pc: &mut PlaneContext_t, ppl: *mut visplane_t, start: i32, stop: i32) -> *mut visplane_t {
+pub unsafe fn R_CheckPlane (pc: &mut PlaneContext_t,
+                            ppl_index: visplane_index_t,
+                            start: i32, stop: i32) -> visplane_index_t {
     
     let intrl: i32;
     let unionl: i32;
-    let mut pl = ppl;
+    let pl = pc.visplanes.get_mut(ppl_index as usize).unwrap();
 
-    if start < (*pl).minx {
-        intrl = (*pl).minx;
+    if start < pl.minx {
+        intrl = pl.minx;
         unionl = start;
     } else {
-        unionl = (*pl).minx;
+        unionl = pl.minx;
         intrl = start;
     }
 
     let intrh: i32;
     let unionh: i32;
     
-    if stop > (*pl).maxx {
-        intrh = (*pl).maxx;
+    if stop > pl.maxx {
+        intrh = pl.maxx;
         unionh = stop;
     } else {
-        unionh = (*pl).maxx;
+        unionh = pl.maxx;
         intrh = stop;
     }
 
     let mut use_same_one = true;
     for x in intrl ..= intrh {
-        if (*pl).top[x as usize] != 0xff {
+        if pl.top_pad[(x + 1) as usize] != 0xff {
             use_same_one = false;
             break;
         }
     }
 
     if use_same_one {
-        (*pl).minx = unionl;
-        (*pl).maxx = unionh;
+        pl.minx = unionl;
+        pl.maxx = unionh;
 
         // use the same one
-        return pl;		
+        return ppl_index;		
     }
     
-    if pc.lastvisplane == pc.visplanes.as_mut_ptr().offset(MAXVISPLANES as isize) {
+    if pc.lastvisplane_index == (MAXVISPLANES as visplane_index_t) {
         panic!("R_CheckPlane: no more visplanes");
     }
     // make a new visplane
-    (*pc.lastvisplane).height = (*pl).height;
-    (*pc.lastvisplane).picnum = (*pl).picnum;
-    (*pc.lastvisplane).lightlevel = (*pl).lightlevel;
-   
-    pl = pc.lastvisplane;
-    pc.lastvisplane = pc.lastvisplane.offset(1);
-    (*pl).minx = start;
-    (*pl).maxx = stop;
-
-    (*pl).top = [0xff; SCREENWIDTH as usize];
+    let height_copy = pl.height;
+    let picnum_copy = pl.picnum;
+    let lightlevel_copy = pl.lightlevel;
+    {
+        let mut npl = pc.visplanes.get_mut(pc.lastvisplane_index as usize).unwrap();
+        pc.lastvisplane_index += 1;
+        npl.height = height_copy;
+        npl.picnum = picnum_copy;
+        npl.lightlevel = lightlevel_copy;
+        npl.minx = start;
+        npl.maxx = stop;
+        npl.top_pad = [0xff; (SCREENWIDTH + 2) as usize];
+    }
         
-    return pl;
+    return pc.lastvisplane_index - 1;
 }
 
 
@@ -333,7 +352,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
         panic!("R_DrawPlanes: drawsegs overflow");
     }
     
-    if rc.pc.lastvisplane > rc.pc.visplanes.as_mut_ptr().offset(MAXVISPLANES as isize) {
+    if rc.pc.lastvisplane_index > (MAXVISPLANES as visplane_index_t) {
         panic!("R_DrawPlanes: visplane overflow");
     }
     
@@ -342,18 +361,16 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
     }
 
     let mut ds: R_DrawSpan_params_t = empty_R_DrawSpan_params;
-    let mut pl = rc.pc.visplanes.as_mut_ptr().offset(-1);
-    loop {
-        pl = pl.offset(1);
-        if pl >= rc.pc.lastvisplane {
-            break;
-        }
-        if (*pl).minx > (*pl).maxx {
+    for pl_index in 0 .. rc.pc.lastvisplane_index {
+        let minx = rc.pc.visplanes[pl_index as usize].minx;
+        let maxx = rc.pc.visplanes[pl_index as usize].maxx;
+        if minx > maxx {
             continue;
         }
     
         // sky flat
-        if (*pl).picnum == skyflatnum {
+        let picnum = rc.pc.visplanes[pl_index as usize].picnum;
+        if picnum == skyflatnum {
             let mut dc: R_DrawColumn_params_t = empty_R_DrawColumn_params;
             dc.dc_iscale = pspriteiscale>>rc.detailshift;
             
@@ -363,9 +380,11 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
             //  by INVUL inverse mapping.
             dc.dc_colormap_index = 0;
             dc.dc_texturemid = skytexturemid;
-            for x in (*pl).minx ..= (*pl).maxx {
-                dc.dc_yl = (*pl).top[x as usize] as i32;
-                dc.dc_yh = (*pl).bottom[x as usize] as i32;
+            for x in minx ..= maxx {
+                dc.dc_yl = rc.pc.visplanes[pl_index as usize]
+                            .top_pad[(x + 1) as usize] as i32;
+                dc.dc_yh = rc.pc.visplanes[pl_index as usize]
+                            .bottom_pad[(x + 1) as usize] as i32;
 
                 if dc.dc_yl <= dc.dc_yh {
                     let angle = rc.view.viewangle.wrapping_add(rc.xtoviewangle[x as usize])>>ANGLETOSKYSHIFT;
@@ -379,26 +398,34 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
     
         // regular flat
         ds.ds_source = W_CacheLumpNum(rc.rd.firstflat +
-                       *flattranslation.offset((*pl).picnum as isize),
+                       *flattranslation.offset(picnum as isize),
                        PU_STATIC) as *mut u8;
         
-        rc.pc.planeheight = i32::abs((*pl).height-rc.view.viewz);
+        let height = rc.pc.visplanes[pl_index as usize].height;
+        let lightlevel = rc.pc.visplanes[pl_index as usize].lightlevel;
+        rc.pc.planeheight = i32::abs(height-rc.view.viewz);
         let light = i32::max(0, i32::min((LIGHTLEVELS - 1) as i32,
-                                 ((*pl).lightlevel >> LIGHTSEGSHIFT)+rc.extralight));
+                                 (lightlevel >> LIGHTSEGSHIFT)+rc.extralight));
 
 
         rc.pc.planezlight = rc.zlight[light as usize].as_mut_ptr();
 
-        // top and bottom are arrays but indexes of -1 and SCREENWIDTH need to be valid
-        *(*pl).top.as_mut_ptr().offset(((*pl).maxx as isize) + 1) = 0xff;
-        *(*pl).top.as_mut_ptr().offset(((*pl).minx as isize) - 1) = 0xff;
+        // top and bottom are arrays of length SCREENWIDTH + 2 (padding)
+        rc.pc.visplanes[pl_index as usize]
+            .top_pad[(maxx as usize) + 2] = 0xff;
+        rc.pc.visplanes[pl_index as usize]
+            .top_pad[minx as usize] = 0xff;
             
-        for x in (*pl).minx ..= (*pl).maxx + 1 {
+        for x in minx ..= maxx + 1 {
             R_MakeSpans(rc, &mut ds, x,
-                *(*pl).top.as_ptr().offset((x as isize) - 1) as i32,
-                *(*pl).bottom.as_ptr().offset((x as isize) - 1) as i32,
-                *(*pl).top.as_ptr().offset(x as isize) as i32,
-                *(*pl).bottom.as_ptr().offset(x as isize) as i32);
+                rc.pc.visplanes[pl_index as usize]
+                    .top_pad[x as usize] as i32,
+                rc.pc.visplanes[pl_index as usize]
+                    .bottom_pad[x as usize] as i32,
+                rc.pc.visplanes[pl_index as usize]
+                    .top_pad[(x as usize) + 1] as i32,
+                rc.pc.visplanes[pl_index as usize]
+                    .bottom_pad[(x as usize) + 1] as i32);
         }
         
         Z_ChangeTag2(ds.ds_source, PU_CACHE);

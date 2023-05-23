@@ -189,8 +189,10 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
             let bottom = i32::min(yl-1, (rc.pc.floorclip[x]-1) as i32);
 
             if top <= bottom {
-                (*rc.pc.ceilingplane).top[x] = top as u8;
-                (*rc.pc.ceilingplane).bottom[x] = bottom as u8;
+                rc.pc.visplanes[rc.pc.ceilingplane_index as usize]
+                        .top_pad[x + 1] = top as u8;
+                rc.pc.visplanes[rc.pc.ceilingplane_index as usize]
+                        .bottom_pad[x + 1] = bottom as u8;
             }
         }
             
@@ -200,8 +202,10 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
             let top = i32::max(yh+1, (rc.pc.ceilingclip[x]+1) as i32);
             let bottom = (rc.pc.floorclip[x]-1) as i32;
             if top <= bottom {
-                (*rc.pc.floorplane).top[x] = top as u8;
-                (*rc.pc.floorplane).bottom[x] = bottom as u8;
+                rc.pc.visplanes[rc.pc.floorplane_index as usize]
+                        .top_pad[x + 1] = top as u8;
+                rc.pc.visplanes[rc.pc.floorplane_index as usize]
+                        .bottom_pad[x + 1] = bottom as u8;
             }
         }
         
@@ -614,11 +618,15 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     
     // render it
     if markceiling != c_false {
-        rc.pc.ceilingplane = R_CheckPlane (&mut rc.pc, rc.pc.ceilingplane, rsl.rw_x, rsl.rw_stopx-1);
+        let index = rc.pc.ceilingplane_index;
+        rc.pc.ceilingplane_index = R_CheckPlane (&mut rc.pc, index,
+                                                 rsl.rw_x, rsl.rw_stopx-1);
     }
     
     if markfloor != c_false {
-        rc.pc.floorplane = R_CheckPlane (&mut rc.pc, rc.pc.floorplane, rsl.rw_x, rsl.rw_stopx-1);
+        let index = rc.pc.floorplane_index;
+        rc.pc.floorplane_index = R_CheckPlane (&mut rc.pc, index,
+                                               rsl.rw_x, rsl.rw_stopx-1);
     }
 
     R_RenderSegLoop (rc, &mut rsl);
