@@ -34,7 +34,6 @@ use crate::r_main::R_PointOnSide;
 use crate::r_main::RenderContext_t;
 use crate::r_main::ViewContext_t;
 use crate::defs::bbox_t::*;
-use crate::r_segs::rw_angle1;
 
 
 pub type seg_index_t = u16;
@@ -341,7 +340,7 @@ unsafe fn R_AddLine (rc: &mut RenderContext_t, line: seg_index_t) {
     }
 
     // Global angle needed by segcalc.
-    rw_angle1 = angle1 as i32;
+    rc.sc.rw_angle1 = angle1 as i32;
     angle1 = angle1.wrapping_sub(rc.view.viewangle);
     angle2 = angle2.wrapping_sub(rc.view.viewangle);
 

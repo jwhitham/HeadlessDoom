@@ -64,9 +64,8 @@ use crate::r_data::colormap_index_t;
 use crate::r_sky::R_InitSkyMap;
 use crate::r_plane::PlaneContext_t;
 use crate::r_plane::empty_PlaneContext;
-use crate::r_segs::rw_normalangle;
-use crate::r_segs::rw_distance;
-use crate::r_segs::walllights;
+use crate::r_segs::SegsContext_t;
+use crate::r_segs::empty_SegsContext;
 use crate::r_things::pspritescale;
 use crate::r_things::pspriteiscale;
 use crate::r_things::screenheightarray;
@@ -103,6 +102,7 @@ pub struct RenderContext_t {
     pub vc: VideoContext_t,
     pub bc: BspContext_t,
     pub pc: PlaneContext_t,
+    pub sc: SegsContext_t,
     pub centerx: i32,
     pub centery: i32,
     pub centerxfrac: fixed_t,
@@ -132,6 +132,7 @@ const empty_RenderContext: RenderContext_t = RenderContext_t {
     vc: empty_VideoContext,
     bc: empty_BspContext,
     pc: empty_PlaneContext,
+    sc: empty_SegsContext,
     centerx: 0,
     centery: 0,
     centerxfrac: 0,
@@ -360,13 +361,13 @@ fn R_InitPointToAngle () {
 //
 pub unsafe fn R_ScaleFromGlobalAngle (rc: &mut RenderContext_t, visangle: angle_t) -> fixed_t {
     let anglea: u32 = ANG90.wrapping_add(visangle.wrapping_sub(rc.view.viewangle)) as u32;
-    let angleb: u32 = ANG90.wrapping_add(visangle.wrapping_sub(rw_normalangle)) as u32;
+    let angleb: u32 = ANG90.wrapping_add(visangle.wrapping_sub(rc.sc.rw_normalangle)) as u32;
 
     // both sines are allways positive
     let sinea: i32 = finesine[(anglea>>ANGLETOFINESHIFT) as usize];
     let sineb: i32 = finesine[(angleb>>ANGLETOFINESHIFT) as usize];
     let num: fixed_t = FixedMul(rc.projection,sineb)<<rc.detailshift;
-    let den: i32 = FixedMul(rw_distance,sinea);
+    let den: i32 = FixedMul(rc.sc.rw_distance,sinea);
     let mut scale: fixed_t;
 
     if den > (num>>16) {
@@ -650,7 +651,7 @@ unsafe fn R_SetupFrame (rc: &mut RenderContext_t, player: *mut player_t) {
     if (*player).fixedcolormap != 0 {
         rc.fixedcolormap_index = ((*player).fixedcolormap * (COLORMAP_SIZE as i32)) as colormap_index_t;
     
-        walllights = rc.scalelightfixed.as_mut_ptr();
+        rc.sc.walllights = rc.scalelightfixed.as_mut_ptr();
 
         for i in 0 .. MAXLIGHTSCALE as usize {
             rc.scalelightfixed[i] = rc.fixedcolormap_index;

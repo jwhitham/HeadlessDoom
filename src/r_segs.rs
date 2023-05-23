@@ -41,17 +41,33 @@ use crate::r_things::screenheightarray;
 use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_draw::R_DrawColumn_params_t;
 
-static mut markceiling: boolean = c_false;
-static mut markfloor: boolean = c_false;
-static mut segtextured: boolean = c_false;
-pub static mut rw_distance: fixed_t = 0;
-static mut midtexture: i32 = 0;
-static mut toptexture: i32 = 0;
-static mut bottomtexture: i32 = 0;
-pub static mut rw_normalangle: angle_t = 0;
-pub static mut rw_angle1: i32 = 0;
-pub static mut walllights: *mut colormap_index_t = std::ptr::null_mut();
-pub static mut maskedtexturecol: *mut i16 = std::ptr::null_mut();
+pub struct SegsContext_t {
+    markceiling: boolean,
+    markfloor: boolean,
+    segtextured: boolean,
+    pub rw_distance: fixed_t,
+    midtexture: i32,
+    toptexture: i32,
+    bottomtexture: i32,
+    pub rw_normalangle: angle_t,
+    pub rw_angle1: i32,
+    pub walllights: *mut colormap_index_t,
+    pub maskedtexturecol: *mut i16,
+}
+
+pub const empty_SegsContext: SegsContext_t = SegsContext_t {
+    markceiling: c_false,
+    markfloor: c_false,
+    segtextured: c_false,
+    rw_distance: 0,
+    midtexture: 0,
+    toptexture: 0,
+    bottomtexture: 0,
+    rw_normalangle: 0,
+    rw_angle1: 0,
+    walllights: std::ptr::null_mut(),
+    maskedtexturecol: std::ptr::null_mut(),
+};
 
 struct R_RenderSegLoop_params_t {
     dc: R_DrawColumn_params_t,
@@ -100,10 +116,10 @@ pub unsafe fn R_RenderMaskedSegRange
         lightnum += 1;
     }
 
-    walllights = rc.scalelight[i32::max(0,
+    rc.sc.walllights = rc.scalelight[i32::max(0,
                             i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
 
-    maskedtexturecol = rc.bc.drawsegs[ds as usize].maskedtexturecol;
+    rc.sc.maskedtexturecol = rc.bc.drawsegs[ds as usize].maskedtexturecol;
 
     let rw_scalestep = rc.bc.drawsegs[ds as usize].scalestep;
     let mut dmc = r_things::R_DrawMaskedColumn_params_t {
@@ -144,12 +160,12 @@ pub unsafe fn R_RenderMaskedSegRange
     for x in x1 ..= x2 {
         dmc.dc.dc_x = x;
         // calculate lighting
-        let colnum = *maskedtexturecol.offset(dmc.dc.dc_x as isize);
+        let colnum = *rc.sc.maskedtexturecol.offset(dmc.dc.dc_x as isize);
         if colnum != MAXSHORT {
             if rc.fixedcolormap_index == NULL_COLORMAP {
                 let index = i32::min((MAXLIGHTSCALE - 1) as i32,
                                     dmc.spryscale>>LIGHTSCALESHIFT);
-                dmc.dc.dc_colormap_index = *walllights.offset(index as isize);
+                dmc.dc.dc_colormap_index = *rc.sc.walllights.offset(index as isize);
             }
                 
             dmc.sprtopscreen = rc.centeryfrac - FixedMul(dmc.dc.dc_texturemid, dmc.spryscale);
@@ -160,7 +176,7 @@ pub unsafe fn R_RenderMaskedSegRange
                             as *mut u8).offset(-3) as *mut column_t;
                 
             r_things::R_DrawMaskedColumn (rc, &mut dmc);
-            *maskedtexturecol.offset(dmc.dc.dc_x as isize) = MAXSHORT;
+            *rc.sc.maskedtexturecol.offset(dmc.dc.dc_x as isize) = MAXSHORT;
         }
         dmc.spryscale += rw_scalestep;
     }
@@ -184,7 +200,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
         let yl = i32::max((rsl.topfrac+HEIGHTUNIT-1)>>HEIGHTBITS,
                           (rc.pc.ceilingclip[x]+1) as i32);
         
-        if markceiling != c_false {
+        if rc.sc.markceiling != c_false {
             let top = (rc.pc.ceilingclip[x]+1) as i32;
             let bottom = i32::min(yl-1, (rc.pc.floorclip[x]-1) as i32);
 
@@ -198,7 +214,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
             
         let yh = i32::min(rsl.bottomfrac>>HEIGHTBITS, (rc.pc.floorclip[x]-1) as i32);
 
-        if markfloor != c_false {
+        if rc.sc.markfloor != c_false {
             let top = i32::max(yh+1, (rc.pc.ceilingclip[x]+1) as i32);
             let bottom = (rc.pc.floorclip[x]-1) as i32;
             if top <= bottom {
@@ -210,7 +226,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
         }
         
         // texturecolumn and lighting are independent of wall tiers
-        if segtextured != c_false {
+        if rc.sc.segtextured != c_false {
             // calculate texture offset
             let mut angle = rsl.rw_centerangle.wrapping_add(rc.xtoviewangle[x])>>ANGLETOFINESHIFT;
 
@@ -218,30 +234,31 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                 angle = 0;
             }
 
-            texturecolumn = rsl.rw_offset-FixedMul(finetangent[angle as usize],rw_distance);
+            texturecolumn = rsl.rw_offset - FixedMul
+                (finetangent[angle as usize], rc.sc.rw_distance);
             texturecolumn >>= FRACBITS;
             // calculate lighting
             let index = i32::min(rsl.rw_scale>>LIGHTSCALESHIFT,
                                  (MAXLIGHTSCALE-1) as i32);
 
-            rsl.dc.dc_colormap_index = *walllights.offset(index as isize);
+            rsl.dc.dc_colormap_index = *rc.sc.walllights.offset(index as isize);
             rsl.dc.dc_x = x as i32;
             rsl.dc.dc_iscale = ((0xffffffff as u32) / (rsl.rw_scale as u32)) as i32;
         }
         
         // draw the wall tiers
-        if midtexture != 0 {
+        if rc.sc.midtexture != 0 {
             // single sided line
             rsl.dc.dc_yl = yl;
             rsl.dc.dc_yh = yh;
             rsl.dc.dc_texturemid = rsl.rw_midtexturemid;
-            rsl.dc.dc_source = R_GetColumn(&mut rc.rd, midtexture, texturecolumn);
+            rsl.dc.dc_source = R_GetColumn(&mut rc.rd, rc.sc.midtexture, texturecolumn);
             (rc.colfunc) (rc, &mut rsl.dc);
             rc.pc.ceilingclip[x] = viewheight as i16;
             rc.pc.floorclip[x] = -1;
         } else {
             // two sided line
-            if toptexture != 0 {
+            if rc.sc.toptexture != 0 {
                 // top wall
                 let mid = i32::min(rsl.pixhigh>>HEIGHTBITS,
                                    (rc.pc.floorclip[x]-1) as i32);
@@ -251,7 +268,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                     rsl.dc.dc_yl = yl;
                     rsl.dc.dc_yh = mid;
                     rsl.dc.dc_texturemid = rsl.rw_toptexturemid;
-                    rsl.dc.dc_source = R_GetColumn(&mut rc.rd, toptexture, texturecolumn);
+                    rsl.dc.dc_source = R_GetColumn(&mut rc.rd, rc.sc.toptexture, texturecolumn);
                     (rc.colfunc) (rc, &mut rsl.dc);
                     rc.pc.ceilingclip[x] = mid as i16;
                 } else {
@@ -259,12 +276,12 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                 }
             } else {
                 // no top wall
-                if markceiling != c_false {
+                if rc.sc.markceiling != c_false {
                     rc.pc.ceilingclip[x] = (yl-1) as i16;
                 }
             }
                     
-            if bottomtexture != 0 {
+            if rc.sc.bottomtexture != 0 {
                 // bottom wall
                 let mid = i32::max((rsl.pixlow+HEIGHTUNIT-1)>>HEIGHTBITS,
                                    (rc.pc.ceilingclip[x]+1) as i32);
@@ -274,7 +291,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                     rsl.dc.dc_yl = mid;
                     rsl.dc.dc_yh = yh;
                     rsl.dc.dc_texturemid = rsl.rw_bottomtexturemid;
-                    rsl.dc.dc_source = R_GetColumn(&mut rc.rd, bottomtexture, texturecolumn);
+                    rsl.dc.dc_source = R_GetColumn(&mut rc.rd, rc.sc.bottomtexture, texturecolumn);
                     (rc.colfunc) (rc, &mut rsl.dc);
                     rc.pc.floorclip[x] = mid as i16;
                 } else {
@@ -282,7 +299,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
                 }
             } else {
                 // no bottom wall
-                if markfloor != c_false {
+                if rc.sc.markfloor != c_false {
                     rc.pc.floorclip[x] = (yh+1) as i16;
                 }
             }
@@ -290,7 +307,7 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
             if rsl.maskedtexture != c_false {
                 // save texturecol
                 //  for backdrawing of masked mid texture
-                *maskedtexturecol.offset(x as isize) = texturecolumn as i16;
+                *rc.sc.maskedtexturecol.offset(x as isize) = texturecolumn as i16;
             }
         }
             
@@ -343,16 +360,17 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     (*rc.bc.linedef).flags |= ML_MAPPED as i16;
     
     // calculate rw_distance for scale calculation
-    rw_normalangle = (*segs.offset(rc.bc.curline as isize)).angle.wrapping_add(ANG90);
+    rc.sc.rw_normalangle = (*segs.offset(rc.bc.curline as isize)).angle.wrapping_add(ANG90);
     let offsetangle: angle_t = angle_t::min(ANG90,
-                i32::abs(rw_normalangle.wrapping_sub(rw_angle1 as angle_t) as i32) as angle_t);
+                i32::abs(rc.sc.rw_normalangle.wrapping_sub(
+                            rc.sc.rw_angle1 as angle_t) as i32) as angle_t);
     
     let distangle: angle_t = ANG90 - offsetangle;
     let hyp: fixed_t = R_PointToDist (&mut rc.view,
                                       (*(*segs.offset(rc.bc.curline as isize)).v1).x,
                                       (*(*segs.offset(rc.bc.curline as isize)).v1).y);
     let sineval: fixed_t = finesine[(distangle>>ANGLETOFINESHIFT) as usize];
-    rw_distance = FixedMul (hyp, sineval);
+    rc.sc.rw_distance = FixedMul (hyp, sineval);
         
     
     rc.bc.drawsegs[rc.bc.ds_index as usize].x1 = start;
@@ -394,17 +412,17 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     let mut worldhigh: i32 = 0;
     let mut worldlow: i32 = 0;
     
-    midtexture = 0;
-    toptexture = 0;
-    bottomtexture = 0;
+    rc.sc.midtexture = 0;
+    rc.sc.toptexture = 0;
+    rc.sc.bottomtexture = 0;
     rc.bc.drawsegs[rc.bc.ds_index as usize].maskedtexturecol = std::ptr::null_mut();
     
     if rc.bc.backsector == std::ptr::null_mut() {
         // single sided line
-        midtexture = *texturetranslation.offset((*rc.bc.sidedef).midtexture as isize);
+        rc.sc.midtexture = *texturetranslation.offset((*rc.bc.sidedef).midtexture as isize);
         // a single sided line is terminal, so it must mark ends
-        markfloor = c_true;
-        markceiling = c_true;
+        rc.sc.markfloor = c_true;
+        rc.sc.markceiling = c_true;
         if ((*rc.bc.linedef).flags & (ML_DONTPEGBOTTOM as i16)) != 0 {
             let vtop = (*rc.bc.frontsector).floorheight +
                 *textureheight.offset((*rc.bc.sidedef).midtexture as isize);
@@ -470,33 +488,33 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         if (worldlow != worldbottom)
         || ((*rc.bc.backsector).floorpic != (*rc.bc.frontsector).floorpic)
         || ((*rc.bc.backsector).lightlevel != (*rc.bc.frontsector).lightlevel) {
-            markfloor = c_true;
+            rc.sc.markfloor = c_true;
         } else {
             // same plane on both sides
-            markfloor = c_false;
+            rc.sc.markfloor = c_false;
         }
         
                 
         if (worldhigh != worldtop)
         || ((*rc.bc.backsector).ceilingpic != (*rc.bc.frontsector).ceilingpic)
         || ((*rc.bc.backsector).lightlevel != (*rc.bc.frontsector).lightlevel) {
-            markceiling = c_true;
+            rc.sc.markceiling = c_true;
         } else {
             // same plane on both sides
-            markceiling = c_false;
+            rc.sc.markceiling = c_false;
         }
         
         if ((*rc.bc.backsector).ceilingheight <= (*rc.bc.frontsector).floorheight)
         || ((*rc.bc.backsector).floorheight >= (*rc.bc.frontsector).ceilingheight) {
             // closed door
-            markceiling = c_true;
-            markfloor = c_true;
+            rc.sc.markceiling = c_true;
+            rc.sc.markfloor = c_true;
         }
         
 
         if worldhigh < worldtop {
             // top texture
-            toptexture = *texturetranslation.offset((*rc.bc.sidedef).toptexture as isize);
+            rc.sc.toptexture = *texturetranslation.offset((*rc.bc.sidedef).toptexture as isize);
             if ((*rc.bc.linedef).flags & (ML_DONTPEGTOP as i16)) != 0 {
                 // top of texture at top
                 rsl.rw_toptexturemid = worldtop;
@@ -510,7 +528,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         }
         if worldlow > worldbottom {
             // bottom texture
-            bottomtexture = *texturetranslation.offset((*rc.bc.sidedef).bottomtexture as isize);
+            rc.sc.bottomtexture = *texturetranslation.offset((*rc.bc.sidedef).bottomtexture as isize);
 
             if ((*rc.bc.linedef).flags & (ML_DONTPEGBOTTOM as i16)) != 0 {
                 // bottom of texture at bottom
@@ -527,17 +545,18 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         if (*rc.bc.sidedef).midtexture != 0 {
             // masked midtexture
             rsl.maskedtexture = c_true;
-            maskedtexturecol = rc.pc.lastopening.offset(-(rsl.rw_x as isize));
-            rc.bc.drawsegs[rc.bc.ds_index as usize].maskedtexturecol = maskedtexturecol;
+            rc.sc.maskedtexturecol = rc.pc.lastopening.offset(-(rsl.rw_x as isize));
+            rc.bc.drawsegs[rc.bc.ds_index as usize].maskedtexturecol = rc.sc.maskedtexturecol;
             rc.pc.lastopening = rc.pc.lastopening.offset((rsl.rw_stopx - rsl.rw_x) as isize);
         }
     }
     
     // calculate rw_offset (only needed for textured lines)
-    segtextured = midtexture | toptexture | bottomtexture | rsl.maskedtexture;
+    rc.sc.segtextured = rc.sc.midtexture | rc.sc.toptexture
+                    | rc.sc.bottomtexture | rsl.maskedtexture;
 
-    if segtextured != c_false {
-        let mut offsetangle = rw_normalangle.wrapping_sub(rw_angle1 as angle_t);
+    if rc.sc.segtextured != c_false {
+        let mut offsetangle = rc.sc.rw_normalangle.wrapping_sub(rc.sc.rw_angle1 as angle_t);
         
         if offsetangle > ANG180 {
             offsetangle = (0 as angle_t).wrapping_sub(offsetangle); // DSB-20
@@ -550,12 +569,12 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         let sineval = finesine[(offsetangle >>ANGLETOFINESHIFT) as usize];
         rsl.rw_offset = FixedMul (hyp, sineval);
 
-        if (rw_normalangle.wrapping_sub(rw_angle1 as angle_t)) < ANG180 {
+        if (rc.sc.rw_normalangle.wrapping_sub(rc.sc.rw_angle1 as angle_t)) < ANG180 {
             rsl.rw_offset = -rsl.rw_offset;
         }
 
         rsl.rw_offset += (*rc.bc.sidedef).textureoffset + (*segs.offset(rc.bc.curline as isize)).offset;
-        rsl.rw_centerangle = ANG90.wrapping_add(rc.view.viewangle).wrapping_sub(rw_normalangle);
+        rsl.rw_centerangle = ANG90.wrapping_add(rc.view.viewangle).wrapping_sub(rc.sc.rw_normalangle);
         
         // calculate light table
         //  use different light tables
@@ -570,7 +589,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
                 lightnum += 1;
             }
 
-            walllights = rc.scalelight[i32::max(0, i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
+            rc.sc.walllights = rc.scalelight[i32::max(0, i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
         }
     }
     
@@ -581,13 +600,13 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
   
     if (*rc.bc.frontsector).floorheight >= rc.view.viewz {
         // above view plane
-        markfloor = c_false;
+        rc.sc.markfloor = c_false;
     }
     
     if ((*rc.bc.frontsector).ceilingheight <= rc.view.viewz)
     && (((*rc.bc.frontsector).ceilingpic as i32) != skyflatnum) {
         // below view plane
-        markceiling = c_false;
+        rc.sc.markceiling = c_false;
     }
 
     
@@ -617,13 +636,13 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     }
     
     // render it
-    if markceiling != c_false {
+    if rc.sc.markceiling != c_false {
         let index = rc.pc.ceilingplane_index;
         rc.pc.ceilingplane_index = R_CheckPlane (&mut rc.pc, index,
                                                  rsl.rw_x, rsl.rw_stopx-1);
     }
     
-    if markfloor != c_false {
+    if rc.sc.markfloor != c_false {
         let index = rc.pc.floorplane_index;
         rc.pc.floorplane_index = R_CheckPlane (&mut rc.pc, index,
                                                rsl.rw_x, rsl.rw_stopx-1);
