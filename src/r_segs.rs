@@ -36,6 +36,8 @@ use crate::r_main::R_PointToDist;
 use crate::r_main::R_ScaleFromGlobalAngle;
 use crate::r_main::RenderContext_t;
 use crate::r_plane::R_CheckPlane;
+use crate::r_plane::opening_index_t;
+use crate::r_plane::INVALID_OPENING;
 use crate::r_things::negonearray;
 use crate::r_things::screenheightarray;
 use crate::r_draw::empty_R_DrawColumn_params;
@@ -52,7 +54,7 @@ pub struct SegsContext_t {
     pub rw_normalangle: angle_t,
     pub rw_angle1: i32,
     pub walllights: *mut colormap_index_t,
-    pub maskedtexturecol: *mut i16,
+    pub maskedtexturecol_index: opening_index_t,
 }
 
 pub const empty_SegsContext: SegsContext_t = SegsContext_t {
@@ -66,7 +68,7 @@ pub const empty_SegsContext: SegsContext_t = SegsContext_t {
     rw_normalangle: 0,
     rw_angle1: 0,
     walllights: std::ptr::null_mut(),
-    maskedtexturecol: std::ptr::null_mut(),
+    maskedtexturecol_index: INVALID_OPENING,
 };
 
 struct R_RenderSegLoop_params_t {
@@ -119,7 +121,7 @@ pub unsafe fn R_RenderMaskedSegRange
     rc.sc.walllights = rc.scalelight[i32::max(0,
                             i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
 
-    rc.sc.maskedtexturecol = rc.bc.drawsegs[ds as usize].maskedtexturecol;
+    rc.sc.maskedtexturecol_index = rc.bc.drawsegs[ds as usize].maskedtexturecol_index;
 
     let rw_scalestep = rc.bc.drawsegs[ds as usize].scalestep;
     let mut dmc = r_things::R_DrawMaskedColumn_params_t {
@@ -160,7 +162,9 @@ pub unsafe fn R_RenderMaskedSegRange
     for x in x1 ..= x2 {
         dmc.dc.dc_x = x;
         // calculate lighting
-        let colnum = *rc.sc.maskedtexturecol.offset(dmc.dc.dc_x as isize);
+        let colnum = rc.pc.openings[
+                (rc.sc.maskedtexturecol_index + 
+                    (dmc.dc.dc_x as opening_index_t)) as usize];
         if colnum != MAXSHORT {
             if rc.fixedcolormap_index == NULL_COLORMAP {
                 let index = i32::min((MAXLIGHTSCALE - 1) as i32,
@@ -176,7 +180,9 @@ pub unsafe fn R_RenderMaskedSegRange
                             as *mut u8).offset(-3) as *mut column_t;
                 
             r_things::R_DrawMaskedColumn (rc, &mut dmc);
-            *rc.sc.maskedtexturecol.offset(dmc.dc.dc_x as isize) = MAXSHORT;
+            rc.pc.openings[
+                (rc.sc.maskedtexturecol_index + 
+                    (dmc.dc.dc_x as opening_index_t)) as usize] = MAXSHORT;
         }
         dmc.spryscale += rw_scalestep;
     }
@@ -307,7 +313,8 @@ unsafe fn R_RenderSegLoop (rc: &mut RenderContext_t, rsl: &mut R_RenderSegLoop_p
             if rsl.maskedtexture != c_false {
                 // save texturecol
                 //  for backdrawing of masked mid texture
-                *rc.sc.maskedtexturecol.offset(x as isize) = texturecolumn as i16;
+                rc.pc.openings[(rc.sc.maskedtexturecol_index +
+                        (x as opening_index_t)) as usize] = texturecolumn as i16;
             }
         }
             
@@ -415,7 +422,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     rc.sc.midtexture = 0;
     rc.sc.toptexture = 0;
     rc.sc.bottomtexture = 0;
-    rc.bc.drawsegs[rc.bc.ds_index as usize].maskedtexturecol = std::ptr::null_mut();
+    rc.bc.drawsegs[rc.bc.ds_index as usize].maskedtexturecol_index = INVALID_OPENING;
     
     if rc.bc.backsector == std::ptr::null_mut() {
         // single sided line
@@ -545,9 +552,11 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         if (*rc.bc.sidedef).midtexture != 0 {
             // masked midtexture
             rsl.maskedtexture = c_true;
-            rc.sc.maskedtexturecol = rc.pc.lastopening.offset(-(rsl.rw_x as isize));
-            rc.bc.drawsegs[rc.bc.ds_index as usize].maskedtexturecol = rc.sc.maskedtexturecol;
-            rc.pc.lastopening = rc.pc.lastopening.offset((rsl.rw_stopx - rsl.rw_x) as isize);
+            rc.sc.maskedtexturecol_index = 
+                rc.pc.lastopening_index - (rsl.rw_x as opening_index_t);
+            rc.bc.drawsegs[rc.bc.ds_index as usize].maskedtexturecol_index =
+                rc.sc.maskedtexturecol_index;
+            rc.pc.lastopening_index += (rsl.rw_stopx - rsl.rw_x) as opening_index_t;
         }
     }
     
@@ -655,21 +664,25 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     if ((0 != (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_TOP as i32)))
         || (rsl.maskedtexture != c_false))
     && (rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip == std::ptr::null_mut()) {
-        memcpy (rc.pc.lastopening as *mut u8,
+        memcpy (rc.pc.openings.as_mut_ptr().offset(rc.pc.lastopening_index as isize) as *mut u8,
                 rc.pc.ceilingclip.as_mut_ptr().offset(start as isize) as *const u8,
                 2*(rsl.rw_stopx-start) as usize);
-        rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip = rc.pc.lastopening.offset(-(start as isize));
-        rc.pc.lastopening = rc.pc.lastopening.offset((rsl.rw_stopx - start) as isize);
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip =
+                rc.pc.openings.as_mut_ptr().offset(
+                    (rc.pc.lastopening_index as isize) - (start as isize));
+        rc.pc.lastopening_index += (rsl.rw_stopx - start) as opening_index_t;
     }
     
     if ((0 != (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_BOTTOM as i32)))
         || (rsl.maskedtexture != c_false))
     && (rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip == std::ptr::null_mut()) {
-        memcpy (rc.pc.lastopening as *mut u8,
+        memcpy (rc.pc.openings.as_mut_ptr().offset(rc.pc.lastopening_index as isize) as *mut u8,
                 rc.pc.floorclip.as_mut_ptr().offset(start as isize) as *const u8,
                 2*(rsl.rw_stopx-start) as usize);
-        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = rc.pc.lastopening.offset(-(start as isize));
-        rc.pc.lastopening = rc.pc.lastopening.offset((rsl.rw_stopx - start) as isize);
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip =
+                rc.pc.openings.as_mut_ptr().offset(
+                    (rc.pc.lastopening_index as isize) - (start as isize));
+        rc.pc.lastopening_index += (rsl.rw_stopx - start) as opening_index_t;
     }
 
     if (rsl.maskedtexture != c_false)

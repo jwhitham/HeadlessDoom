@@ -29,6 +29,8 @@ use crate::r_segs::R_StoreWallRange;
 use crate::r_things::R_AddSprites;
 use crate::r_plane::R_FindPlane;
 use crate::r_plane::INVALID_PLANE;
+use crate::r_plane::opening_index_t;
+use crate::r_plane::INVALID_OPENING;
 use crate::r_main::R_PointToAngle;
 use crate::r_main::R_PointOnSide;
 use crate::r_main::RenderContext_t;
@@ -55,7 +57,7 @@ pub struct drawseg_t {
     //  all three adjusted so [x1] is first value.
     pub sprtopclip: *mut i16,
     pub sprbottomclip: *mut i16,
-    pub maskedtexturecol: *mut i16,
+    pub maskedtexturecol_index: opening_index_t,
 }
 
 const empty_drawseg: drawseg_t = drawseg_t {
@@ -70,7 +72,7 @@ const empty_drawseg: drawseg_t = drawseg_t {
     tsilheight: 0,
     sprtopclip: std::ptr::null_mut(),
     sprbottomclip: std::ptr::null_mut(),
-    maskedtexturecol: std::ptr::null_mut(),
+    maskedtexturecol_index: INVALID_OPENING,
 };
 
 //

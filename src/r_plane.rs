@@ -43,6 +43,9 @@ use crate::r_things::pspriteiscale;
 
 type visplane_index_t = u16;
 pub const INVALID_PLANE: visplane_index_t = visplane_index_t::MAX;
+pub type opening_index_t = u16;
+pub const INVALID_OPENING: opening_index_t = opening_index_t::MAX;
+
 
 pub struct visplane_t {
     pub height: fixed_t,
@@ -77,13 +80,13 @@ pub struct PlaneContext_t {
     planezlight: *mut colormap_index_t,
     pub visplanes: [visplane_t; MAXVISPLANES as usize],
     lastvisplane_index: visplane_index_t,
-    openings: [i16; MAXOPENINGS as usize],
+    pub openings: [i16; MAXOPENINGS as usize],
     spanstart: [i32; SCREENHEIGHT as usize],
     pub ceilingclip: [i16; SCREENWIDTH as usize],
     pub ceilingplane_index: visplane_index_t,
     pub floorclip: [i16; SCREENWIDTH as usize],
     pub floorplane_index: visplane_index_t,
-    pub lastopening: *mut i16,
+    pub lastopening_index: opening_index_t,
     pub yslope: [fixed_t; SCREENHEIGHT as usize],
     pub distscale: [fixed_t; SCREENWIDTH as usize],
 }
@@ -105,7 +108,7 @@ pub const empty_PlaneContext: PlaneContext_t = PlaneContext_t {
     ceilingplane_index: INVALID_PLANE,
     floorclip: [0; SCREENWIDTH as usize],
     floorplane_index: INVALID_PLANE,
-    lastopening: std::ptr::null_mut(),
+    lastopening_index: INVALID_OPENING,
     yslope: [0; SCREENHEIGHT as usize],
     distscale: [0; SCREENWIDTH as usize],
 };
@@ -188,7 +191,7 @@ pub unsafe fn R_ClearPlanes (rc: &mut RenderContext_t) {
     }
 
     rc.pc.lastvisplane_index = 0;
-    rc.pc.lastopening = rc.pc.openings.as_mut_ptr();
+    rc.pc.lastopening_index = 0;
     
     // texture calculation
     rc.pc.cachedheight = [0; SCREENHEIGHT as usize];
@@ -356,7 +359,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
         panic!("R_DrawPlanes: visplane overflow");
     }
     
-    if rc.pc.lastopening > rc.pc.openings.as_mut_ptr().offset(MAXOPENINGS as isize) {
+    if rc.pc.lastopening_index > (MAXOPENINGS as opening_index_t) {
         panic!("R_DrawPlanes: opening overflow");
     }
 

@@ -42,6 +42,7 @@ use crate::r_data::colormap_index_t;
 use crate::r_data::RenderData_t;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawColumn_params;
+use crate::r_plane::INVALID_OPENING;
 
 static mut numsprites: i32 = 0;
 pub static mut negonearray: [i16; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
@@ -721,7 +722,8 @@ unsafe fn R_DrawSprite (rc: &mut RenderContext_t, spr: *mut vissprite_t) {
         // determine if the drawseg obscures the sprite
         if (rc.bc.drawsegs[ds as usize].x1 > (*spr).x2)
         || (rc.bc.drawsegs[ds as usize].x2 < (*spr).x1)
-        || ((rc.bc.drawsegs[ds as usize].silhouette == 0) && (rc.bc.drawsegs[ds as usize].maskedtexturecol == std::ptr::null_mut())) {
+        || ((rc.bc.drawsegs[ds as usize].silhouette == 0)
+            && (rc.bc.drawsegs[ds as usize].maskedtexturecol_index == INVALID_OPENING)) {
             // does not cover sprite
             continue;
         }
@@ -742,7 +744,7 @@ unsafe fn R_DrawSprite (rc: &mut RenderContext_t, spr: *mut vissprite_t) {
         if (scale < (*spr).scale)
         || ((lowscale < (*spr).scale) && 0 == R_PointOnSegSide ((*spr).gx, (*spr).gy, rc.bc.drawsegs[ds as usize].curline)) {
             // masked mid texture?
-            if rc.bc.drawsegs[ds as usize].maskedtexturecol != std::ptr::null_mut() {
+            if rc.bc.drawsegs[ds as usize].maskedtexturecol_index != INVALID_OPENING {
                 R_RenderMaskedSegRange (rc, ds, r1 as i32, r2 as i32);
             }
             // seg is behind sprite
@@ -834,7 +836,7 @@ pub unsafe fn R_DrawMasked (rc: &mut RenderContext_t) {
     // render any remaining masked mid textures
     let mut ds: drawsegs_index_t = rc.bc.ds_index - 1;
     while ds >= 0 {
-        if rc.bc.drawsegs[ds as usize].maskedtexturecol != std::ptr::null_mut() {
+        if rc.bc.drawsegs[ds as usize].maskedtexturecol_index != INVALID_OPENING {
             R_RenderMaskedSegRange (rc, 
                 ds,
                 rc.bc.drawsegs[ds as usize].x1,
