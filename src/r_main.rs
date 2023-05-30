@@ -598,7 +598,7 @@ pub unsafe extern "C" fn R_Init () {
     print!("\nR_InitTables");
 
     R_SetViewSize (screenblocks, detailLevel);
-    R_InitPlanes ();
+    R_InitPlanes (rc);
     print!("\nR_InitPlanes");
     R_InitLightTables (rc);
     print!("\nR_InitLightTables");

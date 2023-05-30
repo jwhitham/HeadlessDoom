@@ -44,6 +44,9 @@ type visplane_index_t = u16;
 pub const INVALID_PLANE: visplane_index_t = visplane_index_t::MAX;
 pub type opening_index_t = i16; // may be negative
 pub const INVALID_OPENING: opening_index_t = opening_index_t::MIN;
+pub const SCREEN_HEIGHT_OPENING: opening_index_t = 0;
+const NEGATIVE_ONE_OPENING: opening_index_t = SCREENWIDTH as opening_index_t;
+const FIRST_DYNAMIC_OPENING: opening_index_t = (SCREENWIDTH as opening_index_t) * 2;
 
 
 pub struct visplane_t {
@@ -79,7 +82,7 @@ pub struct PlaneContext_t {
     planezlight_index: usize,
     pub visplanes: [visplane_t; MAXVISPLANES as usize],
     lastvisplane_index: visplane_index_t,
-    pub openings: [i16; MAXOPENINGS as usize],
+    pub openings: [i16; (MAXOPENINGS as usize) + (FIRST_DYNAMIC_OPENING as usize)],
     spanstart: [i32; SCREENHEIGHT as usize],
     pub ceilingclip: [i16; SCREENWIDTH as usize],
     pub ceilingplane_index: visplane_index_t,
@@ -101,7 +104,7 @@ pub const empty_PlaneContext: PlaneContext_t = PlaneContext_t {
     planezlight_index: 0,
     visplanes: [empty_visplane; MAXVISPLANES as usize],
     lastvisplane_index: 0,
-    openings: [0; MAXOPENINGS as usize],
+    openings: [0; (MAXOPENINGS as usize) + (FIRST_DYNAMIC_OPENING as usize)],
     spanstart: [0; SCREENHEIGHT as usize],
     ceilingclip: [0; SCREENWIDTH as usize],
     ceilingplane_index: INVALID_PLANE,
@@ -116,8 +119,14 @@ pub const empty_PlaneContext: PlaneContext_t = PlaneContext_t {
 // R_InitPlanes
 // Only at game startup.
 //
-pub fn R_InitPlanes () {
+pub fn R_InitPlanes (rc: &mut RenderContext_t) {
     // Doh!
+    for i in SCREEN_HEIGHT_OPENING .. NEGATIVE_ONE_OPENING {
+        rc.pc.openings[i as usize] = SCREENHEIGHT as i16;
+    }
+    for i in NEGATIVE_ONE_OPENING .. FIRST_DYNAMIC_OPENING {
+        rc.pc.openings[i as usize] = -1;
+    }
 }
 
 
@@ -191,7 +200,7 @@ pub unsafe fn R_ClearPlanes (rc: &mut RenderContext_t) {
     }
 
     rc.pc.lastvisplane_index = 0;
-    rc.pc.lastopening_index = 0;
+    rc.pc.lastopening_index = FIRST_DYNAMIC_OPENING;
     
     // texture calculation
     rc.pc.cachedheight = [0; SCREENHEIGHT as usize];
@@ -359,7 +368,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
         panic!("R_DrawPlanes: visplane overflow");
     }
     
-    if rc.pc.lastopening_index > (MAXOPENINGS as opening_index_t) {
+    if rc.pc.lastopening_index > ((MAXOPENINGS as opening_index_t) + FIRST_DYNAMIC_OPENING) {
         panic!("R_DrawPlanes: opening overflow");
     }
 
