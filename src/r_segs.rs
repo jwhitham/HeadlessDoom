@@ -664,9 +664,11 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     if ((0 != (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_TOP as i32)))
         || (rsl.maskedtexture != c_false))
     && (rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip == std::ptr::null_mut()) {
-        memcpy (rc.pc.openings.as_mut_ptr().offset(rc.pc.lastopening_index as isize) as *mut u8,
-                rc.pc.ceilingclip.as_mut_ptr().offset(start as isize) as *const u8,
-                2*(rsl.rw_stopx-start) as usize);
+        let copy_size: usize = (rsl.rw_stopx - start) as usize;
+        for i in 0 .. copy_size {
+            rc.pc.openings[(rc.pc.lastopening_index as usize) + i] = 
+                rc.pc.ceilingclip[(start as usize) + i];
+        }
         rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip =
                 rc.pc.openings.as_mut_ptr().offset(
                     (rc.pc.lastopening_index as isize) - (start as isize));
@@ -676,9 +678,11 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     if ((0 != (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_BOTTOM as i32)))
         || (rsl.maskedtexture != c_false))
     && (rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip == std::ptr::null_mut()) {
-        memcpy (rc.pc.openings.as_mut_ptr().offset(rc.pc.lastopening_index as isize) as *mut u8,
-                rc.pc.floorclip.as_mut_ptr().offset(start as isize) as *const u8,
-                2*(rsl.rw_stopx-start) as usize);
+        let copy_size: usize = (rsl.rw_stopx - start) as usize;
+        for i in 0 .. copy_size {
+            rc.pc.openings[(rc.pc.lastopening_index as usize) + i] = 
+                rc.pc.floorclip[(start as usize) + i];
+        }
         rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip =
                 rc.pc.openings.as_mut_ptr().offset(
                     (rc.pc.lastopening_index as isize) - (start as isize));
