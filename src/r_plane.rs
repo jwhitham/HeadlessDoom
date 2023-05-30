@@ -43,8 +43,8 @@ use crate::r_things::pspriteiscale;
 
 type visplane_index_t = u16;
 pub const INVALID_PLANE: visplane_index_t = visplane_index_t::MAX;
-pub type opening_index_t = u16;
-pub const INVALID_OPENING: opening_index_t = opening_index_t::MAX;
+pub type opening_index_t = i16; // may be negative
+pub const INVALID_OPENING: opening_index_t = opening_index_t::MIN;
 
 
 pub struct visplane_t {
