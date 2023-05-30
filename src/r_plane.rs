@@ -32,7 +32,6 @@ use crate::tables::finesine;
 use crate::r_bsp::drawsegs_index_t;
 use crate::r_data::R_GetColumn;
 use crate::r_data::NULL_COLORMAP;
-use crate::r_data::colormap_index_t;
 use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawSpan_params;
@@ -77,7 +76,7 @@ pub struct PlaneContext_t {
     cachedxstep: [fixed_t; SCREENHEIGHT as usize],
     basexscale: fixed_t,
     baseyscale: fixed_t,
-    planezlight: *mut colormap_index_t,
+    planezlight_index: usize,
     pub visplanes: [visplane_t; MAXVISPLANES as usize],
     lastvisplane_index: visplane_index_t,
     pub openings: [i16; MAXOPENINGS as usize],
@@ -99,7 +98,7 @@ pub const empty_PlaneContext: PlaneContext_t = PlaneContext_t {
     cachedxstep: [0; SCREENHEIGHT as usize],
     basexscale: 0,
     baseyscale: 0,
-    planezlight: std::ptr::null_mut(),
+    planezlight_index: 0,
     visplanes: [empty_visplane; MAXVISPLANES as usize],
     lastvisplane_index: 0,
     openings: [0; MAXOPENINGS as usize],
@@ -168,7 +167,8 @@ unsafe fn R_MapPlane(rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t, y: 
         ds.ds_colormap_index = rc.fixedcolormap_index;
     } else {
         let index: u32 = u32::min((distance >> LIGHTZSHIFT) as u32, MAXLIGHTZ - 1);
-        ds.ds_colormap_index = *rc.pc.planezlight.offset(index as isize);
+        ds.ds_colormap_index = rc.zlight[
+                rc.pc.planezlight_index][index as usize];
     }
     
     ds.ds_y = y;
@@ -411,7 +411,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
                                  (lightlevel >> LIGHTSEGSHIFT)+rc.extralight));
 
 
-        rc.pc.planezlight = rc.zlight[light as usize].as_mut_ptr();
+        rc.pc.planezlight_index = light as usize;
 
         // top and bottom are arrays of length SCREENWIDTH + 2 (padding)
         rc.pc.visplanes[pl_index as usize]
