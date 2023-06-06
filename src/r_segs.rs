@@ -23,7 +23,6 @@
 
 use crate::defs::*;
 use crate::globals::*;
-use crate::funcs::*;
 use crate::r_things;
 use crate::tables::finetangent;
 use crate::tables::finesine;
@@ -40,7 +39,6 @@ use crate::r_plane::opening_index_t;
 use crate::r_plane::INVALID_OPENING;
 use crate::r_plane::SCREEN_HEIGHT_OPENING;
 use crate::r_things::negonearray;
-use crate::r_things::screenheightarray;
 use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_draw::R_DrawColumn_params_t;
 

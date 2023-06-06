@@ -27,7 +27,7 @@
 
 use crate::defs::*;
 
-pub static mut skytexturemid: i32 = 0;
+pub const skytexturemid: i32 = (100*FRACUNIT) as i32;
 
 //
 // R_InitSkyMap
@@ -35,6 +35,5 @@ pub static mut skytexturemid: i32 = 0;
 //
 pub unsafe fn R_InitSkyMap () {
   // skyflatnum = R_FlatNumForName ( SKYFLATNAME );
-    skytexturemid = (100*FRACUNIT) as i32;
 }
 
