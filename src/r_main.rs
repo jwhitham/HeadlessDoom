@@ -682,7 +682,7 @@ pub unsafe extern "C" fn R_RenderPlayerView (player: *mut player_t) {
     R_ClearClipSegs (&mut rc.bc);
     R_ClearDrawSegs (&mut rc.bc);
     R_ClearPlanes (rc);
-    R_ClearSprites ();
+    R_ClearSprites (&mut rc.tc);
     
     // check for new console commands.
     NetUpdate ();

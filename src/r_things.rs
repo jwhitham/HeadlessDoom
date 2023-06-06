@@ -58,6 +58,13 @@ pub struct ThingsContext_t {
     pub pspritescale: fixed_t,
     pub pspriteiscale: fixed_t,
     pub screenheightarray: [i16; SCREENWIDTH as usize],
+    spritelights: *mut colormap_index_t,
+    sprtemp: sprtemp_t,
+    maxframe: i32,
+    spritename: *mut u8,
+    vissprites: [vissprite_t; MAXVISSPRITES as usize],
+    vissprite_p: *mut vissprite_t,
+    overflowsprite: vissprite_t,
 }
 
 pub const empty_ThingsContext: ThingsContext_t = ThingsContext_t {
@@ -66,6 +73,13 @@ pub const empty_ThingsContext: ThingsContext_t = ThingsContext_t {
     pspritescale: 0,
     pspriteiscale: 0,
     screenheightarray: [0; SCREENWIDTH as usize],
+    spritelights: std::ptr::null_mut(),
+    sprtemp: [empty_spriteframe; SPRTEMP_SIZE],
+    maxframe: 0,
+    spritename: std::ptr::null_mut(),
+    vissprites: [empty_vissprite_t; MAXVISSPRITES as usize],
+    vissprite_p: std::ptr::null_mut(),
+    overflowsprite: empty_vissprite_t,
 };
 
 
@@ -137,13 +151,6 @@ const empty_spriteframe: spriteframe_t = spriteframe_t {
     lump: [0; 8],
     flip: [0; 8],
 };
-static mut spritelights: *mut colormap_index_t = std::ptr::null_mut();
-static mut sprtemp: sprtemp_t = [empty_spriteframe; SPRTEMP_SIZE];
-static mut maxframe: i32 = 0;
-static mut spritename: *mut u8 = std::ptr::null_mut();
-static mut vissprites: [vissprite_t; MAXVISSPRITES as usize] = [empty_vissprite_t; MAXVISSPRITES as usize];
-static mut vissprite_p: *mut vissprite_t = std::ptr::null_mut();
-static mut overflowsprite: vissprite_t = empty_vissprite_t;
 
 const MINZ: fixed_t = (FRACUNIT*4) as fixed_t;
 //
@@ -151,6 +158,7 @@ const MINZ: fixed_t = (FRACUNIT*4) as fixed_t;
 // Local function for R_InitSprites.
 //
 unsafe fn R_InstallSpriteLump(
+        tc: &mut ThingsContext_t,
         lump: i32, frame: u32, rotation: u32, flipped: boolean) {
     
     let mut rotation_tmp = rotation as usize;
@@ -159,52 +167,52 @@ unsafe fn R_InstallSpriteLump(
         panic!("R_InstallSpriteLump: Bad frame characters in lump {}", lump);
     }
 
-    if (frame as i32) > maxframe {
-        maxframe = frame as i32;
+    if (frame as i32) > tc.maxframe {
+        tc.maxframe = frame as i32;
     }
     
     if rotation_tmp == 0 {
         // the lump should be used for all rotations
-        if sprtemp[frame as usize].rotate == c_false {
+        if tc.sprtemp[frame as usize].rotate == c_false {
             panic!("R_InitSprites: Sprite {} frame {} has multip rot=0 lump",
-                W_Name(spritename),
+                W_Name(tc.spritename),
                 char::from_u32(('A' as u32) + frame).unwrap());
         }
 
-        if sprtemp[frame as usize].rotate == c_true {
+        if tc.sprtemp[frame as usize].rotate == c_true {
             panic!("R_InitSprites: Sprite {} frame {} has rotations and a rot=0 lump",
-                W_Name(spritename),
+                W_Name(tc.spritename),
                 char::from_u32(('A' as u32) + frame).unwrap());
         }
                 
-        sprtemp[frame as usize].rotate = c_false;
+        tc.sprtemp[frame as usize].rotate = c_false;
         for r in 0 .. 8 {
-            sprtemp[frame as usize].lump[r] = (lump - firstspritelump) as i16;
-            sprtemp[frame as usize].flip[r] = flipped as u8;
+            tc.sprtemp[frame as usize].lump[r] = (lump - firstspritelump) as i16;
+            tc.sprtemp[frame as usize].flip[r] = flipped as u8;
         }
         return;
     }
     
     // the lump is only used for one rotation
-    if sprtemp[frame as usize].rotate == c_false {
+    if tc.sprtemp[frame as usize].rotate == c_false {
         panic!("R_InitSprites: Sprite {} frame {} has rotations and a rot=0 lump",
-                W_Name(spritename),
+                W_Name(tc.spritename),
                 char::from_u32(('A' as u32) + frame).unwrap());
     }
             
-    sprtemp[frame as usize].rotate = c_true;
+    tc.sprtemp[frame as usize].rotate = c_true;
 
     // make 0 based
     rotation_tmp -= 1;
-    if sprtemp[frame as usize].lump[rotation_tmp] != -1 {
+    if tc.sprtemp[frame as usize].lump[rotation_tmp] != -1 {
         panic!("R_InitSprites: Sprite {} : {} : {} has two lumps mapped to it",
-                W_Name(spritename),
+                W_Name(tc.spritename),
                 char::from_u32(('A' as u32) + frame).unwrap(),
                 char::from_u32(('1' as u32) + (rotation_tmp as u32)).unwrap());
     }
         
-    sprtemp[frame as usize].lump[rotation_tmp] = (lump - firstspritelump) as i16;
-    sprtemp[frame as usize].flip[rotation_tmp] = flipped as u8;
+    tc.sprtemp[frame as usize].lump[rotation_tmp] = (lump - firstspritelump) as i16;
+    tc.sprtemp[frame as usize].flip[rotation_tmp] = flipped as u8;
 }
 
 //
@@ -247,12 +255,12 @@ unsafe fn R_InitSpriteDefs (rc: &mut RenderContext_t, namelist: *mut *mut u8) {
     // Just compare 4 characters as ints
     for i in 0 .. rc.tc.numsprites {
         let sprite = sprites.offset(i as isize);
-        spritename = *namelist.offset(i as isize);
-        memset (sprtemp.as_ptr() as *mut u8,-1, std::mem::size_of::<sprtemp_t>());
+        rc.tc.spritename = *namelist.offset(i as isize);
+        memset (rc.tc.sprtemp.as_ptr() as *mut u8,-1, std::mem::size_of::<sprtemp_t>());
 
-        let intname: i32 = *(spritename as *const i32);
+        let intname: i32 = *(rc.tc.spritename as *const i32);
             
-        maxframe = -1;
+        rc.tc.maxframe = -1;
         
         // scan the lumps,
         //  filling in the frames for whatever is found
@@ -271,30 +279,30 @@ unsafe fn R_InitSpriteDefs (rc: &mut RenderContext_t, namelist: *mut *mut u8) {
                     patched = l;
                 }
 
-                R_InstallSpriteLump (patched, frame, rotation, c_false);
+                R_InstallSpriteLump (&mut rc.tc, patched, frame, rotation, c_false);
 
                 if (*lump).name[6] != 0 {
                     let frame = ((*lump).name[6] as u32) - ('A' as u32);
                     let rotation = ((*lump).name[7] as u32) - ('0' as u32);
-                    R_InstallSpriteLump (l, frame, rotation, c_true);
+                    R_InstallSpriteLump (&mut rc.tc, l, frame, rotation, c_true);
                 }
             } 
         }
         
         // check the frames that were found for completeness
-        if maxframe == -1 {
+        if rc.tc.maxframe == -1 {
             (*sprite).numframes = 0;
             continue;
         }
         
-        maxframe += 1;
+        rc.tc.maxframe += 1;
     
-        for frame in 0 .. maxframe as u32 {
-            match sprtemp[frame as usize].rotate {
+        for frame in 0 .. rc.tc.maxframe as u32 {
+            match rc.tc.sprtemp[frame as usize].rotate {
                 -1 => {
                     // no rotations were found for that frame at all
                     panic!("R_InitSprites: No patches found for {} frame {}",
-                        W_Name(spritename),
+                        W_Name(rc.tc.spritename),
                         char::from_u32(('A' as u32) + frame).unwrap());
                 },
                 0 => {
@@ -303,26 +311,26 @@ unsafe fn R_InitSpriteDefs (rc: &mut RenderContext_t, namelist: *mut *mut u8) {
                 1 => {
                     // must have all 8 frames
                     for rotation in 0 .. 8 {
-                        if sprtemp[frame as usize].lump[rotation] == -1 {
+                        if rc.tc.sprtemp[frame as usize].lump[rotation] == -1 {
                             panic!("R_InitSprites: Sprite {} frame {} is missing rotations",
-                                W_Name(spritename),
+                                W_Name(rc.tc.spritename),
                                 char::from_u32(('A' as u32) + frame).unwrap());
                         }
                     }
                 },
                 _ => {
-                    panic!("R_InitSprites: rotate value {} is not in expected range", sprtemp[frame as usize].rotate);
+                    panic!("R_InitSprites: rotate value {} is not in expected range", rc.tc.sprtemp[frame as usize].rotate);
                 },
             }
         }
     
         // allocate space for the frames present and copy sprtemp to it
-        (*sprite).numframes = maxframe;
+        (*sprite).numframes = rc.tc.maxframe;
         (*sprite).spriteframes = 
-            Z_Malloc ((maxframe as i32) * (std::mem::size_of::<spriteframe_t>() as i32),
+            Z_Malloc ((rc.tc.maxframe as i32) * (std::mem::size_of::<spriteframe_t>() as i32),
                       PU_STATIC, std::ptr::null_mut()) as *mut spriteframe_t;
-        memcpy ((*sprite).spriteframes as *mut u8, sprtemp.as_ptr() as *const u8,
-                        (maxframe as usize) * (std::mem::size_of::<spriteframe_t>() as usize));
+        memcpy ((*sprite).spriteframes as *mut u8, rc.tc.sprtemp.as_ptr() as *const u8,
+                        (rc.tc.maxframe as usize) * (std::mem::size_of::<spriteframe_t>() as usize));
     }
 }
 
@@ -346,21 +354,21 @@ pub unsafe extern "C" fn R_InitSprites (namelist: *mut *mut u8) {
 // R_ClearSprites
 // Called at frame start.
 //
-pub unsafe fn R_ClearSprites () {
-    vissprite_p = vissprites.as_mut_ptr();
+pub unsafe fn R_ClearSprites (tc: &mut ThingsContext_t) {
+    tc.vissprite_p = tc.vissprites.as_mut_ptr();
 }
 
 
 //
 // R_NewVisSprite
 //
-unsafe fn R_NewVisSprite () -> *mut vissprite_t {
-    if vissprite_p == vissprites.as_mut_ptr().offset(MAXVISSPRITES as isize) {
-        return &mut overflowsprite;
+unsafe fn R_NewVisSprite (tc: &mut ThingsContext_t) -> *mut vissprite_t {
+    if tc.vissprite_p == tc.vissprites.as_mut_ptr().offset(MAXVISSPRITES as isize) {
+        return &mut tc.overflowsprite;
     }
     
-    vissprite_p = vissprite_p.offset(1);
-    return vissprite_p.offset(-1);
+    tc.vissprite_p = tc.vissprite_p.offset(1);
+    return tc.vissprite_p.offset(-1);
 }
 
 //
@@ -522,7 +530,7 @@ unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
     }
     
     // store information in a vissprite
-    let vis = R_NewVisSprite ();
+    let vis = R_NewVisSprite (&mut rc.tc);
     (*vis).mobjflags = (*thing).flags;
     (*vis).scale = xscale<<rc.detailshift;
     (*vis).gx = (*thing).x;
@@ -562,7 +570,7 @@ unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
         let index = i32::min((MAXLIGHTSCALE - 1) as i32,
                              xscale>>(LIGHTSCALESHIFT-(rc.detailshift as u32)));
 
-        (*vis).colormap_index = *spritelights.offset(index as isize);
+        (*vis).colormap_index = *rc.tc.spritelights.offset(index as isize);
     }
 } 
 
@@ -585,7 +593,7 @@ pub unsafe fn R_AddSprites (rc: &mut RenderContext_t, sec: *mut sector_t) {
     
     let lightnum = i32::min((LIGHTLEVELS - 1) as i32,
             i32::max((((*sec).lightlevel >> LIGHTSEGSHIFT) as i32) + rc.extralight, 0));
-    spritelights = rc.scalelight[lightnum as usize].as_mut_ptr();
+    rc.tc.spritelights = rc.scalelight[lightnum as usize].as_mut_ptr();
 
     // Handle all things in sector.
     let mut thing = (*sec).thinglist;
@@ -672,7 +680,7 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
         (*vis).colormap_index = 0;
     } else {
         // local light
-        (*vis).colormap_index = *spritelights.offset((MAXLIGHTSCALE - 1) as isize);
+        (*vis).colormap_index = *rc.tc.spritelights.offset((MAXLIGHTSCALE - 1) as isize);
     }
     
     let mut dvs = R_DrawVisSprite_params_t {
@@ -692,7 +700,7 @@ unsafe fn R_DrawPlayerSprites (rc: &mut RenderContext_t) {
     ((*(*(*(*rc.viewplayer).mo).subsector).sector).lightlevel >> LIGHTSEGSHIFT) as i32
     +rc.extralight;
 
-    spritelights = rc.scalelight[i32::max(0, i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
+    rc.tc.spritelights = rc.scalelight[i32::max(0, i32::min((LIGHTLEVELS - 1) as i32, lightnum)) as usize].as_mut_ptr();
     
     let mut dps = R_DrawPSprite_params_t {
         // clip to screen bounds
@@ -832,9 +840,9 @@ unsafe fn R_DrawSprite (rc: &mut RenderContext_t, spr: *mut vissprite_t) {
 pub unsafe fn R_DrawMasked (rc: &mut RenderContext_t) {
     // Sort sprites according to scale
     let mut sorted_sprites: Vec<*mut vissprite_t> = Vec::new();
-    let mut iter: *mut vissprite_t = vissprites.as_mut_ptr();
+    let mut iter: *mut vissprite_t = rc.tc.vissprites.as_mut_ptr();
 
-    while iter != vissprite_p {
+    while iter != rc.tc.vissprite_p {
         sorted_sprites.push(iter);
         iter = iter.offset(1);
     }
