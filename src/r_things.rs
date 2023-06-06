@@ -39,16 +39,9 @@ use crate::m_fixed::FixedMul;
 use crate::m_fixed::FixedDiv;
 use crate::r_data::NULL_COLORMAP;
 use crate::r_data::colormap_index_t;
-use crate::r_data::RenderData_t;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_plane::INVALID_OPENING;
-
-static mut numsprites: i32 = 0;
-pub static mut negonearray: [i16; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
-pub static mut pspritescale: fixed_t = 0;
-pub static mut pspriteiscale: fixed_t = 0;
-pub static mut screenheightarray: [i16; SCREENWIDTH as usize] = [0; SCREENWIDTH as usize];
 
 pub struct R_DrawMaskedColumn_params_t {
     pub dc: R_DrawColumn_params_t,
@@ -58,6 +51,23 @@ pub struct R_DrawMaskedColumn_params_t {
     pub mfloorclip: *mut i16,
     pub mceilingclip: *mut i16,
 }
+
+pub struct ThingsContext_t {
+    numsprites: i32,
+    pub negonearray: [i16; SCREENWIDTH as usize],
+    pub pspritescale: fixed_t,
+    pub pspriteiscale: fixed_t,
+    pub screenheightarray: [i16; SCREENWIDTH as usize],
+}
+
+pub const empty_ThingsContext: ThingsContext_t = ThingsContext_t {
+    numsprites: 0,
+    negonearray: [0; SCREENWIDTH as usize],
+    pspritescale: 0,
+    pspriteiscale: 0,
+    screenheightarray: [0; SCREENWIDTH as usize],
+};
+
 
 // A vissprite_t is a thing
 //  that will be drawn during a refresh.
@@ -212,30 +222,30 @@ unsafe fn R_InstallSpriteLump(
 //  letter/number appended.
 // The rotation character can be 0 to signify no rotations.
 //
-unsafe fn R_InitSpriteDefs (rd: &mut RenderData_t, namelist: *mut *mut u8) { 
+unsafe fn R_InitSpriteDefs (rc: &mut RenderContext_t, namelist: *mut *mut u8) { 
     // count the number of sprite names
-    numsprites = 0;
+    rc.tc.numsprites = 0;
     for i in 0 .. i32::MAX {
         if (*namelist.offset(i as isize) as *const i8) == std::ptr::null() {
-            numsprites = i;
+            rc.tc.numsprites = i;
             break;
         }
     }
     
-    if numsprites == 0 {
+    if rc.tc.numsprites == 0 {
         return;
     }
 
-    sprites = Z_Malloc(numsprites * std::mem::size_of::<spritedef_t>() as i32,
+    sprites = Z_Malloc(rc.tc.numsprites * std::mem::size_of::<spritedef_t>() as i32,
                 PU_STATIC, std::ptr::null_mut()) as *mut spritedef_t;
     
     let start = firstspritelump-1;
-    let end = rd.lastspritelump+1;
+    let end = rc.rd.lastspritelump+1;
     
     // scan all the lump names for each of the names,
     //  noting the highest frame letter.
     // Just compare 4 characters as ints
-    for i in 0 .. numsprites {
+    for i in 0 .. rc.tc.numsprites {
         let sprite = sprites.offset(i as isize);
         spritename = *namelist.offset(i as isize);
         memset (sprtemp.as_ptr() as *mut u8,-1, std::mem::size_of::<sprtemp_t>());
@@ -323,13 +333,13 @@ unsafe fn R_InitSpriteDefs (rd: &mut RenderData_t, namelist: *mut *mut u8) {
 //
 #[no_mangle]    // called from P_Init
 pub unsafe extern "C" fn R_InitSprites (namelist: *mut *mut u8) { 
-    let rd = &mut r_main::remove_this_rc_global.rd;
+    let rc = &mut r_main::remove_this_rc_global;
 
     for i in 0 .. SCREENWIDTH as usize {
-        negonearray[i] = -1;
+        rc.tc.negonearray[i] = -1;
     }
     
-    R_InitSpriteDefs (rd, namelist);
+    R_InitSpriteDefs (rc, namelist);
 }
 
 //
@@ -469,7 +479,7 @@ unsafe fn R_ProjectSprite (rc: &mut RenderContext_t, thing: *mut mobj_t) {
     }
     
     // decide which patch to use for sprite relative to player
-    if ((*thing).sprite as u32) >= (numsprites as u32) {
+    if ((*thing).sprite as u32) >= (rc.tc.numsprites as u32) {
         panic!("R_ProjectSprite: invalid sprite number {}", (*thing).sprite);
     }
     let sprdef = sprites.offset((*thing).sprite as isize);
@@ -592,7 +602,7 @@ const BASEYCENTER: i32 = 100;
 // e.g. current weapon
 unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_params_t) {
     // decide which patch to use
-    if ((*(*dps.psp).state).sprite as u32) >= (numsprites as u32) {
+    if ((*(*dps.psp).state).sprite as u32) >= (rc.tc.numsprites as u32) {
         panic!("R_DrawPSprite: invalid sprite number {}",
              (*(*dps.psp).state).sprite);
     }
@@ -611,7 +621,7 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
     let mut tx = (*dps.psp).sx.wrapping_sub((160 * FRACUNIT) as i32);
     
     tx -= rc.rd.sprite.get(lump as usize).unwrap().offset;
-    let x1 = (rc.centerxfrac + FixedMul (tx,pspritescale) ) >>FRACBITS;
+    let x1 = (rc.centerxfrac + FixedMul (tx,rc.tc.pspritescale) ) >>FRACBITS;
 
     // off the right side
     if x1 > viewwidth {
@@ -619,7 +629,7 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
     }
 
     tx += rc.rd.sprite.get(lump as usize).unwrap().width;
-    let x2 = ((rc.centerxfrac + FixedMul (tx, pspritescale) ) >>FRACBITS) - 1;
+    let x2 = ((rc.centerxfrac + FixedMul (tx, rc.tc.pspritescale) ) >>FRACBITS) - 1;
 
     // off the left side
     if x2 < 0 {
@@ -641,8 +651,8 @@ unsafe fn R_DrawPSprite (rc: &mut RenderContext_t, dps: &mut R_DrawPSprite_param
                         (*dps.psp).sy.wrapping_sub(rc.rd.sprite.get(lump as usize).unwrap().topoffset)),
         x1: i32::max(x1, 0),
         x2: i32::min(x2, viewwidth - 1),
-        scale: pspritescale<<rc.detailshift,
-        xiscale: if flip != c_false { -pspriteiscale } else { pspriteiscale },
+        scale: rc.tc.pspritescale<<rc.detailshift,
+        xiscale: if flip != c_false { -rc.tc.pspriteiscale } else { rc.tc.pspriteiscale },
         startfrac: if flip != c_false { rc.rd.sprite.get(lump as usize).unwrap().width - 1 } else { 0 },
     }];
     let mut vis = avis.as_mut_ptr();
@@ -686,8 +696,8 @@ unsafe fn R_DrawPlayerSprites (rc: &mut RenderContext_t) {
     
     let mut dps = R_DrawPSprite_params_t {
         // clip to screen bounds
-        mfloorclip: screenheightarray.as_mut_ptr(),
-        mceilingclip: negonearray.as_mut_ptr(),
+        mfloorclip: rc.tc.screenheightarray.as_mut_ptr(),
+        mceilingclip: rc.tc.negonearray.as_mut_ptr(),
         // add all active psprites
         psp: (*rc.viewplayer).psprites.as_mut_ptr(),
     };

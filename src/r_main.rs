@@ -66,9 +66,8 @@ use crate::r_plane::PlaneContext_t;
 use crate::r_plane::empty_PlaneContext;
 use crate::r_segs::SegsContext_t;
 use crate::r_segs::empty_SegsContext;
-use crate::r_things::pspritescale;
-use crate::r_things::pspriteiscale;
-use crate::r_things::screenheightarray;
+use crate::r_things::ThingsContext_t;
+use crate::r_things::empty_ThingsContext;
 
 type dc_function_t = unsafe fn (rc: &mut RenderContext_t, dc: &mut R_DrawColumn_params_t);
 type ds_function_t = unsafe fn (rc: &mut RenderContext_t, ds: &mut R_DrawSpan_params_t);
@@ -103,6 +102,7 @@ pub struct RenderContext_t {
     pub bc: BspContext_t,
     pub pc: PlaneContext_t,
     pub sc: SegsContext_t,
+    pub tc: ThingsContext_t,
     pub centerx: i32,
     pub centery: i32,
     pub centerxfrac: fixed_t,
@@ -133,6 +133,7 @@ const empty_RenderContext: RenderContext_t = RenderContext_t {
     bc: empty_BspContext,
     pc: empty_PlaneContext,
     sc: empty_SegsContext,
+    tc: empty_ThingsContext,
     centerx: 0,
     centery: 0,
     centerxfrac: 0,
@@ -548,12 +549,12 @@ pub unsafe extern "C" fn R_ExecuteSetViewSize () {
     R_InitTextureMapping (rc);
     
     // psprite scales
-    pspritescale = ((FRACUNIT as i32) * viewwidth) / (SCREENWIDTH as i32);
-    pspriteiscale = ((FRACUNIT as i32) * (SCREENWIDTH as i32)) / (viewwidth as i32);
+    rc.tc.pspritescale = ((FRACUNIT as i32) * viewwidth) / (SCREENWIDTH as i32);
+    rc.tc.pspriteiscale = ((FRACUNIT as i32) * (SCREENWIDTH as i32)) / (viewwidth as i32);
     
     // thing clipping
     for i in 0 .. viewwidth {
-        screenheightarray[i as usize] = viewheight as i16;
+        rc.tc.screenheightarray[i as usize] = viewheight as i16;
     }
     
     // planes

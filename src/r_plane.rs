@@ -38,7 +38,6 @@ use crate::r_draw::empty_R_DrawSpan_params;
 use crate::r_draw::R_DrawSpan_params_t;
 use crate::r_main::RenderContext_t;
 use crate::r_sky::skytexturemid;
-use crate::r_things::pspriteiscale;
 
 type visplane_index_t = u16;
 pub const INVALID_PLANE: visplane_index_t = visplane_index_t::MAX;
@@ -384,7 +383,7 @@ pub unsafe fn R_DrawPlanes (rc: &mut RenderContext_t) {
         let picnum = rc.pc.visplanes[pl_index as usize].picnum;
         if picnum == skyflatnum {
             let mut dc: R_DrawColumn_params_t = empty_R_DrawColumn_params;
-            dc.dc_iscale = pspriteiscale>>rc.detailshift;
+            dc.dc_iscale = rc.tc.pspriteiscale>>rc.detailshift;
             
             // Sky is allways drawn full bright,
             //  i.e. colormaps[0] is used.

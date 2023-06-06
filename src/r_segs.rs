@@ -38,7 +38,6 @@ use crate::r_plane::R_CheckPlane;
 use crate::r_plane::opening_index_t;
 use crate::r_plane::INVALID_OPENING;
 use crate::r_plane::SCREEN_HEIGHT_OPENING;
-use crate::r_things::negonearray;
 use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_draw::R_DrawColumn_params_t;
 
@@ -443,7 +442,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
 
         rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = SIL_BOTH as i32;
         rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip_index = SCREEN_HEIGHT_OPENING;
-        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = negonearray.as_mut_ptr();
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = rc.tc.negonearray.as_mut_ptr();
         rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
         rc.bc.drawsegs[rc.bc.ds_index as usize].tsilheight = MININT;
     } else {
@@ -458,7 +457,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         } else if (*rc.bc.backsector).floorheight > rc.view.viewz {
             rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = SIL_BOTTOM as i32;
             rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
-            // rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = negonearray;
+            // rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = rc.tc.negonearray;
         }
         
         if (*rc.bc.frontsector).ceilingheight < (*rc.bc.backsector).ceilingheight {
@@ -471,7 +470,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         }
             
         if (*rc.bc.backsector).ceilingheight <= (*rc.bc.frontsector).floorheight {
-            rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = negonearray.as_mut_ptr();
+            rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = rc.tc.negonearray.as_mut_ptr();
             rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
             rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_BOTTOM as i32;
         }
