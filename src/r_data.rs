@@ -115,7 +115,8 @@ pub const empty_RenderData: RenderData_t = RenderData_t {
 //
 unsafe fn R_DrawColumnInCache(
         ppatch: *mut column_t,
-        cache: *mut u8,
+        cache: &mut Vec<u8>,
+        cache_ofs: u16,
         originy: i32,
         cacheheight: i32) {
 
@@ -136,7 +137,11 @@ unsafe fn R_DrawColumnInCache(
         }
 
         if count > 0 {
-            memcpy (cache.offset(position as isize), source, count as usize);
+            for i in 0 .. count as usize {
+                *cache.get_mut((position as usize) +
+                                (i as usize) + (cache_ofs as usize)).unwrap() =
+                    *source.offset(i as isize);
+            }
         }
 
         patch = (patch as *mut u8).offset(((*patch).length + 4) as isize)
@@ -186,7 +191,8 @@ unsafe fn R_GenerateComposite (rd: &mut RenderData_t, texnum: i32) {
                         as *mut column_t;
             let ofs = *colofs.get(x as usize).unwrap();
             R_DrawColumnInCache (patchcol,
-                     texture.texturecomposite.as_mut_ptr().offset(ofs as isize),
+                     &mut texture.texturecomposite,
+                     ofs,
                      patch.originy,
                      texture.height as i32);
         }
