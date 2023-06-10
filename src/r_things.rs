@@ -785,7 +785,8 @@ unsafe fn R_DrawSprite (rc: &mut RenderContext_t, spr: *mut vissprite_t) {
             // bottom sil
             for x in r1 ..= r2 {
                 if clipbot[x] == -2 {
-                    clipbot[x] = *rc.bc.drawsegs[ds as usize].sprbottomclip.offset(x as isize);
+                    clipbot[x] = rc.pc.openings[
+                            (rc.bc.drawsegs[ds as usize].sprbottomclip_index as usize) + x];
                 }
             }
         } else if silhouette == 2 {
@@ -793,18 +794,19 @@ unsafe fn R_DrawSprite (rc: &mut RenderContext_t, spr: *mut vissprite_t) {
             for x in r1 ..= r2 {
                 if cliptop[x] == -2 {
                     cliptop[x] = rc.pc.openings[
-                            (rc.bc.drawsegs[ds as usize].sprtopclip_index) as usize + x];
+                            (rc.bc.drawsegs[ds as usize].sprtopclip_index as usize) + x];
                 }
             }
         } else if silhouette == 3 {
             // both
             for x in r1 ..= r2 {
                 if clipbot[x] == -2 {
-                    clipbot[x] = *rc.bc.drawsegs[ds as usize].sprbottomclip.offset(x as isize);
+                    clipbot[x] = rc.pc.openings[
+                            (rc.bc.drawsegs[ds as usize].sprbottomclip_index as usize) + x];
                 }
                 if cliptop[x] == -2 {
                     cliptop[x] = rc.pc.openings[
-                            (rc.bc.drawsegs[ds as usize].sprtopclip_index) as usize + x];
+                            (rc.bc.drawsegs[ds as usize].sprtopclip_index as usize) + x];
                 }
             }
         }

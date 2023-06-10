@@ -38,6 +38,7 @@ use crate::r_plane::R_CheckPlane;
 use crate::r_plane::opening_index_t;
 use crate::r_plane::INVALID_OPENING;
 use crate::r_plane::SCREEN_HEIGHT_OPENING;
+use crate::r_plane::NEGATIVE_ONE_OPENING;
 use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_draw::R_DrawColumn_params_t;
 
@@ -127,7 +128,8 @@ pub unsafe fn R_RenderMaskedSegRange
         column: std::ptr::null_mut(),
         sprtopscreen: 0,
         spryscale: rc.bc.drawsegs[ds as usize].scale1 + (x1 - rc.bc.drawsegs[ds as usize].x1)*rw_scalestep,
-        mfloorclip: rc.bc.drawsegs[ds as usize].sprbottomclip,
+        mfloorclip: rc.pc.openings.as_mut_ptr().offset(
+                    rc.bc.drawsegs[ds as usize].sprbottomclip_index as isize),
         mceilingclip: rc.pc.openings.as_mut_ptr().offset(
                     rc.bc.drawsegs[ds as usize].sprtopclip_index as isize),
     };
@@ -442,13 +444,13 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
 
         rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = SIL_BOTH as i32;
         rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip_index = SCREEN_HEIGHT_OPENING;
-        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = rc.tc.negonearray.as_mut_ptr();
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip_index = NEGATIVE_ONE_OPENING;
         rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
         rc.bc.drawsegs[rc.bc.ds_index as usize].tsilheight = MININT;
     } else {
         // two sided line
         rc.bc.drawsegs[rc.bc.ds_index as usize].sprtopclip_index = INVALID_OPENING;
-        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = std::ptr::null_mut();
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip_index = INVALID_OPENING;
         rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = 0;
         
         if (*rc.bc.frontsector).floorheight > (*rc.bc.backsector).floorheight {
@@ -457,7 +459,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         } else if (*rc.bc.backsector).floorheight > rc.view.viewz {
             rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette = SIL_BOTTOM as i32;
             rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
-            // rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = rc.tc.negonearray;
+            // rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip_index = NEGATIVE_ONE_OPENING;
         }
         
         if (*rc.bc.frontsector).ceilingheight < (*rc.bc.backsector).ceilingheight {
@@ -470,7 +472,7 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
         }
             
         if (*rc.bc.backsector).ceilingheight <= (*rc.bc.frontsector).floorheight {
-            rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip = rc.tc.negonearray.as_mut_ptr();
+            rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip_index = NEGATIVE_ONE_OPENING;
             rc.bc.drawsegs[rc.bc.ds_index as usize].bsilheight = MAXINT;
             rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette |= SIL_BOTTOM as i32;
         }
@@ -675,15 +677,14 @@ pub unsafe fn R_StoreWallRange (rc: &mut RenderContext_t, start: i32, stop: i32)
     
     if ((0 != (rc.bc.drawsegs[rc.bc.ds_index as usize].silhouette & (SIL_BOTTOM as i32)))
         || (rsl.maskedtexture != c_false))
-    && (rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip == std::ptr::null_mut()) {
+    && (rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip_index == INVALID_OPENING) {
         let copy_size: usize = (rsl.rw_stopx - start) as usize;
         for i in 0 .. copy_size {
             rc.pc.openings[(rc.pc.lastopening_index as usize) + i] = 
                 rc.pc.floorclip[(start as usize) + i];
         }
-        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip =
-                rc.pc.openings.as_mut_ptr().offset(
-                    (rc.pc.lastopening_index as isize) - (start as isize));
+        rc.bc.drawsegs[rc.bc.ds_index as usize].sprbottomclip_index =
+                rc.pc.lastopening_index - (start as opening_index_t);
         rc.pc.lastopening_index += (rsl.rw_stopx - start) as opening_index_t;
     }
 

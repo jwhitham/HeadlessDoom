@@ -44,7 +44,7 @@ pub const INVALID_PLANE: visplane_index_t = visplane_index_t::MAX;
 pub type opening_index_t = i16; // may be negative
 pub const INVALID_OPENING: opening_index_t = opening_index_t::MIN;
 pub const SCREEN_HEIGHT_OPENING: opening_index_t = 0;
-const NEGATIVE_ONE_OPENING: opening_index_t = SCREENWIDTH as opening_index_t;
+pub const NEGATIVE_ONE_OPENING: opening_index_t = SCREENWIDTH as opening_index_t;
 const FIRST_DYNAMIC_OPENING: opening_index_t = (SCREENWIDTH as opening_index_t) * 2;
 
 

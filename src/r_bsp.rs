@@ -56,7 +56,7 @@ pub struct drawseg_t {
     // Pointers to lists for sprite clipping,
     //  all three adjusted so [x1] is first value.
     pub sprtopclip_index: opening_index_t,
-    pub sprbottomclip: *mut i16,
+    pub sprbottomclip_index: opening_index_t,
     pub maskedtexturecol_index: opening_index_t,
 }
 
@@ -71,7 +71,7 @@ const empty_drawseg: drawseg_t = drawseg_t {
     bsilheight: 0,
     tsilheight: 0,
     sprtopclip_index: INVALID_OPENING,
-    sprbottomclip: std::ptr::null_mut(),
+    sprbottomclip_index: INVALID_OPENING,
     maskedtexturecol_index: INVALID_OPENING,
 };
 
