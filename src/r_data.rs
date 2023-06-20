@@ -27,6 +27,11 @@ use crate::defs::*;
 use crate::globals::*;
 use crate::funcs::*;
 use crate::r_main;
+use crate::w_wad::W_CacheLumpNum;
+use crate::w_wad::W_CacheLumpName;
+use crate::w_wad::W_CheckNumForName;
+use crate::w_wad::W_LumpLength;
+use crate::w_wad::W_GetNumForName;
 
 
 pub const COLORMAP_SIZE: usize = 256;

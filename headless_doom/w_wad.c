@@ -67,7 +67,7 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 lumpinfo_t*		lumpinfo;		
 int			numlumps;
 
-static void**			lumpcache;
+void**			lumpcache;
 
 
 #define strcmpi	strcasecmp
@@ -396,51 +396,6 @@ W_ReadLump
 
 
 
-
-//
-// W_CacheLumpNum
-//
-void*
-W_CacheLumpNum
-( int		lump,
-  int		tag )
-{
-    byte*	ptr;
-
-    if ((unsigned)lump >= numlumps)
-	I_Error ("W_CacheLumpNum: %i >= numlumps",lump);
-		
-    if (!lumpcache[lump])
-    {
-	// read the lump in
-	
-	//printf ("cache miss on lump %i\n",lump);
-	int len = W_LumpLength (lump); // DSB-21
-	ptr = Z_Malloc (len + 128, tag, &lumpcache[lump]); // DSB-21
-	W_ReadLump (lump, lumpcache[lump]);
-	memset (&ptr[len], 0, 128); // DSB-21
-    }
-    else
-    {
-	//printf ("cache hit on lump %i\n",lump);
-	Z_ChangeTag (lumpcache[lump],tag);
-    }
-	
-    return lumpcache[lump];
-}
-
-
-
-//
-// W_CacheLumpName
-//
-void*
-W_CacheLumpName
-( char*		name,
-  int		tag )
-{
-    return W_CacheLumpNum (W_GetNumForName(name), tag);
-}
 
 
 //

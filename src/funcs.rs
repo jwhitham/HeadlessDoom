@@ -5,11 +5,6 @@ extern {
     pub fn memset(s: *mut u8, c: i32, n: usize) -> *mut u8;
     pub fn memcpy(d: *mut u8, s: *const u8, n: usize) -> *mut u8;
     pub fn _strnicmp(a: *const u8, b: *const u8, n: usize) -> i32;
-    pub fn W_GetNumForName (name: *const u8) -> i32;
-    pub fn W_CheckNumForName (name: *const u8) -> i32;
-    pub fn W_CacheLumpNum (lump: i32, tag: u32) -> *mut u8;
-    pub fn W_CacheLumpName (name: *const u8, tag: u32) -> *mut u8;
-    pub fn W_LumpLength (lump: i32) -> i32;
     pub fn W_ReadLump (lump: i32, dest: *mut u8);
     pub fn NetUpdate();
     pub fn Z_ChangeTag2(ptr: *mut u8, tag: u32);

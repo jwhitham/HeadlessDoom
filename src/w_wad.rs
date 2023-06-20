@@ -17,7 +17,7 @@
 // $Log:$
 //
 // DESCRIPTION:
-//	Handles WAD file header, directory, lump I/O.
+// Handles WAD file header, directory, lump I/O.
 //
 //-----------------------------------------------------------------------------
 
@@ -28,6 +28,7 @@ use libc::toupper;
 
 extern {
     pub static mut numlumps: i32;
+    pub static mut lumpcache: *mut *mut u8;
 }
 //
 // W_CheckNumForName
@@ -109,5 +110,42 @@ pub unsafe extern "C" fn W_LumpLength (lump: i32) -> i32 {
     }
 
     return (*lumpinfo.offset(lump as isize)).size;
+}
+
+//
+// W_CacheLumpNum
+//
+#[no_mangle]
+pub unsafe extern "C" fn W_CacheLumpNum(lump: i32, tag: u32) -> *mut u8 {
+
+    if (lump < 0) || (lump >= numlumps) {
+        panic!("W_CacheLumpNum: {} >= numlumps", lump);
+    }
+
+    if *lumpcache.offset(lump as isize) == std::ptr::null_mut() {
+        // read the lump in
+        
+        //printf ("cache miss on lump %i\n",lump);
+        let len = W_LumpLength (lump);
+        let ptr = Z_Malloc (len + 128, tag,
+                            lumpcache.offset(lump as isize));
+        W_ReadLump (lump, *lumpcache.offset(lump as isize));
+        memset (ptr.offset(len as isize), 0, 128); // DSB-21
+    } else {
+        //printf ("cache hit on lump %i\n",lump);
+        Z_ChangeTag2 (*lumpcache.offset(lump as isize), tag);
+    }
+
+    return *lumpcache.offset(lump as isize);
+}
+
+
+
+//
+// W_CacheLumpName
+//
+#[no_mangle]
+pub unsafe extern "C" fn W_CacheLumpName(name: *const u8, tag: u32) -> *mut u8 {
+    return W_CacheLumpNum (W_GetNumForName(name), tag);
 }
 

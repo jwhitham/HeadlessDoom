@@ -42,6 +42,8 @@ use crate::r_data::colormap_index_t;
 use crate::r_draw::R_DrawColumn_params_t;
 use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_plane::INVALID_OPENING;
+use crate::w_wad::W_GetNumForName;
+use crate::w_wad::W_CacheLumpNum;
 
 pub struct R_DrawMaskedColumn_params_t {
     pub dc: R_DrawColumn_params_t,
