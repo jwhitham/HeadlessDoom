@@ -65,7 +65,7 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 
 // Location of each lump on disk.
 lumpinfo_t*		lumpinfo;		
-static int			numlumps;
+int			numlumps;
 
 static void**			lumpcache;
 
@@ -348,84 +348,6 @@ static int W_NumLumps (void)
 }
 
 
-
-//
-// W_CheckNumForName
-// Returns -1 if name not found.
-//
-
-int W_CheckNumForName (char* name)
-{
-    union {
-	char	s[9];
-	int	x[2];
-	
-    } name8;
-    
-    int		v1;
-    int		v2;
-    lumpinfo_t*	lump_p;
-
-    // make the name into two integers for easy compares
-    strncpy (name8.s,name,8);
-
-    // in case the name was a fill 8 chars
-    name8.s[8] = 0;
-
-    // case insensitive
-    my_strupr (name8.s);		// DSB-27
-
-    v1 = name8.x[0];
-    v2 = name8.x[1];
-
-
-    // scan backwards so patch lump files take precedence
-    lump_p = lumpinfo + numlumps;
-
-    while (lump_p-- != lumpinfo)
-    {
-	const int* name_p = (int*) lump_p->name; // DSB-25 - aliasing will not matter here
-	if (name_p[0] == v1 && name_p[1] == v2)
-	{
-	    return lump_p - lumpinfo;
-	}
-    }
-
-    // TFB. Not found.
-    return -1;
-}
-
-
-
-
-//
-// W_GetNumForName
-// Calls W_CheckNumForName, but bombs out if not found.
-//
-int W_GetNumForName (char* name)
-{
-    int	i;
-
-    i = W_CheckNumForName (name);
-    
-    if (i == -1)
-      I_Error ("W_GetNumForName: %s not found!", name);
-      
-    return i;
-}
-
-
-//
-// W_LumpLength
-// Returns the buffer size needed to load the given lump.
-//
-int W_LumpLength (int lump)
-{
-    if (lump >= numlumps)
-	I_Error ("W_LumpLength: %i >= numlumps",lump);
-
-    return lumpinfo[lump].size;
-}
 
 
 
