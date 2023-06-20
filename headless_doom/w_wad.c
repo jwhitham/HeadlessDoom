@@ -65,19 +65,19 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 
 // Location of each lump on disk.
 lumpinfo_t*		lumpinfo;		
-int			numlumps;
+static int			numlumps;
 
-void**			lumpcache;
+static void**			lumpcache;
 
 
 #define strcmpi	strcasecmp
 
-void my_strupr (char* s) // DSB-27
+static void my_strupr (char* s) // DSB-27
 {
     while (*s) { *s = toupper(*s); s++; }
 }
 
-int filelength (FILE* handle)  // DSB-16 - use stdio file functions
+static int filelength (FILE* handle)  // DSB-16 - use stdio file functions
 { 
     int size;
     
@@ -88,7 +88,7 @@ int filelength (FILE* handle)  // DSB-16 - use stdio file functions
 }
 
 
-void
+static void
 ExtractFileBase
 ( char*		path,
   char*		dest )
@@ -140,11 +140,11 @@ ExtractFileBase
 //  specially to allow map reloads.
 // But: the reload feature is a fragile hack...
 
-int			reloadlump;
-char*			reloadname;
+static int			reloadlump;
+static char*			reloadname;
 
 
-void W_AddFile (char *filename)
+static void W_AddFile (char *filename)
 {
     wadinfo_t		header;
     lumpinfo_t*		lump_p;
@@ -328,7 +328,7 @@ void W_InitMultipleFiles (char** filenames)
 // W_InitFile
 // Just initialize from a single file.
 //
-void W_InitFile (char* filename)
+static void W_InitFile (char* filename)
 {
     char*	names[2];
 
@@ -342,7 +342,7 @@ void W_InitFile (char* filename)
 //
 // W_NumLumps
 //
-int W_NumLumps (void)
+static int W_NumLumps (void)
 {
     return numlumps;
 }
@@ -524,10 +524,10 @@ W_CacheLumpName
 //
 // W_Profile
 //
-int		info[2500][10];
-int		profilecount;
+static int		info[2500][10];
+static int		profilecount;
 
-void W_Profile (void)
+static void W_Profile (void)
 {
     int		i;
     memblock_t*	block;
