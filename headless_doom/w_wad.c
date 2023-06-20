@@ -351,49 +351,6 @@ static int W_NumLumps (void)
 
 
 
-//
-// W_ReadLump
-// Loads the lump into the given buffer,
-//  which must be >= W_LumpLength().
-//
-void
-W_ReadLump
-( int		lump,
-  void*		dest )
-{
-    int		c;
-    lumpinfo_t*	l;
-    FILE* handle;
-	
-    if (lump >= numlumps)
-	I_Error ("W_ReadLump: %i >= numlumps",lump);
-
-    l = lumpinfo+lump;
-	
-    // ??? I_BeginRead ();
-	
-    if (l->handle == NULL)
-    {
-	// reloadable file, so use open / read / close
-	if ( (handle = fopen (reloadname, "rb")) == NULL) // DSB-16 - use stdio file functions
-	    I_Error ("W_ReadLump: couldn't open %s",reloadname);
-    }
-    else
-	handle = l->handle;
-		
-    fseek (handle, l->position, SEEK_SET);
-    c = fread (dest, 1, l->size, handle);
-
-    if (c < l->size)
-	I_Error ("W_ReadLump: only read %i of %i on lump %i",
-		 c,l->size,lump);	
-
-    if (l->handle == NULL)
-	fclose (handle);
-		
-    // ??? I_EndRead ();
-}
-
 
 
 

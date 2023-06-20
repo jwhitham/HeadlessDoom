@@ -25,6 +25,11 @@ use crate::globals::*;
 use crate::funcs::*;
 
 use libc::toupper;
+use libc::fseek;
+use libc::fread;
+use libc::SEEK_SET;
+use libc::FILE;
+use libc::c_void;
 
 extern {
     pub static mut numlumps: i32;
@@ -147,5 +152,34 @@ pub unsafe extern "C" fn W_CacheLumpNum(lump: i32, tag: u32) -> *mut u8 {
 #[no_mangle]
 pub unsafe extern "C" fn W_CacheLumpName(name: *const u8, tag: u32) -> *mut u8 {
     return W_CacheLumpNum (W_GetNumForName(name), tag);
+}
+
+//
+// W_ReadLump
+// Loads the lump into the given buffer,
+//  which must be >= W_LumpLength().
+//
+#[no_mangle]
+pub unsafe extern "C" fn W_ReadLump(lump: i32, dest: *mut u8) {
+    if (lump < 0) || (lump >= numlumps) {
+        panic!("W_ReadLump: {} >= numlumps", lump);
+    }
+
+    let l = lumpinfo.offset(lump as isize);
+    
+    // ??? I_BeginRead ();
+    
+    if (*l).handle == std::ptr::null_mut() {
+        panic!("no support for reloadable files");
+    }
+    let handle = (*l).handle as *mut FILE;
+        
+    fseek (handle, (*l).position, SEEK_SET);
+    let c = fread (dest as *mut c_void, 1, (*l).size as usize, handle);
+
+    if c < ((*l).size as usize) {
+        panic!("W_ReadLump: only read {} of {} on lump {}",
+                c, (*l).size, lump);
+    }
 }
 
