@@ -44,6 +44,7 @@ use crate::r_draw::empty_R_DrawColumn_params;
 use crate::r_plane::INVALID_OPENING;
 use crate::w_wad::W_GetNumForName;
 use crate::w_wad::W_CacheLumpNum;
+use crate::w_wad::W_GetNameForNum;
 
 pub struct R_DrawMaskedColumn_params_t {
     pub dc: R_DrawColumn_params_t,
@@ -267,25 +268,24 @@ unsafe fn R_InitSpriteDefs (rc: &mut RenderContext_t, namelist: *mut *mut u8) {
         // scan the lumps,
         //  filling in the frames for whatever is found
         for l in start + 1 .. end {
-            let lumpinfo_tmp = lumpinfo;
-            let lump = lumpinfo_tmp.offset(l as isize);
+            let name = W_GetNameForNum(l);
 
-            if *((*lump).name.as_ptr() as *const i32) == intname {
-                let frame = ((*lump).name[4] as u32) - ('A' as u32);
-                let rotation = ((*lump).name[5] as u32) - ('0' as u32);
+            if *(name as *const i32) == intname {
+                let frame = (*name.offset(4) as u32) - ('A' as u32);
+                let rotation = (*name.offset(5) as u32) - ('0' as u32);
                 let patched: i32;
 
                 if modifiedgame != c_false {
-                    patched = W_GetNumForName ((*lump).name.as_ptr() as *const u8);
+                    patched = W_GetNumForName (name);
                 } else {
                     patched = l;
                 }
 
                 R_InstallSpriteLump (&mut rc.tc, patched, frame, rotation, c_false);
 
-                if (*lump).name[6] != 0 {
-                    let frame = ((*lump).name[6] as u32) - ('A' as u32);
-                    let rotation = ((*lump).name[7] as u32) - ('0' as u32);
+                if *name.offset(6) != 0 {
+                    let frame = (*name.offset(6) as u32) - ('A' as u32);
+                    let rotation = (*name.offset(7) as u32) - ('0' as u32);
                     R_InstallSpriteLump (&mut rc.tc, l, frame, rotation, c_true);
                 }
             } 

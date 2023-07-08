@@ -2,7 +2,7 @@
 use crate::defs::*;
 extern {
     pub static mut screens: [*mut u8; 5];
-    pub static mut lumpinfo: *mut lumpinfo_t;
+    //pub static mut lumpinfo: *mut lumpinfo_t;
     pub static mut modifiedgame: boolean;
     pub static mut segs: *mut seg_t;
     pub static mut numsubsectors: i32;

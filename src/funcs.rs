@@ -10,8 +10,12 @@ extern {
     pub fn Z_Free(ptr: *mut u8);
 }
 
+pub unsafe fn W_Str_C2R(s: *const u8) -> String {
+    return std::ffi::CStr::from_ptr(s as *const i8).to_str().unwrap().to_string();
+}
+
 pub unsafe fn W_Name(name_p: *const u8) -> String {
-    let mut name: [i8; 9] = [0; 9];
+    let mut name: [u8; 9] = [0; 9];
     memcpy (name.as_mut_ptr() as *mut u8, name_p as *const u8, 8);
-    return std::ffi::CStr::from_ptr(name.as_ptr()).to_str().unwrap().to_string();
+    return W_Str_C2R(name.as_ptr());
 }
