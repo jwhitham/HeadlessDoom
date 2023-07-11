@@ -22,7 +22,6 @@
 //-----------------------------------------------------------------------------
 
 use crate::funcs::*;
-use crate::defs::*;
 
 use libc::toupper;
 use std::fs::File;
@@ -107,7 +106,7 @@ pub unsafe extern "C" fn W_GetNumForName (name: *const u8) -> i32 {
     return i;
 }
 
-pub fn W_GetNameForNum (lump: i32) -> *const u8 {
+pub unsafe fn W_GetNameForNum (lump: i32) -> *const u8 {
     if (lump < 0) || ((lump as usize) >= lumpinfo.len()) {
         panic!("W_GetNameForNum: {} >= numlumps", lump);
     }
@@ -139,14 +138,14 @@ pub unsafe extern "C" fn W_CacheLumpNum(lump: i32, tag: u32) -> *mut u8 {
         panic!("W_CacheLumpNum: {} >= numlumps", lump);
     }
 
-    let &mut lump_p = lumpinfo.get_mut(lump as usize).unwrap();
+    let lump_p = lumpinfo.get(lump as usize).unwrap();
     if lump_p.cache == std::ptr::null_mut() {
         // read the lump in
         
         //printf ("cache miss on lump %i\n",lump);
         let len = lump_p.size;
         let ptr = Z_Malloc (len + 128, tag, std::ptr::null_mut()) as *mut u8;
-        lump_p.cache = ptr;
+        lumpinfo.get_mut(lump as usize).unwrap().cache = ptr;
         W_ReadLump (lump, ptr);
         memset (ptr.offset(len as isize), 0, 128); // DSB-21
         return ptr;
@@ -195,7 +194,7 @@ pub unsafe extern "C" fn W_ReadLump(lump: i32, dest: *mut u8) {
     }
 }
 
-fn ExtractFileBase(path: &str, dest: &mut [i8; 8]) {
+unsafe fn ExtractFileBase(path: &str, dest: &mut [u8; 8]) {
 
     let path_bytes = path.as_bytes();
     let mut start_index = path_bytes.len();
@@ -214,7 +213,7 @@ fn ExtractFileBase(path: &str, dest: &mut [i8; 8]) {
         if path_bytes[i + start_index] == ('.' as u8) {
             break;
         }
-        dest[i] = toupper(path_bytes[i + start_index] as i32) as i8;
+        dest[i] = toupper(path_bytes[i + start_index] as i32) as u8;
     }
 }
 
@@ -232,7 +231,7 @@ fn ExtractFileBase(path: &str, dest: &mut [i8; 8]) {
 //  specially to allow map reloads.
 // But: the reload feature is a fragile hack...
 
-fn W_AddFile (filename: &str) {
+unsafe fn W_AddFile (filename: &str) {
     // open the file and add to directory
 
     // handle reload indicator.
@@ -245,14 +244,20 @@ fn W_AddFile (filename: &str) {
         println!(" couldn't open {}", filename);
         return;
     }
-    let handle = handle_or_err.unwrap();
+    let mut handle = handle_or_err.unwrap();
 
+    #[derive(Copy,Clone)]
+    struct filelump_t {
+        filepos: i32,
+        size: i32,
+        name: [u8; 8],
+    }
     println!(" adding {}",filename);
-    let fileinfo: Vec<filelump_t> = Vec::new();
+    let mut fileinfo: Vec<filelump_t> = Vec::new();
     
-    if filename.ends_with("wad") {
+    if !filename.to_lowercase().ends_with("wad") {
         // single lump file
-        let singleinfo: filelump_t = filelump_t {
+        let mut singleinfo: filelump_t = filelump_t {
             filepos: 0,
             size: i32::to_le(handle.metadata().unwrap().len() as i32),
             name: [0; 8],
@@ -261,15 +266,25 @@ fn W_AddFile (filename: &str) {
         fileinfo.push(singleinfo);
     } else {
         // WAD file
-        let mut header: wadinfo_t = wadinfo_t {
-            identification: [0; 4],
-            numlumps: 0,
-            infotableofs: 0,
+        #[derive(Copy,Clone)]
+        struct wadinfo_t {
+            identification: [u8; 4],
+            numlumps: i32,
+            infotableofs: i32,
+        }
+        #[derive(Copy,Clone)]
+        union read_wadinfo_t {
+            w: wadinfo_t,
+            d: [u8; 12],
+        }
+        let mut read_wadinfo: read_wadinfo_t = read_wadinfo_t {
+            d: [0; 12],
         };
-        handle.read(&mut header);
-        if header.identification != "IWAD" {
+        handle.read_exact(&mut read_wadinfo.d);
+        let mut header = read_wadinfo.w;
+        if header.identification != "IWAD".as_bytes() {
             // Homebrew levels?
-            if header.identification != "PWAD" {
+            if header.identification != "PWAD".as_bytes() {
                 panic!("Wad file {} doesn't have IWAD or PWAD id", filename);
             }
 
@@ -277,25 +292,28 @@ fn W_AddFile (filename: &str) {
         }
         header.numlumps = i32::from_le(header.numlumps);
         header.infotableofs = i32::from_le(header.infotableofs);
-        handle.seek(std::io::SeekFrom::Start(handle.infotableofs));
+        handle.seek(std::io::SeekFrom::Start(header.infotableofs as u64));
 
-        let info: filelump_t = filelump_t {
-            filepos: 0,
-            size: 0,
-            name: [0; 8],
+        #[derive(Copy,Clone)]
+        union read_filelump_t {
+            w: filelump_t,
+            d: [u8; 16],
+        }
+        let mut read_filelump: read_filelump_t = read_filelump_t {
+            d: [0; 16],
         };
         for _ in 0 .. header.numlumps {
-            handle.read(&mut info);
-            fileinfo.push(info);
+            handle.read(&mut read_filelump.d);
+            fileinfo.push(read_filelump.w);
         }
     }
 
     // Fill in lumpinfo
     for info in fileinfo {
         let lump: wad_lumpinfo_t = wad_lumpinfo_t {
-            position: i32::from_le(fileinfo.filepos),
-            size: i32::from_le(fileinfo.size),
-            name: fileinfo.name,
+            position: i32::from_le(info.filepos),
+            size: i32::from_le(info.size),
+            name: info.name as [u8; 8],
             handle: file_handles.len(),
             cache: std::ptr::null_mut(),
         };
@@ -333,11 +351,11 @@ pub unsafe extern "C" fn W_Reload () {
 #[no_mangle]
 pub unsafe extern "C" fn W_InitMultipleFiles (filenames: *const *const u8) { 
     // open all the files, load headers, and count lumps
-    let mut i: usize = 0;
+    let mut i: isize = 0;
 
     while *filenames.offset(i) != std::ptr::null() {
-        W_AddFile(W_Str_C2R(*filenames.offset(i)));
-        filenames = filenames.offset(1);
+        W_AddFile(&W_Str_C2R(*filenames.offset(i)));
+        i += 1;
     }
 
     if lumpinfo.is_empty() {
